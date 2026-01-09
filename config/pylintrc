@@ -1,0 +1,29 @@
+[MASTER]
+ignore=CVS
+ignore-patterns=
+persistent=yes
+load-plugins=
+jobs=1
+unsafe-load-any-extension=no
+
+[MESSAGES CONTROL]
+enable=all
+disable=
+    design,
+    similarities,
+    spelling,
+    locally-disabled,
+    file-ignored,
+    suppressed-message,
+    useless-suppression,
+    deprecated-pragma,
+    use-symbolic-message-instead
+
+[REPORTS]
+output-format=text
+reports=no
+score=yes
+
+[FORMAT]
+max-line-length=80
+indent-string='    '

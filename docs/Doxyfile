@@ -1,0 +1,11 @@
+PROJECT_NAME           = "Jerry"
+PROJECT_NUMBER         = 0.1
+OUTPUT_DIRECTORY       = ../build/docs
+INPUT                  = ../application ../tools
+RECURSIVE              = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+OPTIMIZE_OUTPUT_FOR_C  = YES
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES

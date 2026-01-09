@@ -1,0 +1,8 @@
+--enable=style,performance,portability,information,warning
+--std=c11
+--language=c
+--inline-suppr
+--suppress=missingIncludeSystem
+--addon=misra
+--addon=cert
+--error-exitcode=1
