@@ -12,6 +12,7 @@ static ModbusData_t sModbusData;
 
 void vModbusTask(void* pvParameters) {
   (void)pvParameters;
+  (void)sModbusData;
 
   /* Initialize Modbus RTU (UART 19200, 8N2) */
   /* ModbusRTU_Init(19200, Parity_None, StopBits_2); */

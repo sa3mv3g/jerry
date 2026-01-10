@@ -1,7 +1,5 @@
-/*
- * Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
- * All rights reserved.
- */
+# Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+# All rights reserved.
 
 cmake_minimum_required(VERSION 3.20)
 

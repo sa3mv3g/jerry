@@ -94,4 +94,9 @@ extern uint32_t SystemCoreClock;
 #define INCLUDE_xTaskGetHandle              1
 #define INCLUDE_xTaskResumeFromISR          1
 
+/* Cortex-M33 specific definitions */
+#define configENABLE_FPU 1
+#define configENABLE_MPU 0
+#define configENABLE_TRUSTZONE 0
+
 #endif /* FREERTOS_CONFIG_H */

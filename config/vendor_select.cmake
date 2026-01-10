@@ -2,6 +2,7 @@
 # All rights reserved.
 
 set(VENDOR "stm" CACHE STRING "Microcontroller Vendor")
+set(ENV{VENDOR} "${VENDOR}")
 
 if(VENDOR STREQUAL "stm")
     set(BSP_DIR "${CMAKE_SOURCE_DIR}/application/bsp/stm")
