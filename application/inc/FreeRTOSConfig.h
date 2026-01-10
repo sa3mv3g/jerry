@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+ * All rights reserved.
+ */
+
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 

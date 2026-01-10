@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+# All rights reserved.
+
 """
 Script to run Lizard complexity analysis.
 """

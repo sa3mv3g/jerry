@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+ * All rights reserved.
+ */
+
 #include "FreeRTOS.h"
 #include "app_tasks.h"
 #include "modbus_data.h"

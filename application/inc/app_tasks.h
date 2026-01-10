@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+ * All rights reserved.
+ */
+
 #ifndef APP_TASKS_H
 #define APP_TASKS_H
 

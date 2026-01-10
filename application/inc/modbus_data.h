@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+ * All rights reserved.
+ */
+
 #ifndef MODBUS_DATA_H
 #define MODBUS_DATA_H
 

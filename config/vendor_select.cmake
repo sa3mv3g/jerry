@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+# All rights reserved.
+
 set(VENDOR "stm" CACHE STRING "Microcontroller Vendor")
 
 if(VENDOR STREQUAL "stm")

@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+# All rights reserved.
+
 """
 Script to format C/C++ source code using clang-format.
 """
