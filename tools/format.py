@@ -1,10 +1,20 @@
+"""
+Script to format C/C++ source code using clang-format.
+"""
+
+import glob
 import os
 import subprocess
-import glob
-import sys
+
+# Batch processing to avoid command line length limits on Windows
+# cmd.exe has 8191 char limit
+MAX_CMD_LEN = 7000
 
 
 def main():
+    """
+    Main function to run clang-format on project files.
+    """
     # Determine project root (assuming script is in tools/)
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     config_file = os.path.join(root_dir, "config", ".clang-format")
@@ -26,19 +36,15 @@ def main():
         print("No files found to format.")
         return
 
-    # Batch processing to avoid command line length limits on Windows
-    # cmd.exe has 8191 char limit
-    MAX_CMD_LEN = 7000
-
     batch = []
     current_len = 0
     base_cmd = ["clang-format", "-i", f"-style=file:{config_file}"]
     base_len = sum(len(arg) + 1 for arg in base_cmd)  # +1 for space
 
-    for f in files:
+    for filepath in files:
         # Normalize path
-        f = os.path.normpath(f)
-        f_len = len(f) + 1
+        norm_filepath = os.path.normpath(filepath)
+        f_len = len(norm_filepath) + 1
 
         if current_len + f_len + base_len > MAX_CMD_LEN:
             # Flush batch
@@ -47,7 +53,7 @@ def main():
             batch = []
             current_len = 0
 
-        batch.append(f)
+        batch.append(norm_filepath)
         current_len += f_len
 
     if batch:

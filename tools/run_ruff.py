@@ -1,9 +1,16 @@
+"""
+Script to run Ruff.
+"""
+
 import os
 import subprocess
 import sys
 
 
 def main():
+    """
+    Main function to run ruff.
+    """
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     config_file = os.path.join(root_dir, "config", "ruff.toml")
     target = os.path.join(root_dir, "tools")

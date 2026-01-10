@@ -1,9 +1,16 @@
+"""
+Script to run Pylint.
+"""
+
 import os
 import subprocess
 import sys
 
 
 def main():
+    """
+    Main function to run pylint.
+    """
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     rc_file = os.path.join(root_dir, "config", "pylintrc")
 
