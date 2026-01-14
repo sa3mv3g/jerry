@@ -11,6 +11,8 @@
 #include "task.h"
 #include "timers.h"
 
+#include "bsp.h"
+
 /* Stack size for the tasks */
 #define MAIN_TASK_STACK_SIZE    256
 #define LOG_TASK_STACK_SIZE     256
@@ -81,7 +83,7 @@ void vApplicationTickHook(void) { /* Called every tick interrupt */ }
 /* Main Entry Point */
 int main(void) {
     /* Initialize Hardware (BSP) */
-    /* BSP_Init(); */
+    BSP_Init();
 
     /* Create Main Task */
     xMainTaskHandle = xTaskCreateStatic(

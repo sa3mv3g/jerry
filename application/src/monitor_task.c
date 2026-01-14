@@ -3,6 +3,8 @@
  * All rights reserved.
  */
 
+#include <stdio.h>
+
 #include "FreeRTOS.h"
 #include "app_tasks.h"
 #include "task.h"
@@ -17,6 +19,7 @@ void vMonitorTask(void* pvParameters) {
            uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL); */
 
         /* Log if dangerously low */
+        printf("hello\r\n");
 
         vTaskDelay(pdMS_TO_TICKS(1000));
     }

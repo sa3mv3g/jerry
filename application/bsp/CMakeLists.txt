@@ -1,0 +1,6 @@
+if(VENDOR STREQUAL "stm" OR "$ENV{VENDOR}" STREQUAL "stm")
+    set(APP_SOURCES ${APP_SOURCES} ${BSP_DIR}/stm/bsp.c PARENT_SCOPE)
+    add_subdirectory(${BSP_DIR}/stm/stm32h563)
+else()
+    message(FATAL_ERROR "Unsupported Vendor: ${VENDOR}")
+endif()

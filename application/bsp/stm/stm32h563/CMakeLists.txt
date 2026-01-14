@@ -11,6 +11,8 @@ target_sources(stm32h563_bsp PRIVATE
     NonSecure/Core/Src/stm32h5xx_it.c
     NonSecure/Core/Src/syscalls.c
     NonSecure/Core/Src/sysmem.c
+    NonSecure/Core/Src/main.c
+    NonSecure/Core/Src/stm32h5xx_hal_timebase_tim.c
 )
 
 # HAL Drivers

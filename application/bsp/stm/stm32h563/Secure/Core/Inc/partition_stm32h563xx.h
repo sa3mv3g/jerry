@@ -441,7 +441,7 @@
 //   <o.14> TIM3_IRQn             <0=> Secure state
 //   <o.15> TIM4_IRQn             <0=> Secure state
 //   <o.16> TIM5_IRQn             <0=> Secure state
-//   <o.17> TIM6_IRQn             <0=> Secure state
+//   <o.17> TIM6_IRQn             <1=> Non-Secure state
 //   <o.18> TIM7_IRQn             <0=> Secure state
 //   <o.19> I2C1_EV_IRQn          <0=> Secure state
 //   <o.20> I2C1_ER_IRQn          <0=> Secure state
@@ -457,7 +457,7 @@
 //   <o.30> UART5_IRQn            <0=> Secure state
 //   <o.31> LPUART1_IRQn          <0=> Secure state
 */
-#define NVIC_INIT_ITNS1_VAL      0x00000000
+#define NVIC_INIT_ITNS1_VAL      0x00020000
 
 /*
 //   </e>
