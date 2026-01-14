@@ -10,6 +10,7 @@ SET(CPPCHECK_CLI_ARGS
 -i ./test/
 -i ./application/dependencies/
 -i ./application/bsp/
+--project=build/compile_commands.json
 )
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -23,5 +24,3 @@ else()
         --output-file=build/${CPPCHECK_REPORT_FILENAME_NOEXT}.txt
     )
 endif()
-
-list(APPEND CPPCHECK_CLI_ARGS ./application/)
