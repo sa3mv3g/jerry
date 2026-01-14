@@ -3,8 +3,12 @@
 
 cmake_minimum_required(VERSION 3.20)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Select Vendor and Toolchain
 include(config/vendor_select.cmake)
+include(config/lizard_config.cmake)
+include(config/cppcheck_config.cmake)
 
 project(jerry C ASM)
 
@@ -24,13 +28,13 @@ if(UV_EXECUTABLE)
     )
 
     add_custom_target(cppcheck
-        COMMAND ${UV_EXECUTABLE} run python tools/run_cppcheck.py
+        COMMAND ${UV_EXECUTABLE} run cppcheck  ${CPPCHECK_CLI_ARGS}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Running CppCheck..."
     )
 
     add_custom_target(lizard
-        COMMAND ${UV_EXECUTABLE} run python tools/run_lizard.py
+        COMMAND ${UV_EXECUTABLE} run lizard ${LIZARD_CLI_PARAMS}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Running Lizard metrics..."
     )
