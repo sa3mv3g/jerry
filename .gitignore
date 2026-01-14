@@ -58,3 +58,4 @@ build/
 .venv/
 .git/
 .vscode/
+.ruff_cache/

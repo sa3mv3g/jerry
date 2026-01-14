@@ -38,7 +38,7 @@ This project will be architected the way below:
 2. `3p libraries` will be statically linked. 
 3. For the tools required to test or automate this firmware will only be written in Python.
 4. Build system will be strictly CMake.
-5. `CMake` to generate `nmake` files.
+5. `CMake` to generate `ninja` files.
 6. `clang-format`is to be used to maintain consistent formatting of C/h files of the app. 
 7. ruff is to be use for formatting of the python files.
 8. use `cppcheck` to perform static analysis. It must do CERT-C with MISRA enabled on all the `app` c/h files. 
