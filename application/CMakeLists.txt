@@ -9,7 +9,7 @@ file(GLOB_RECURSE APP_HEADERS "inc/*.h")
 
 # 3rd Party Libs would be added here
 add_library(freertos_config INTERFACE)
-target_include_directories(freertos_config SYSTEM INTERFACE inc)
+target_include_directories(freertos_config INTERFACE inc)
 target_compile_definitions(freertos_config INTERFACE projCOVERAGE_TEST=0)
 
 set(FREERTOS_PORT "GCC_ARM_CM33_NTZ_NONSECURE" CACHE STRING "FreeRTOS Port")
