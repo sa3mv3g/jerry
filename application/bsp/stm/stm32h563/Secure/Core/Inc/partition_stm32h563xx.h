@@ -486,7 +486,7 @@
 //   <o.13> FMC_IRQn              <0=> Secure state
 //   <o.14> OCTOSPI1_IRQn         <0=> Secure state
 //   <o.15> SDMMC1_IRQn           <0=> Secure state
-//   <o.16> I2C3_EV_IRQn          <1=> Non-Secure state
+//   <o.16> I2C3_EV_IRQn          <0=> Secure state
 //   <o.17> I2C3_ER_IRQn          <0=> Secure state
 //   <o.18> SPI4_IRQn             <0=> Secure state
 //   <o.19> SPI5_IRQn             <0=> Secure state
@@ -503,7 +503,7 @@
 //   <o.30> GPDMA2_Channel4_IRQn  <0=> Secure state
 //   <o.31> GPDMA2_Channel5_IRQn  <0=> Secure state
 */
-#define NVIC_INIT_ITNS2_VAL      0x00010400
+#define NVIC_INIT_ITNS2_VAL      0x00000400
 
 /*
 //   </e>

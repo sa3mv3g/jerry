@@ -67,6 +67,8 @@ void MX_SPI1_Init(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define MX_I2C3_PERIPH_CLOCK_FREQ 10
+#define MX_SPI1_PERIPH_CLOCK_FREQ 976562
 #define STLK_MCO_Pin GPIO_PIN_0
 #define STLK_MCO_GPIO_Port GPIOH
 #define RMII_MDC_Pin GPIO_PIN_1
