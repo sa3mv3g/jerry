@@ -39,7 +39,7 @@ FetchContent_Declare(
     FCD_CMSIS_5
     GIT_REPOSITORY https://github.com/ARM-software/CMSIS_5.git
     GIT_TAG        5.9.0
-    SOURCE_DIR     "${DEPS_PATH}/CMSIS_5"
+    SOURCE_DIR     "${DEPS_PATH}/cmsis/CMSIS_5"
     SOURCE_SUBDIR  "EXTRACT_ONLY"
 )
 
@@ -52,11 +52,8 @@ FetchContent_Declare(
     SOURCE_SUBDIR  "EXTRACT_ONLY"
 )
 
-
 # Populate the content
 FetchContent_MakeAvailable(FCD_lwip_core FCD_CMSIS_5 FCD_freertos_kernel)
-
-include(cmsis.cmake)
 
 # 3rd Party Libs would be added here
 add_library(freertos_config INTERFACE)
@@ -66,7 +63,7 @@ target_compile_definitions(freertos_config INTERFACE projCOVERAGE_TEST=0)
 set(FREERTOS_PORT "GCC_ARM_CM33_NTZ_NONSECURE" CACHE STRING "FreeRTOS Port")
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/FreeRTOS-Kernel)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lwip)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/cmsis)
 add_subdirectory(${BSP_DIR})
 
 add_executable(jerry_app
