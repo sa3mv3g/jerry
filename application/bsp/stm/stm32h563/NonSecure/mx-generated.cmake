@@ -22,6 +22,7 @@ set(MX_Application_Src
     ${CMAKE_SOURCE_DIR}/Core/Src/main.c
     ${CMAKE_SOURCE_DIR}/Core/Src/stm32h5xx_it.c
     ${CMAKE_SOURCE_DIR}/Core/Src/stm32h5xx_hal_msp.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/stm32h5xx_hal_timebase_tim.c
     ${CMAKE_SOURCE_DIR}/Core/Src/sysmem.c
     ${CMAKE_SOURCE_DIR}/Core/Src/syscalls.c
     ${CMAKE_SOURCE_DIR}/Core/Startup/startup_stm32h563xx.s
@@ -43,6 +44,12 @@ set(STM32_Drivers_Src
     ${CMAKE_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_pwr_ex.c
     ${CMAKE_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal.c
     ${CMAKE_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_exti.c
+    ${CMAKE_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_tim.c
+    ${CMAKE_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_tim_ex.c
+    ${CMAKE_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_eth.c
+    ${CMAKE_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_eth_ex.c
+    ${CMAKE_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_hcd.c
+    ${CMAKE_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_ll_usb.c
     ${CMAKE_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_usart.c
     ${CMAKE_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_usart_ex.c
     ${CMAKE_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_uart_ex.c

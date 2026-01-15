@@ -59,3 +59,5 @@ build/
 .git/
 .vscode/
 .ruff_cache/
+application/dependencies/lwip/lwip_core
+application/dependencies/lwip/

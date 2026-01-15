@@ -480,7 +480,7 @@
 //   <o.7>  TIM15_IRQn            <0=> Secure state
 //   <o.8>  TIM16_IRQn            <0=> Secure state
 //   <o.9>  TIM17_IRQn            <0=> Secure state
-//   <o.10> USB_DRD_FS_IRQn       <0=> Secure state
+//   <o.10> USB_DRD_FS_IRQn       <1=> Non-Secure state
 //   <o.11> CRS_IRQn              <0=> Secure state
 //   <o.12> UCPD1_IRQn            <0=> Secure state
 //   <o.13> FMC_IRQn              <0=> Secure state
@@ -503,7 +503,7 @@
 //   <o.30> GPDMA2_Channel4_IRQn  <0=> Secure state
 //   <o.31> GPDMA2_Channel5_IRQn  <0=> Secure state
 */
-#define NVIC_INIT_ITNS2_VAL      0x00000000
+#define NVIC_INIT_ITNS2_VAL      0x00000400
 
 /*
 //   </e>

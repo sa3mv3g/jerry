@@ -63,6 +63,34 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define STLK_MCO_Pin GPIO_PIN_0
 #define STLK_MCO_GPIO_Port GPIOH
+#define RMII_MDC_Pin GPIO_PIN_1
+#define RMII_MDC_GPIO_Port GPIOC
+#define RMII_REF_CLK_Pin GPIO_PIN_1
+#define RMII_REF_CLK_GPIO_Port GPIOA
+#define RMII_MDIO_Pin GPIO_PIN_2
+#define RMII_MDIO_GPIO_Port GPIOA
+#define VBUS_SENSE_Pin GPIO_PIN_4
+#define VBUS_SENSE_GPIO_Port GPIOA
+#define RMII_CRS_DV_Pin GPIO_PIN_7
+#define RMII_CRS_DV_GPIO_Port GPIOA
+#define RMII_RXD0_Pin GPIO_PIN_4
+#define RMII_RXD0_GPIO_Port GPIOC
+#define RMII_RXD1_Pin GPIO_PIN_5
+#define RMII_RXD1_GPIO_Port GPIOC
+#define RMII_TXD1_Pin GPIO_PIN_15
+#define RMII_TXD1_GPIO_Port GPIOB
+#define USB_FS_N_Pin GPIO_PIN_11
+#define USB_FS_N_GPIO_Port GPIOA
+#define USB_FS_P_Pin GPIO_PIN_12
+#define USB_FS_P_GPIO_Port GPIOA
+#define RMII_TXT_EN_Pin GPIO_PIN_11
+#define RMII_TXT_EN_GPIO_Port GPIOG
+#define RMI_TXD0_Pin GPIO_PIN_13
+#define RMI_TXD0_GPIO_Port GPIOG
+#define ARD_D1_TX_Pin GPIO_PIN_6
+#define ARD_D1_TX_GPIO_Port GPIOB
+#define ARD_D0_RX_Pin GPIO_PIN_7
+#define ARD_D0_RX_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

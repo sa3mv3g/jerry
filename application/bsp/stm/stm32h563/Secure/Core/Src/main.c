@@ -112,26 +112,6 @@ static void MX_GTZC_S_Init(void)
   /* USER CODE BEGIN GTZC_S_Init 1 */
 
   /* USER CODE END GTZC_S_Init 1 */
-  if (HAL_GTZC_TZSC_ConfigPeriphAttributes(GTZC_PERIPH_USART3, GTZC_TZSC_PERIPH_SEC|GTZC_TZSC_PERIPH_NPRIV) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_GTZC_TZSC_ConfigPeriphAttributes(GTZC_PERIPH_USB, GTZC_TZSC_PERIPH_SEC|GTZC_TZSC_PERIPH_NPRIV) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_GTZC_TZSC_ConfigPeriphAttributes(GTZC_PERIPH_LPUART1, GTZC_TZSC_PERIPH_SEC|GTZC_TZSC_PERIPH_NPRIV) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_GTZC_TZSC_ConfigPeriphAttributes(GTZC_PERIPH_I2C3, GTZC_TZSC_PERIPH_SEC|GTZC_TZSC_PERIPH_NPRIV) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_GTZC_TZSC_ConfigPeriphAttributes(GTZC_PERIPH_ETHERNET, GTZC_TZSC_PERIPH_SEC|GTZC_TZSC_PERIPH_NPRIV) != HAL_OK)
-  {
-    Error_Handler();
-  }
   MPCBB_Area_Desc.SecureRWIllegalMode = GTZC_MPCBB_SRWILADIS_ENABLE;
   MPCBB_Area_Desc.InvertSecureState = GTZC_MPCBB_INVSECSTATE_NOT_INVERTED;
   MPCBB_Area_Desc.AttributeConfig.MPCBB_SecConfig_array[0] =   0x00000000;
@@ -213,7 +193,6 @@ static void MX_ICACHE_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
   /* USER CODE END MX_GPIO_Init_1 */
@@ -226,56 +205,18 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
-  /*Configure GPIO pins : RMII_MDC_Pin RMII_RXD0_Pin RMII_RXD1_Pin */
-  GPIO_InitStruct.Pin = RMII_MDC_Pin|RMII_RXD0_Pin|RMII_RXD1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : RMII_REF_CLK_Pin RMII_MDIO_Pin RMII_CRS_DV_Pin */
-  GPIO_InitStruct.Pin = RMII_REF_CLK_Pin|RMII_MDIO_Pin|RMII_CRS_DV_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : RMII_TXD1_Pin */
-  GPIO_InitStruct.Pin = RMII_TXD1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
-  HAL_GPIO_Init(RMII_TXD1_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : USB_FS_N_Pin USB_FS_P_Pin */
-  GPIO_InitStruct.Pin = USB_FS_N_Pin|USB_FS_P_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF10_USB;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : RMII_TXT_EN_Pin RMI_TXD0_Pin */
-  GPIO_InitStruct.Pin = RMII_TXT_EN_Pin|RMI_TXD0_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
-  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : ARD_D1_TX_Pin ARD_D0_RX_Pin */
-  GPIO_InitStruct.Pin = ARD_D1_TX_Pin|ARD_D0_RX_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF8_LPUART1;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  /*IO attributes management functions */
+  HAL_GPIO_ConfigPinAttributes(GPIOC, RMII_MDC_Pin|RMII_RXD0_Pin|RMII_RXD1_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
-  HAL_GPIO_ConfigPinAttributes(GPIOA, GPIO_PIN_4, GPIO_PIN_NSEC);
+  HAL_GPIO_ConfigPinAttributes(GPIOA, RMII_REF_CLK_Pin|RMII_MDIO_Pin|VBUS_SENSE_Pin|RMII_CRS_DV_Pin
+                          |USB_FS_N_Pin|USB_FS_P_Pin, GPIO_PIN_NSEC);
+
+  /*IO attributes management functions */
+  HAL_GPIO_ConfigPinAttributes(GPIOB, RMII_TXD1_Pin|ARD_D1_TX_Pin|ARD_D0_RX_Pin, GPIO_PIN_NSEC);
+
+  /*IO attributes management functions */
+  HAL_GPIO_ConfigPinAttributes(GPIOG, RMII_TXT_EN_Pin|RMI_TXD0_Pin, GPIO_PIN_NSEC);
 
   /* GPIO Ports Clock Enable Needed For BSP */
   __HAL_RCC_GPIOD_CLK_ENABLE();
