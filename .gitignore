@@ -64,4 +64,5 @@ build/
 application/dependencies/lwip/lwip-core
 application/dependencies/lwip/lwip-contrib
 application/dependencies/FreeRTOS-Kernel
-application/dependencies/CMSIS_5
+application/dependencies/cmsis/CMSIS_5
+application/dependencies/lwip/port/cmsis_lwip_port/Open_CMSIS_Pack_Lwip

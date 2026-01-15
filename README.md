@@ -28,10 +28,13 @@ Jerry is a data acquisition firmware designed for microcontrollers, specifically
 
 ### Prerequisites
 
+Assumption is that all the tools listed below are on terminal path.
+
 -   **CMake**: >= 3.20
 -   **Python**: >= 3.10
 -   **uv**: Python project manager.
 -   **Compiler**: Appropriate toolchain for the target microcontroller.
+-   **Ninja**: Ninja build system 
 
 ### Build Instructions
 
@@ -87,3 +90,11 @@ Run individual tools:
 -   **C/C++**: [Google CPP Coding Style](refs/cpp_coding_style.md)
 -   **Python**: [Google Python Coding Style](refs/python_coding_style.md)
 -   **Shell**: [Google Shell Coding Style](refs/shell_style_guide.md)
+
+## TODO
+
+1. Currently, `MX_Device.h` file has to be generated using the following command:
+```bash
+uv run tools/MX_Device_gen.py application/bsp/stm/stm32h563/stm32h563.ioc --logfile build/mx_device_gen.log.txt
+```
+This generation step is good to be automated.

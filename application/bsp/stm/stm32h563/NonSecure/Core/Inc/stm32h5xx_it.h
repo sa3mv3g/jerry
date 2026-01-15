@@ -51,6 +51,7 @@ void UsageFault_Handler(void);
 void EXTI13_IRQHandler(void);
 void TIM6_IRQHandler(void);
 void USB_DRD_FS_IRQHandler(void);
+void I2C3_EV_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */

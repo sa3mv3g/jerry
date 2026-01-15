@@ -201,23 +201,27 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*IO attributes management functions */
-  HAL_GPIO_ConfigPinAttributes(GPIOC, RMII_MDC_Pin|RMII_RXD0_Pin|RMII_RXD1_Pin, GPIO_PIN_NSEC);
+  HAL_GPIO_ConfigPinAttributes(GPIOC, RMII_MDC_Pin|RMII_RXD0_Pin|RMII_RXD1_Pin|GPIO_PIN_9, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
-  HAL_GPIO_ConfigPinAttributes(GPIOA, RMII_REF_CLK_Pin|RMII_MDIO_Pin|VBUS_SENSE_Pin|RMII_CRS_DV_Pin
-                          |USB_FS_N_Pin|USB_FS_P_Pin, GPIO_PIN_NSEC);
+  HAL_GPIO_ConfigPinAttributes(GPIOA, RMII_REF_CLK_Pin|RMII_MDIO_Pin|VBUS_SENSE_Pin|GPIO_PIN_5
+                          |GPIO_PIN_6|RMII_CRS_DV_Pin|GPIO_PIN_8|USB_FS_N_Pin
+                          |USB_FS_P_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOB, RMII_TXD1_Pin|ARD_D1_TX_Pin|ARD_D0_RX_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
+  HAL_GPIO_ConfigPinAttributes(GPIOD, GPIO_PIN_7, GPIO_PIN_NSEC);
+
+  /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOG, RMII_TXT_EN_Pin|RMI_TXD0_Pin, GPIO_PIN_NSEC);
 
   /* GPIO Ports Clock Enable Needed For BSP */
-  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
 
   /*IO attributes management functions needed for BSP*/
