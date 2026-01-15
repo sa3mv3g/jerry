@@ -57,8 +57,6 @@
 /* Private function prototypes -----------------------------------------------*/
 static void NonSecure_Init(void);
 static void MX_GPIO_Init(void);
-static void MX_GTZC_S_Init(void);
-static void MX_ICACHE_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -100,7 +98,7 @@ static void NonSecure_Init(void)
   * @param None
   * @retval None
   */
-static void MX_GTZC_S_Init(void)
+void MX_GTZC_S_Init(void)
 {
 
   /* USER CODE BEGIN GTZC_S_Init 0 */
@@ -170,7 +168,7 @@ static void MX_GTZC_S_Init(void)
   * @param None
   * @retval None
   */
-static void MX_ICACHE_Init(void)
+void MX_ICACHE_Init(void)
 {
 
   /* USER CODE BEGIN ICACHE_Init 0 */

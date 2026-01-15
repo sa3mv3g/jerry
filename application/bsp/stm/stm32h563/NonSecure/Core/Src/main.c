@@ -59,9 +59,6 @@ HCD_HandleTypeDef hhcd_USB_DRD_FS;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_GTZC_NS_Init(void);
-static void MX_ETH_Init(void);
-static void MX_USB_HCD_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -138,7 +135,7 @@ void SystemClock_Config(void)
   * @param None
   * @retval None
   */
-static void MX_ETH_Init(void)
+void MX_ETH_Init(void)
 {
 
   /* USER CODE BEGIN ETH_Init 0 */
@@ -187,7 +184,7 @@ static void MX_ETH_Init(void)
   * @param None
   * @retval None
   */
-static void MX_GTZC_NS_Init(void)
+void MX_GTZC_NS_Init(void)
 {
 
   /* USER CODE BEGIN GTZC_NS_Init 0 */
@@ -208,7 +205,7 @@ static void MX_GTZC_NS_Init(void)
   * @param None
   * @retval None
   */
-static void MX_USB_HCD_Init(void)
+void MX_USB_HCD_Init(void)
 {
 
   /* USER CODE BEGIN USB_Init 0 */
