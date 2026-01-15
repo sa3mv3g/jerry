@@ -9,25 +9,16 @@ file(GLOB_RECURSE APP_SOURCES "src/*.c" "src/*.s")
 file(GLOB_RECURSE APP_HEADERS "inc/*.h")
 set(APP_HEADERS ${APP_HEADERS} bsp/bsp.h)
 
-# Clone CMSIS_5 if not present
-set(CMSIS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/CMSIS_5")
-if(NOT EXISTS "${CMSIS_DIR}")
-    message(STATUS "Cloning CMSIS_5...")
-    execute_process(
-        COMMAND git clone -b 5.9.0 https://github.com/ARM-software/CMSIS_5.git ${CMSIS_DIR}
-        RESULT_VARIABLE git_result
-    )
-    if(NOT git_result EQUAL 0)
-        message(FATAL_ERROR "Failed to clone CMSIS_5")
-    endif()
-endif()
-
 # Define the base path for your dependencies
-set(LWIP_DEPS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lwip")
+set(DEPS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/")
+set(LWIP_DEPS_PATH "${DEPS_PATH}/lwip")
+
+# All cmake FetchContent_Declare's target should be of  
+# /FCD_.*/ to make name unique.
 
 # 1. Download LwIP Core into application/dependencies/lwip/src
 FetchContent_Declare(
-    lwip_core
+    FCD_lwip_core
     GIT_REPOSITORY https://git.savannah.nongnu.org/git/lwip.git
     GIT_TAG        STABLE-2_1_3_RELEASE
     SOURCE_DIR     "${LWIP_DEPS_PATH}/lwip-core"
@@ -36,15 +27,34 @@ FetchContent_Declare(
 
 # 2. Download LwIP Contrib into application/dependencies/lwip/contrib
 FetchContent_Declare(
-    lwip_contrib
+    FCD_lwip_contrib
     GIT_REPOSITORY https://git.savannah.nongnu.org/git/lwip/lwip-contrib.git
     GIT_TAG        STABLE-2_1_0_RELEASE
     SOURCE_DIR     "${LWIP_DEPS_PATH}/lwip-contrib"
     SOURCE_SUBDIR  "EXTRACT_ONLY"
 )
 
+# 3. Download CMSIS_5
+FetchContent_Declare(
+    FCD_CMSIS_5
+    GIT_REPOSITORY https://github.com/ARM-software/CMSIS_5.git
+    GIT_TAG        5.9.0
+    SOURCE_DIR     "${DEPS_PATH}/CMSIS_5"
+    SOURCE_SUBDIR  "EXTRACT_ONLY"
+)
+
+# 4. Download FreeRTOS-Kernel
+FetchContent_Declare(
+    FCD_freertos_kernel
+    GIT_REPOSITORY https://github.com/FreeRTOS/FreeRTOS-Kernel.git
+    GIT_TAG        V11.2.0
+    SOURCE_DIR     "${DEPS_PATH}/FreeRTOS-Kernel"
+    SOURCE_SUBDIR  "EXTRACT_ONLY"
+)
+
+
 # Populate the content
-FetchContent_MakeAvailable(lwip_core lwip_contrib)
+FetchContent_MakeAvailable(FCD_lwip_core FCD_CMSIS_5 FCD_freertos_kernel)
 
 include(cmsis.cmake)
 
