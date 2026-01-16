@@ -8,6 +8,11 @@
 
 /* Ensure stdint is included */
 #include <stdint.h>
+#include <stdio.h> /* For printf */
+
+/* Map configPRINTF to standard printf */
+#define configPRINTF(X) printf X
+
 extern uint32_t SystemCoreClock;
 
 #define configUSE_PREEMPTION                    1U
@@ -31,11 +36,12 @@ extern uint32_t SystemCoreClock;
 #define configENABLE_BACKWARD_COMPATIBILITY     0U
 #define configNUM_THREAD_LOCAL_STORAGE_POINTERS 5U
 #define configUSE_16_BIT_TICKS                  1U
+#define configUSE_QUEUES                        1U
 
 /* Memory allocation related definitions. */
 #define configSUPPORT_STATIC_ALLOCATION 1U
-#define configSUPPORT_DYNAMIC_ALLOCATION \
-    0U /* Requirement: No dynamic allocation */
+/* Requirement: No dynamic allocation */
+#define configSUPPORT_DYNAMIC_ALLOCATION 0U
 #define configTOTAL_HEAP_SIZE                                            \
     ((size_t)(10U * 1024U)) /* Not used but often required to be defined \
                              */

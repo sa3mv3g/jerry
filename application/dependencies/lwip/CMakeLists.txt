@@ -17,7 +17,14 @@ add_subdirectory(port)
 # Include Directories
 target_include_directories(lwip_stack PUBLIC
     "${LWIP_PORT_INC}"
+    "${LWIP_CORE_DIR}/src/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/config/"
 )
+
+target_include_directories(lwip_stack PRIVATE
+    "${CMAKE_SOURCE_DIR}/application/inc"
+)
+
 
 # LwIP Core Source Files (from the cloned repo)
 target_sources(lwip_stack PRIVATE
@@ -55,9 +62,9 @@ target_sources(lwip_stack PRIVATE
 
 # Link to your FreeRTOS target and the CMSIS-Drivers (for Ethernet MAC/PHY)
 target_link_libraries(lwip_stack PRIVATE 
-    FreeRTOS_Kernel 
-    cmsis
-    bsp_interface
+    freertos_kernel 
+    cmsis_ported
+    stm32h563_bsp
 )
 
 # Necessary Definitions

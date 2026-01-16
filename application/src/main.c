@@ -8,10 +8,9 @@
 
 #include "FreeRTOS.h"
 #include "app_tasks.h"
+#include "bsp.h"
 #include "task.h"
 #include "timers.h"
-
-#include "bsp.h"
 
 /* Stack size for the tasks */
 #define MAIN_TASK_STACK_SIZE    256
@@ -89,11 +88,10 @@ int main(void) {
     xMainTaskHandle = xTaskCreateStatic(
         vMainTask, "Main", MAIN_TASK_STACK_SIZE, NULL,
         (UBaseType_t)(tskIDLE_PRIORITY + 1U), xMainTaskStack, &xMainTaskTCB);
-    
-    if(NULL != xMainTaskHandle)
-    {
-      /* Start Scheduler */
-      vTaskStartScheduler();
+
+    if (NULL != xMainTaskHandle) {
+        /* Start Scheduler */
+        vTaskStartScheduler();
     }
 
     /* Should never reach here */
