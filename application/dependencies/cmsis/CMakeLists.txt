@@ -14,6 +14,10 @@ target_include_directories(cmsis_ported PUBLIC
     ${CMSIS_PORT_INC}
 )
 
+target_compile_options(cmsis_ported PRIVATE
+    -Wall -Wextra -Werror -g -gdwarf-4 
+)
+
 # Link library 'bsp_interface' PRIVATELY
 # This means 'cmsis' uses the BSP internally, but targets linking 
 # to 'cmsis' won't automatically link to 'bsp_interface'.

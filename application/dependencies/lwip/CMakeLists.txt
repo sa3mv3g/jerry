@@ -60,6 +60,10 @@ target_sources(lwip_stack PRIVATE
     "${LWIP_PORT_SRC}"
 )
 
+target_compile_options(lwip_stack PRIVATE
+    -Wall -Wextra -Werror -g -gdwarf-4 
+)
+
 # Link to your FreeRTOS target and the CMSIS-Drivers (for Ethernet MAC/PHY)
 target_link_libraries(lwip_stack PRIVATE 
     freertos_kernel 
