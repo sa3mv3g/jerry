@@ -69,6 +69,7 @@ typedef funcptr funcptr_NS;
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
+void MX_GPIO_Init(void);
 void MX_GTZC_S_Init(void);
 void MX_ICACHE_Init(void);
 

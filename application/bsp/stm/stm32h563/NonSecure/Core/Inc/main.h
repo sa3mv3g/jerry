@@ -55,12 +55,14 @@ extern "C" {
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
+void MX_GPIO_Init(void);
 void MX_GTZC_NS_Init(void);
 void MX_ETH_Init(void);
 void MX_USB_HCD_Init(void);
 void MX_I2C3_Init(void);
 void MX_LPUART1_UART_Init(void);
 void MX_SPI1_Init(void);
+void MX_ADC1_Init(void);
 
 /* USER CODE BEGIN EFP */
 

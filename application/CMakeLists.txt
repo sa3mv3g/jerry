@@ -83,11 +83,15 @@ target_link_libraries(jerry_app
         stm32h563_bsp
         "-Wl,--no-whole-archive"
         freertos_kernel
+        "-Wl,--no-whole-archive"
+        cmsis_ported
+        "-Wl,--no-whole-archive"
+        lwip_stack
 )
 
 # Compiler options are inherited from toolchain but we can add more specific ones
 target_compile_options(jerry_app PRIVATE
-    -Wall -Wextra -Werror
+    -Wall -Wextra -Werror -g -gdwarf-4
 )
 
 # Linker options

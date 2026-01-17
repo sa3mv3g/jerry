@@ -35,7 +35,9 @@ target_include_directories(stm32h563_bsp PUBLIC
     NonSecure/Core/Inc
     Secure_nsclib
 )
-
+target_compile_options(stm32h563_bsp PRIVATE
+    -Wall -Wextra -Werror -g -gdwarf-4 -Wno-unused-parameter -Wno-old-style-declaration
+)
 # Compiler Definitions
 target_compile_definitions(stm32h563_bsp PUBLIC
     STM32H563xx

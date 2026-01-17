@@ -56,7 +56,6 @@
 
 /* Private function prototypes -----------------------------------------------*/
 static void NonSecure_Init(void);
-static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -189,7 +188,7 @@ void MX_ICACHE_Init(void)
   * @param None
   * @retval None
   */
-static void MX_GPIO_Init(void)
+void MX_GPIO_Init(void)
 {
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
@@ -200,6 +199,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
@@ -213,6 +213,9 @@ static void MX_GPIO_Init(void)
                           |USB_FS_P_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
+  HAL_GPIO_ConfigPinAttributes(GPIOF, GPIO_PIN_11, GPIO_PIN_NSEC);
+
+  /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOB, RMII_TXD1_Pin|ARD_D1_TX_Pin|ARD_D0_RX_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
@@ -220,9 +223,6 @@ static void MX_GPIO_Init(void)
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOG, RMII_TXT_EN_Pin|RMI_TXD0_Pin, GPIO_PIN_NSEC);
-
-  /* GPIO Ports Clock Enable Needed For BSP */
-  __HAL_RCC_GPIOF_CLK_ENABLE();
 
   /*IO attributes management functions needed for BSP*/
   HAL_GPIO_ConfigPinAttributes(GPIOG, GPIO_PIN_4, GPIO_PIN_NSEC);
