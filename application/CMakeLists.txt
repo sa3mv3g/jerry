@@ -89,6 +89,9 @@ target_link_libraries(jerry_app
         lwip_stack
 )
 
+# Ensure jerry_secure_app is built first so import lib exists
+add_dependencies(jerry_app jerry_secure_app)
+
 # Compiler options are inherited from toolchain but we can add more specific ones
 target_compile_options(jerry_app PRIVATE
     -Wall -Wextra -Werror -g -gdwarf-4
@@ -96,5 +99,7 @@ target_compile_options(jerry_app PRIVATE
 
 # Linker options
 target_link_options(jerry_app PRIVATE
+    -T "${CMAKE_SOURCE_DIR}/application/bsp/stm/stm32h563/NonSecure/STM32H563xx_FLASH_ns.ld"
     -Wl,-Map=${CMAKE_BINARY_DIR}/jerry_app.map
+    "${CMAKE_BINARY_DIR}/libsecure_nsclib.a"
 )

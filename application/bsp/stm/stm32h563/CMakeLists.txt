@@ -43,3 +43,41 @@ target_compile_definitions(stm32h563_bsp PUBLIC
     STM32H563xx
     USE_HAL_DRIVER
 )
+
+# Define the Secure Application
+add_executable(jerry_secure_app)
+
+file(GLOB SECURE_SOURCES "Secure/Core/Src/*.c" "Secure/Core/Startup/*.s")
+
+target_sources(jerry_secure_app PRIVATE
+    ${SECURE_SOURCES}
+    ${HAL_SOURCES}
+    ${BSP_SOURCES}
+)
+
+target_include_directories(jerry_secure_app PUBLIC
+    Drivers/STM32H5xx_HAL_Driver/Inc
+    Drivers/STM32H5xx_HAL_Driver/Inc/Legacy
+    Drivers/CMSIS/Device/ST/STM32H5xx/Include
+    Drivers/CMSIS/Include
+    Drivers/BSP/STM32H5xx_Nucleo
+    Secure/Core/Inc
+    Secure_nsclib
+)
+
+target_compile_options(jerry_secure_app PRIVATE
+    -Wall -Wextra -Werror -g -gdwarf-4 -Wno-unused-parameter -Wno-old-style-declaration
+    -mcmse
+)
+
+target_compile_definitions(jerry_secure_app PUBLIC
+    STM32H563xx
+    USE_HAL_DRIVER
+)
+
+target_link_options(jerry_secure_app PRIVATE
+    -T "${CMAKE_CURRENT_SOURCE_DIR}/Secure/STM32H563xx_FLASH_s.ld"
+    -Wl,--out-implib=${CMAKE_BINARY_DIR}/libsecure_nsclib.a
+    -Wl,--cmse-implib
+    -Wl,-Map=${CMAKE_BINARY_DIR}/jerry_secure_app.map
+)

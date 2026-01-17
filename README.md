@@ -43,13 +43,29 @@ Vendor specific tools:
 
 1.  **Configure the project**:
     ```bash
-    cmake -S . -B build
+    cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake -DVENDOR=stm
     ```
 
 2.  **Build the firmware**:
     ```bash
     cmake --build build
     ```
+
+This will produce two binaries:
+-   `build/application/bsp/stm/stm32h563/jerry_secure_app.elf` (Secure Application)
+-   `build/application/jerry_app.elf` (Non-Secure Application)
+
+### Debugging
+
+This project includes a VS Code `launch.json` configuration for seamless TrustZone debugging.
+
+1.  Open the **Run and Debug** view in VS Code.
+2.  Select **"STM32H563 Build & Debug Microcontroller - ST-Link"**.
+3.  Click Play.
+
+This configuration automatically loads both the Secure and Non-Secure binaries and starts debugging the Non-Secure application (`jerry_app`).
+
+**Logs:** GDB Server logs are output to `stlink_gdbserver.log` in the workspace root for troubleshooting connection issues.
 
 ## Available Commands
 
@@ -91,8 +107,53 @@ Run individual tools:
 ## Coding Standards
 
 -   **C/C++**: [Google CPP Coding Style](refs/cpp_coding_style.md)
--   **Python**: [Google Python Coding Style](refs/python_coding_style.md)
+-   **Python**: [Google Python Coding Style](refs/python_coding_style.md)   
 -   **Shell**: [Google Shell Coding Style](refs/shell_style_guide.md)
+
+## Vendor Specific Notes
+
+### STM32H563
+
+#### Device Configuration & Flashing (First Time Setup)
+
+Since this project uses **TrustZone**, the STM32H563 device option bytes **MUST** be configured correctly before flashing. If the device is in a default state (TZEN=0), the application will not boot.
+
+**WARNING:** Modifying Option Bytes, specifically enabling TZEN, may perform a mass erase of the flash memory.
+
+##### 1. Enable TrustZone and Configure Secure Boot
+
+Use `STM32_Programmer_CLI` (part of STM32CubeCLT) to set the Option Bytes. Here, it assumes that `STM32CubeCLT` is installed as this application sets up and put `STM32_Programmer_CLI` on terminal on path.
+
+**Step 1: Enable TrustZone**
+```bash
+STM32_Programmer_CLI -c port=SWD -ob TZEN=0xB4
+```
+*Note: This enables TrustZone. The device may reset.*
+
+**Step 2: Configure Secure Areas and Boot Address**
+Once TrustZone is enabled, you must define the Secure memory regions and the Secure Boot Address.
+-   **Bank 1**: Secure (default behavior with `SECWM1_STRT=0`, `SECWM1_END=0x7F`).
+-   **Bank 2**: Non-Secure (configured by `SECWM2_STRT=0x7F`, `SECWM2_END=0x0`).
+-   **Secure Boot Address**: Points to the start of Secure Flash (Bank 1).
+
+Run this command:
+```bash
+STM32_Programmer_CLI -c port=SWD -ob SECWM2_STRT=0x7F SECWM2_END=0x0 SECBOOTADD=0x0C0000
+```
+
+##### 2. Flash the Firmware
+
+You must flash **both** the Secure and Non-Secure applications.
+
+**Flash Secure App (to 0x0C000000):**
+```bash
+STM32_Programmer_CLI -c port=SWD -w build/application/bsp/stm/stm32h563/jerry_secure_app.elf -v -rst
+```
+
+**Flash Non-Secure App (to 0x08100000):**
+```bash
+STM32_Programmer_CLI -c port=SWD -w build/application/jerry_app.elf -v -rst
+```
 
 ## TODO
 
