@@ -33,8 +33,11 @@ Assumption is that all the tools listed below are on terminal path.
 -   **CMake**: >= 3.20
 -   **Python**: >= 3.10
 -   **uv**: Python project manager.
--   **Compiler**: Appropriate toolchain for the target microcontroller.
 -   **Ninja**: Ninja build system 
+
+Vendor specific tools:
+-   **STM32CubeCLT**: expects `STM32CLT_PATH` environment variable in shell.
+-   **STM32CubeIDE**: expects `STM32CubeIDE` environment variable in shell.
 
 ### Build Instructions
 

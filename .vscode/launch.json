@@ -1,0 +1,75 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "STM32H563 Build & Debug Microcontroller - ST-Link",
+            "cwd": "${workspaceFolder}",
+            "type": "cortex-debug",
+            "executable": "${workspaceFolder}/build/application/jerry_app.elf",
+            "request": "launch",
+            "servertype": "stlink",
+            "device": "STM32H563ZI", //MCU used
+            "interface": "swd",
+            "serialNumber": "", //Set ST-Link ID if you use multiple at the same time
+            "runToEntryPoint": "main",
+            "svdFile": "${env:STM32CLT_PATH}/STMicroelectronics_CMSIS_SVD/STM32H563.svd",
+            "v1": false, //Change it depending on ST Link version
+            "serverpath": "${env:STM32CLT_PATH}/STLink-gdb-server/bin/ST-LINK_gdbserver",
+            "stm32cubeprogrammer": "${env:STM32CLT_PATH}/STM32CubeProgrammer/bin",
+            "stlinkPath": "${env:STM32CLT_PATH}/STLink-gdb-server/bin/ST-LINK_gdbserver",
+            "armToolchainPath": "${env:STM32CLT_PATH}/GNU-tools-for-STM32/bin",
+            "gdbPath": "${env:STM32CLT_PATH}/GNU-tools-for-STM32/bin/arm-none-eabi-gdb",
+            "serverArgs": [
+                "-m",
+                "0",
+            ],
+        },
+        {
+            "name": "STM32H563 Attach to Microcontroller - ST-Link",
+            "cwd": "${workspaceFolder}",
+            "type": "cortex-debug",           
+            "executable": "${workspaceFolder}/build/application/jerry_app.elf",
+            "request": "attach",
+            "servertype": "stlink",
+            "device": "STM32H563ZI", //MCU used
+            "interface": "swd",
+            "serialNumber": "", //Set ST-Link ID if you use multiple at the same time
+            "runToEntryPoint": "main",
+            "svdFile": "${env:STM32CLT_PATH}/STMicroelectronics_CMSIS_SVD/STM32H563.svd",
+            "v1": false, //Change it depending on ST Link version
+            "serverpath": "${env:STM32CLT_PATH}/STLink-gdb-server/bin/ST-LINK_gdbserver",
+            "stm32cubeprogrammer": "${env:STM32CLT_PATH}/STM32CubeProgrammer/bin",
+            "stlinkPath": "${env:STM32CLT_PATH}/STLink-gdb-server/bin/ST-LINK_gdbserver",
+            "armToolchainPath": "${env:STM32CLT_PATH}/GNU-tools-for-STM32/bin",
+            "gdbPath": "${env:STM32CLT_PATH}/GNU-tools-for-STM32/bin/arm-none-eabi-gdb",
+            "serverArgs": [
+                "-m",
+                "0",
+            ],
+        },
+        {
+            "name": "OpenOCD STM32H563",
+            "cwd": "${workspaceFolder}",
+            "type": "cortex-debug",
+            "executable": "${workspaceFolder}/build/application/jerry_app.elf",
+            "request": "launch",
+            "servertype": "openocd",
+            "serverpath": "${env:STM32CubeIDE_PATH}/plugins/com.st.stm32cube.ide.mcu.externaltools.openocd.win32_2.4.200.202505051030/tools/bin/openocd.exe",
+            "configFiles": [
+                "${workspaceFolder}/stm32h563_openocd.cfg"
+            ],
+            "serverArgs": [
+                "-s",
+                "${env:STM32CubeIDE_PATH}/plugins/com.st.stm32cube.ide.mcu.debug.openocd_2.3.100.202501240831/resources/openocd/st_scripts",
+                "-d3"
+            ],
+            "device": "STM32H563ZI",
+            "runToEntryPoint": "main",
+            "svdFile": "${env:STM32CLT_PATH}/STMicroelectronics_CMSIS_SVD/STM32H563.svd",
+            "showDevDebugOutput": "raw"
+        }
+    ]
+}
