@@ -55,18 +55,6 @@ This will produce two binaries:
 -   `build/application/bsp/stm/stm32h563/jerry_secure_app.elf` (Secure Application)
 -   `build/application/jerry_app.elf` (Non-Secure Application)
 
-### Debugging
-
-This project includes a VS Code `launch.json` configuration for seamless TrustZone debugging.
-
-1.  Open the **Run and Debug** view in VS Code.
-2.  Select **"STM32H563 Build & Debug Microcontroller - ST-Link"**.
-3.  Click Play.
-
-This configuration automatically loads both the Secure and Non-Secure binaries and starts debugging the Non-Secure application (`jerry_app`).
-
-**Logs:** GDB Server logs are output to `stlink_gdbserver.log` in the workspace root for troubleshooting connection issues.
-
 ## Available Commands
 
 This project leverages CMake custom targets to integrate quality assurance tools.
@@ -155,7 +143,23 @@ STM32_Programmer_CLI -c port=SWD -w build/application/bsp/stm/stm32h563/jerry_se
 STM32_Programmer_CLI -c port=SWD -w build/application/jerry_app.elf -v -rst
 ```
 
-#### System Timer (SysTick) Behavior
+#### 3. Debugging tips 
+
+Although a sample vscode's cortex-debug extension configuration has been provided. It is in `.vscode/launch.json`. User can select `OpenOCD STM32H563` launch config in `Run and Debug` view of vscode. 
+
+However, the recommendation is to use STM32CubeIDE environment. To set up the debug configuration for this project, follow the following steps:
+1. import any example of Nucleo-H563 board, here, `Nx_perf` example has been imported.
+2. Open `debug configuration` of this project. 
+3. In `Debugger` tab, `Debug Probe` should be `ST-LINK (OpenOCD)`
+4. In `Startup` tab, make sure to have the configs as per the following image
+![Startup configs](refs/imgs/debug_configuration_statup.png)
+    As per these settings, `Nx_Perf` app binary will not be loaded, but rather we are loading only the symbol of our non-secure application. **Imp:** this assumes that both secure and non-secure part of this application has been downloaded (see `Flash the Firmware` section). Also, it does not runs to any symbol or resumes.
+
+Once the above debug configuration file has been set
+1. download the both secure and non-secure part of this application (see `Flash the Firmware` section).
+2. Debug the `Nx_perf` as `STM32 C/C++ Application`. 
+
+#### 4. System Timer (SysTick) Behavior
 
 In this TrustZone configuration:
 -   **Secure World**: Uses the standard **Core SysTick** timer for its timebase.
