@@ -17,8 +17,9 @@ typedef int bsp_error_t;
 /**
  * @brief Global configuration structure for BSP COM port initialization.
  *
- * This structure holds the configuration parameters (Baud Rate, Word Length, Stop Bits, Parity, etc.)
- * used to initialize the COM port (UART) functionality provided by the Board Support Package.
+ * This structure holds the configuration parameters (Baud Rate, Word Length,
+ * Stop Bits, Parity, etc.) used to initialize the COM port (UART) functionality
+ * provided by the Board Support Package.
  */
 extern COM_InitTypeDef BspCOMInit;
 
@@ -28,8 +29,9 @@ extern COM_InitTypeDef BspCOMInit;
  * This function initializes the underlying hardware resources, drivers, and
  * peripherals abstraction layer required by the application.
  *
- * @return bsp_error_t BSP_OK if initialization is successful, otherwise an error code.
+ * @return bsp_error_t BSP_OK if initialization is successful, otherwise an
+ * error code.
  */
 bsp_error_t BSP_Init();
 
-#endif // BSP_H
+#endif  // BSP_H

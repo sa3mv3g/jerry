@@ -22,16 +22,20 @@ def main():
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     config_file = os.path.join(root_dir, "config", ".clang-format")
 
-    # Files to ignore/exclude if any
+    exclusive_files_list:list[str] = [
+        os.path.join(root_dir, "application/bsp/stm/bsp.c"),
+        os.path.join(root_dir, "application/bsp/bsp.h"),
+    ]
 
+    # Files to ignore/exclude if any
     # Search patterns
     patterns = [
         os.path.join(root_dir, "application", "src", "**", "*.[ch]"),
-        os.path.join(root_dir, "application", "inc", "**", "*.[ch]"),
-        os.path.join(root_dir, "application", "src", "**", "*.s"),
+        os.path.join(root_dir, "application", "inc", "**", "*.[ch]")
     ]
 
     files = []
+    files.extend(exclusive_files_list)
     for pattern in patterns:
         files.extend(glob.glob(pattern, recursive=True))
 
