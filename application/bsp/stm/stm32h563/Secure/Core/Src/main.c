@@ -71,6 +71,7 @@ static void NonSecure_Init(void);
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -84,28 +85,28 @@ int main(void)
 
   /* USER CODE END Init */
 
-  /* Configure the system clock */
-  /* SystemClock_Config(); */
+  /* GTZC initialisation */
+  MX_GTZC_S_Init();
 
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GTZC_S_Init();
-  MX_ICACHE_Init();
   MX_GPIO_Init();
+  MX_ICACHE_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
 
-  /********************************************************************************************************************/
-  /*                                 Non-Secure initialization and switch                                             */
-  /********************************************************************************************************************/
+  /*************** Setup and jump to non-secure *******************************/
+
   NonSecure_Init();
 
-  /* USER CODE BEGIN 3 */
+  /* Non-secure software does not return, this code is not executed */
+
   /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
   while (1)
   {
   }
@@ -129,6 +130,9 @@ static void NonSecure_Init(void)
 
   /* Get non-secure reset handler */
   NonSecure_ResetHandler = (funcptr_NS)(*((uint32_t *)((VTOR_TABLE_NS_START_ADDR) + 4U)));
+
+  /* Disable Secure SysTick before jumping to Non-Secure */
+  SysTick->CTRL = 0;
 
   /* Start non-secure state software application */
   NonSecure_ResetHandler();

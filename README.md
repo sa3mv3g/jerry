@@ -155,6 +155,15 @@ STM32_Programmer_CLI -c port=SWD -w build/application/bsp/stm/stm32h563/jerry_se
 STM32_Programmer_CLI -c port=SWD -w build/application/jerry_app.elf -v -rst
 ```
 
+#### System Timer (SysTick) Behavior
+
+In this TrustZone configuration:
+-   **Secure World**: Uses the standard **Core SysTick** timer for its timebase.
+-   **Non-Secure World**: Uses **TIM6** (Basic Timer) for its timebase (HAL Tick).
+
+**Behavior Fix**:
+By default, the Secure SysTick remains active after jumping to the Non-Secure application, causing periodic interrupts that preempt the Non-Secure code. To prevent this overhead (if Secure world background tasks are not needed), the Secure SysTick is explicitly **disabled** (`SysTick->CTRL = 0`) in `Secure/Core/Src/main.c` immediately before the jump to the Non-Secure vector table.
+
 ## TODO
 
 1. Currently, `MX_Device.h` file has to be generated using the following command:

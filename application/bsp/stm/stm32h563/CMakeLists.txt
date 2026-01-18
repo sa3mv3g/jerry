@@ -52,7 +52,6 @@ file(GLOB SECURE_SOURCES "Secure/Core/Src/*.c" "Secure/Core/Startup/*.s")
 target_sources(jerry_secure_app PRIVATE
     ${SECURE_SOURCES}
     ${HAL_SOURCES}
-    ${BSP_SOURCES}
 )
 
 target_include_directories(jerry_secure_app PUBLIC
@@ -80,4 +79,9 @@ target_link_options(jerry_secure_app PRIVATE
     -Wl,--out-implib=${CMAKE_BINARY_DIR}/libsecure_nsclib.a
     -Wl,--cmse-implib
     -Wl,-Map=${CMAKE_BINARY_DIR}/jerry_secure_app.map
+)
+
+add_custom_command(TARGET jerry_secure_app POST_BUILD
+    COMMAND ${CMAKE_OBJDUMP} -d $<TARGET_FILE:jerry_secure_app> > $<TARGET_FILE_DIR:jerry_secure_app>/jerry_secure_app.asm
+    COMMENT "Generating disassembly for jerry_secure_app"
 )

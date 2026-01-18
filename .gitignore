@@ -59,6 +59,7 @@ build/
 .git/
 .vscode/
 .ruff_cache/
+.roo/
 
 # Ignore auto pulled dependencies
 application/dependencies/lwip/lwip-core

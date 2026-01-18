@@ -103,3 +103,8 @@ target_link_options(jerry_app PRIVATE
     -Wl,-Map=${CMAKE_BINARY_DIR}/jerry_app.map
     "${CMAKE_BINARY_DIR}/libsecure_nsclib.a"
 )
+
+add_custom_command(TARGET jerry_app POST_BUILD
+    COMMAND ${CMAKE_OBJDUMP} -d $<TARGET_FILE:jerry_app> > $<TARGET_FILE_DIR:jerry_app>/jerry_app.asm
+    COMMENT "Generating disassembly for jerry_app"
+)
