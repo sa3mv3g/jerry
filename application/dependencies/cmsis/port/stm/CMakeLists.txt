@@ -8,10 +8,19 @@ FetchContent_Declare(
     SOURCE_SUBDIR  "EXTRACT_ONLY"
 )
 
-FetchContent_MakeAvailable(FCD_CMSIS_Driver_STM32)
+FetchContent_Declare(
+    FCD_CMSIS_Driver
+    GIT_REPOSITORY https://github.com/ARM-software/CMSIS-Driver.git
+    GIT_TAG        main
+    SOURCE_DIR     "${CMAKE_CURRENT_LIST_DIR}/CMSIS_Driver"
+    SOURCE_SUBDIR  "EXTRACT_ONLY"
+)
+
+FetchContent_MakeAvailable(FCD_CMSIS_Driver_STM32 FCD_CMSIS_Driver)
 
 ## commented out lines are not required
 SET(CMSIS_PORT_SRC ${CMSIS_PORT_SRC}
+    ${CMAKE_CURRENT_LIST_DIR}/CMSIS_Driver/Ethernet_PHY/LAN8742A/PHY_LAN8742A.c
     ${CMAKE_CURRENT_LIST_DIR}/CMSIS_Driver_STM32/Drivers/ETH_MAC_STM32.c
     # ${CMAKE_CURRENT_LIST_DIR}/CMSIS_Driver_STM32/Drivers/GPIO_STM32.c
     ${CMAKE_CURRENT_LIST_DIR}/CMSIS_Driver_STM32/Drivers/I2C_STM32.c
@@ -23,4 +32,8 @@ SET(CMSIS_PORT_SRC ${CMSIS_PORT_SRC}
     PARENT_SCOPE
 )
 
-SET(CMSIS_PORT_INC ${CMSIS_PORT_INC} ${CMAKE_CURRENT_LIST_DIR}/CMSIS_Driver_STM32/Drivers/ PARENT_SCOPE)
+SET(CMSIS_PORT_INC ${CMSIS_PORT_INC}
+    ${CMAKE_CURRENT_LIST_DIR}/CMSIS_Driver_STM32/Drivers/
+    ${CMAKE_CURRENT_LIST_DIR}/CMSIS_Driver/Ethernet_PHY/LAN8742A/
+    PARENT_SCOPE
+)

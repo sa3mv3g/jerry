@@ -23,6 +23,7 @@ target_include_directories(lwip_stack PUBLIC
 
 target_include_directories(lwip_stack PRIVATE
     "${CMAKE_SOURCE_DIR}/application/inc"
+    "${CMAKE_SOURCE_DIR}/application/bsp/stm/stm32h563/NonSecure/Core/Inc"
 )
 
 
@@ -36,6 +37,7 @@ target_sources(lwip_stack PRIVATE
     "${LWIP_CORE_DIR}/src/core/mem.c"
     "${LWIP_CORE_DIR}/src/core/memp.c"
     "${LWIP_CORE_DIR}/src/core/netif.c"
+    "${LWIP_CORE_DIR}/src/netif/ethernet.c"
     "${LWIP_CORE_DIR}/src/core/pbuf.c"
     "${LWIP_CORE_DIR}/src/core/raw.c"
     "${LWIP_CORE_DIR}/src/core/stats.c"
@@ -46,6 +48,8 @@ target_sources(lwip_stack PRIVATE
     "${LWIP_CORE_DIR}/src/core/timeouts.c"
     "${LWIP_CORE_DIR}/src/core/udp.c"
     "${LWIP_CORE_DIR}/src/core/ipv4/etharp.c"
+    "${LWIP_CORE_DIR}/src/core/ipv4/dhcp.c"
+    "${LWIP_CORE_DIR}/src/core/ipv4/autoip.c"
     "${LWIP_CORE_DIR}/src/core/ipv4/icmp.c"
     "${LWIP_CORE_DIR}/src/core/ipv4/ip4.c"
     "${LWIP_CORE_DIR}/src/core/ipv4/ip4_addr.c"

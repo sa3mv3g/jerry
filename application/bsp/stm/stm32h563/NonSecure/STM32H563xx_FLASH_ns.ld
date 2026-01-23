@@ -148,6 +148,18 @@ SECTIONS
 
   } >RAM AT> FLASH
 
+  /* Ethernet DMA descriptors and buffers */
+  .eth_dma_mem (NOLOAD) :
+  {
+    . = ALIGN(4);
+    __eth_dma_start = .;
+    *(.RxDecripSection)
+    *(.TxDecripSection)
+    *(.driver.eth_mac0_rx_buf)
+    *(.driver.eth_mac0_tx_buf)
+    . = ALIGN(4);
+  } >RAM
+
   /* Uninitialized data section into "RAM" Ram type memory */
   . = ALIGN(4);
   .bss :

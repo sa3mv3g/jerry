@@ -13,11 +13,12 @@
 #include "timers.h"
 
 /* Stack size for the tasks */
-#define MAIN_TASK_STACK_SIZE    256
-#define LOG_TASK_STACK_SIZE     256
-#define MODBUS_TASK_STACK_SIZE  512
-#define FOTA_TASK_STACK_SIZE    512
-#define MONITOR_TASK_STACK_SIZE 128
+#define MAIN_TASK_STACK_SIZE     256
+#define LOG_TASK_STACK_SIZE      256
+#define MODBUS_TASK_STACK_SIZE   512
+#define FOTA_TASK_STACK_SIZE     512
+#define MONITOR_TASK_STACK_SIZE  128
+#define TCP_ECHO_TASK_STACK_SIZE 1024
 
 /* Static Task Structures */
 static StaticTask_t xMainTaskTCB;
@@ -34,6 +35,9 @@ static StackType_t  xFotaTaskStack[FOTA_TASK_STACK_SIZE];
 
 static StaticTask_t xMonitorTaskTCB;
 static StackType_t  xMonitorTaskStack[MONITOR_TASK_STACK_SIZE];
+
+static StaticTask_t xTcpEchoTaskTCB;
+static StackType_t  xTcpEchoTaskStack[TCP_ECHO_TASK_STACK_SIZE];
 
 /* Task Handles */
 static TaskHandle_t xMainTaskHandle = NULL;
@@ -116,6 +120,10 @@ void vMainTask(void* pvParameters) {
     xTaskCreateStatic(vMonitorTask, "Monitor", MONITOR_TASK_STACK_SIZE, NULL,
                       tskIDLE_PRIORITY + 1, xMonitorTaskStack,
                       &xMonitorTaskTCB);
+
+    xTaskCreateStatic(vTcpEchoTask, "TcpEcho", TCP_ECHO_TASK_STACK_SIZE, NULL,
+                      tskIDLE_PRIORITY + 1, xTcpEchoTaskStack,
+                      &xTcpEchoTaskTCB);
 
     for (;;) {
         /* Main loop */

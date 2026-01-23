@@ -75,4 +75,10 @@
 #define DEFAULT_TCP_RECVMBOX_SIZE       8
 #define DEFAULT_ACCEPTMBOX_SIZE         8
 
+#define LWIP_NETIF_LINK_CALLBACK        1
+
+#define LWIP_STATS                      1
+#define LWIP_STATS_DISPLAY              1
+#define LINK_STATS                      1
+
 #endif /* LWIP_LWIPOPTS_H */
