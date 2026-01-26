@@ -60,6 +60,7 @@ build/
 .vscode/
 .ruff_cache/
 .roo/
+Lib/
 
 # Ignore auto pulled dependencies
 application/dependencies/lwip/lwip-core
@@ -67,5 +68,6 @@ application/dependencies/lwip/lwip-contrib
 application/dependencies/FreeRTOS-Kernel
 application/dependencies/cmsis/CMSIS_5
 application/dependencies/lwip/port/cmsis_lwip_port/Open_CMSIS_Pack_Lwip
+application/dependencies/lwip/stm32-mw-lwip
 
 !.vscode/launch.json

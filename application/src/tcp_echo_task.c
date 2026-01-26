@@ -16,6 +16,31 @@
 #include "lwip/sys.h"
 #include "lwip/tcpip.h"
 
+/*---------------------------------------------------------------------------*/
+/* IP Address Configuration                                                  */
+/*---------------------------------------------------------------------------*/
+/* Set USE_DHCP to 1 for dynamic IP (DHCP), 0 for static IP                  */
+#define USE_DHCP 0
+
+#if !USE_DHCP
+/* Static IP Configuration - modify these values as needed */
+#define STATIC_IP_ADDR0   169
+#define STATIC_IP_ADDR1   254
+#define STATIC_IP_ADDR2   4
+#define STATIC_IP_ADDR3   100
+
+#define STATIC_NETMASK0   255
+#define STATIC_NETMASK1   255
+#define STATIC_NETMASK2   255
+#define STATIC_NETMASK3   0
+
+#define STATIC_GW_ADDR0   172
+#define STATIC_GW_ADDR1   24
+#define STATIC_GW_ADDR2   231
+#define STATIC_GW_ADDR3   1
+#endif /* !USE_DHCP */
+/*---------------------------------------------------------------------------*/
+
 /* Define the network interface */
 struct netif gnetif;
 
@@ -46,6 +71,7 @@ static void vEthernetTask(void *pvParameters) {
     }
 }
 
+#if LWIP_NETIF_LINK_CALLBACK
 static void link_callback(struct netif *netif) {
     if (netif_is_link_up(netif)) {
         printf("Link status changed: UP\n");
@@ -54,6 +80,7 @@ static void link_callback(struct netif *netif) {
         printf("Link status changed: DOWN\n");
     }
 }
+#endif
 
 static void tcp_echo_thread(void *arg) {
     struct netconn *conn, *newconn;
@@ -119,10 +146,17 @@ void vTcpEchoTask(void *pvParameters) {
     printf("Initializing LwIP...\n");
     tcpip_init(NULL, NULL);
 
-    /* IP address setting (Static IP: 192.168.2.100) */
-    IP4_ADDR(&ipaddr, 192, 168, 2, 100);
-    IP4_ADDR(&netmask, 255, 255, 255, 0);
-    IP4_ADDR(&gw, 192, 168, 2, 1);
+#if USE_DHCP
+    /* Initialize IP addresses to zero for DHCP */
+    IP4_ADDR(&ipaddr, 0, 0, 0, 0);
+    IP4_ADDR(&netmask, 0, 0, 0, 0);
+    IP4_ADDR(&gw, 0, 0, 0, 0);
+#else
+    /* Use static IP configuration */
+    IP4_ADDR(&ipaddr, STATIC_IP_ADDR0, STATIC_IP_ADDR1, STATIC_IP_ADDR2, STATIC_IP_ADDR3);
+    IP4_ADDR(&netmask, STATIC_NETMASK0, STATIC_NETMASK1, STATIC_NETMASK2, STATIC_NETMASK3);
+    IP4_ADDR(&gw, STATIC_GW_ADDR0, STATIC_GW_ADDR1, STATIC_GW_ADDR2, STATIC_GW_ADDR3);
+#endif /* USE_DHCP */
 
     /* Add the network interface */
     printf("Adding Network Interface...\n");
@@ -133,7 +167,9 @@ void vTcpEchoTask(void *pvParameters) {
     netif_set_default(&gnetif);
 
     /* Register link callback to log status changes */
+#if LWIP_NETIF_LINK_CALLBACK
     netif_set_link_callback(&gnetif, link_callback);
+#endif
 
     /* Create Ethernet Task to drive the interface */
     xTaskCreateStatic(vEthernetTask, "Ethernet", 512, &gnetif,
@@ -149,17 +185,51 @@ void vTcpEchoTask(void *pvParameters) {
         printf("Initial Link status: DOWN\n");
     }
 
-    /* Start DHCP (Disabled for Static IP) */
-    /* printf("Starting DHCP...\n"); */
-    /* dhcp_start(&gnetif); */
+    /* Print initial netif configuration */
+    printf("=== Network Interface Configuration ===\n");
+    printf("MAC Address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+           gnetif.hwaddr[0], gnetif.hwaddr[1], gnetif.hwaddr[2],
+           gnetif.hwaddr[3], gnetif.hwaddr[4], gnetif.hwaddr[5]);
+    printf("MTU: %u\n", gnetif.mtu);
+    printf("Flags: 0x%02X (UP=%d, LINK_UP=%d, ETHARP=%d, BCAST=%d)\n",
+           gnetif.flags,
+           (gnetif.flags & NETIF_FLAG_UP) ? 1 : 0,
+           (gnetif.flags & NETIF_FLAG_LINK_UP) ? 1 : 0,
+           (gnetif.flags & NETIF_FLAG_ETHARP) ? 1 : 0,
+           (gnetif.flags & NETIF_FLAG_BROADCAST) ? 1 : 0);
+    printf("========================================\n");
 
-    /* Wait for IP address (Not needed for Static IP) */
-    /* while (!dhcp_supplied_address(&gnetif)) */
-    /* { */
-    /*     vTaskDelay(pdMS_TO_TICKS(100)); */
-    /* } */
+#if USE_DHCP
+    /* Start DHCP to obtain IP address automatically */
+    printf("Starting DHCP...\n");
+    dhcp_start(&gnetif);
 
-    printf("Static IP address set: %s\n", ip4addr_ntoa(&ipaddr));
+    /* Wait for DHCP to obtain an IP address */
+    printf("Waiting for DHCP to obtain IP address...\n");
+    uint32_t dhcp_timeout = 0;
+    while (!dhcp_supplied_address(&gnetif)) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+        dhcp_timeout++;
+        if (dhcp_timeout >= 300) {  /* 30 seconds timeout */
+            printf("DHCP timeout! Using link-local address.\n");
+            break;
+        }
+    }
+
+    /* Print obtained IP address */
+    printf("=== DHCP Complete ===\n");
+    printf("IP Address: %s\n", ip4addr_ntoa(netif_ip4_addr(&gnetif)));
+    printf("Netmask: %s\n", ip4addr_ntoa(netif_ip4_netmask(&gnetif)));
+    printf("Gateway: %s\n", ip4addr_ntoa(netif_ip4_gw(&gnetif)));
+    printf("=====================\n");
+#else
+    /* Print static IP configuration */
+    printf("=== Static IP Configuration ===\n");
+    printf("IP Address: %s\n", ip4addr_ntoa(netif_ip4_addr(&gnetif)));
+    printf("Netmask: %s\n", ip4addr_ntoa(netif_ip4_netmask(&gnetif)));
+    printf("Gateway: %s\n", ip4addr_ntoa(netif_ip4_gw(&gnetif)));
+    printf("===============================\n");
+#endif /* USE_DHCP */
 
     /* Create the TCP Echo Server thread */
     tcp_echo_thread(NULL);

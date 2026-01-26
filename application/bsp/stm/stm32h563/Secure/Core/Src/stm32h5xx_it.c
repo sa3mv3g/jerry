@@ -84,11 +84,21 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-
+  /* Toggle LED to indicate Secure HardFault - fast blink pattern */
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  GPIO_InitStruct.Pin = GPIO_PIN_0;  /* Green LED on Nucleo-H563ZI */
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
     /* USER CODE BEGIN W1_HardFault_IRQn 0 */
+    /* Fast blink = Secure HardFault */
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+    for (volatile uint32_t i = 0; i < 500000; i++);
     /* USER CODE END W1_HardFault_IRQn 0 */
   }
 }
@@ -144,11 +154,21 @@ void UsageFault_Handler(void)
 void SecureFault_Handler(void)
 {
   /* USER CODE BEGIN SecureFault_IRQn 0 */
-
+  /* Toggle LED to indicate SecureFault - slow blink pattern */
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  GPIO_InitStruct.Pin = GPIO_PIN_0;  /* Green LED on Nucleo-H563ZI */
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
   /* USER CODE END SecureFault_IRQn 0 */
   while (1)
   {
     /* USER CODE BEGIN W1_SecureFault_IRQn 0 */
+    /* Slow blink = SecureFault */
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+    for (volatile uint32_t i = 0; i < 2000000; i++);
     /* USER CODE END W1_SecureFault_IRQn 0 */
   }
 }

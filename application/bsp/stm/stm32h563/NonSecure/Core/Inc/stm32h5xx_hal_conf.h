@@ -33,6 +33,15 @@
 /* Exported types ----------------------------------------------------------------------------------------------------*/
 /* Exported constants ------------------------------------------------------------------------------------------------*/
 
+/* ########################################### ETH DMA Descriptor Configuration ###################################### */
+/**
+  * @brief ETH DMA descriptor counts - increased from default 4 to prevent RBU/TBU errors
+  *        RBU (Receive Buffer Unavailable) occurs when DMA runs out of descriptors
+  *        Higher count provides more buffering for bursty traffic
+  */
+#define ETH_RX_DESC_CNT         8U   /* Increased from 4 to 8 for better RX buffering */
+#define ETH_TX_DESC_CNT         8U   /* Increased from 4 to 8 for better TX buffering */
+
 /* ########################################### Module Selection ##################################################### */
 
 /**

@@ -22,6 +22,7 @@
 #include "stm32h5xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -72,7 +73,9 @@ extern TIM_HandleTypeDef htim6;
 void MemManage_Handler(void)
 {
   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
-
+  printf("\r\n!!! MemManage_Handler !!!\r\n");
+  printf("CFSR=0x%08lX, MMFAR=0x%08lX\r\n",
+         SCB->CFSR, SCB->MMFAR);
   /* USER CODE END MemoryManagement_IRQn 0 */
   while (1)
   {
@@ -82,12 +85,38 @@ void MemManage_Handler(void)
 }
 
 /**
+  * @brief This function handles Hard fault.
+  */
+void HardFault_Handler(void)
+{
+  printf("\r\n!!! HardFault_Handler !!!\r\n");
+  printf("CFSR=0x%08lX, HFSR=0x%08lX\r\n", SCB->CFSR, SCB->HFSR);
+  printf("BFAR=0x%08lX, MMFAR=0x%08lX\r\n", SCB->BFAR, SCB->MMFAR);
+  while (1)
+  {
+  }
+}
+
+/**
+  * @brief This function handles Bus fault.
+  */
+void BusFault_Handler(void)
+{
+  printf("\r\n!!! BusFault_Handler !!!\r\n");
+  printf("CFSR=0x%08lX, BFAR=0x%08lX\r\n", SCB->CFSR, SCB->BFAR);
+  while (1)
+  {
+  }
+}
+
+/**
   * @brief This function handles Undefined instruction or illegal state.
   */
 void UsageFault_Handler(void)
 {
   /* USER CODE BEGIN UsageFault_IRQn 0 */
-
+  printf("\r\n!!! UsageFault_Handler !!!\r\n");
+  printf("CFSR=0x%08lX\r\n", SCB->CFSR);
   /* USER CODE END UsageFault_IRQn 0 */
   while (1)
   {

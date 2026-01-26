@@ -220,7 +220,8 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef* heth)
     HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
     /* ETH interrupt Init */
-    HAL_NVIC_SetPriority(ETH_IRQn, 0, 0);
+    /* Priority must be >= configMAX_SYSCALL_INTERRUPT_PRIORITY (5) for FreeRTOS API calls */
+    HAL_NVIC_SetPriority(ETH_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(ETH_IRQn);
     /* USER CODE BEGIN ETH_MspInit 1 */
 

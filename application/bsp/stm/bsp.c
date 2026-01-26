@@ -50,8 +50,6 @@ bsp_error_t BSP_Init() {
 
     /* Initialize all configured peripherals */
     MX_GPIO_Init();
-    MX_ETH_Init();
-    MX_USB_HCD_Init();
     MX_I2C3_Init();
     MX_LPUART1_UART_Init();
     MX_SPI1_Init();
@@ -73,6 +71,10 @@ bsp_error_t BSP_Init() {
     if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
         Error_Handler();
     }
+
+
+    MX_ETH_Init();
+    MX_USB_HCD_Init();
 
     return BSP_OK;
 }
