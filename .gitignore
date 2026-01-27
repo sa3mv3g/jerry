@@ -55,6 +55,7 @@ dkms.conf
 *.dwo
 
 build/
+build_tests/
 .venv/
 .git/
 .vscode/
@@ -69,5 +70,6 @@ application/dependencies/FreeRTOS-Kernel
 application/dependencies/cmsis/CMSIS_5
 application/dependencies/lwip/port/cmsis_lwip_port/Open_CMSIS_Pack_Lwip
 application/dependencies/lwip/stm32-mw-lwip
+application/dependencies/libmodbus/libmodbus-src
 
 !.vscode/launch.json

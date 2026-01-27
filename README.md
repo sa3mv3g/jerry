@@ -33,7 +33,7 @@ Assumption is that all the tools listed below are on terminal path.
 -   **CMake**: >= 3.20
 -   **Python**: >= 3.10
 -   **uv**: Python project manager.
--   **Ninja**: Ninja build system 
+-   **Ninja**: Ninja build system
 
 Vendor specific tools:
 -   **STM32CubeCLT**: expects `STM32CLT_PATH` environment variable in shell.
@@ -54,6 +54,25 @@ Vendor specific tools:
 This will produce two binaries:
 -   `build/application/bsp/stm/stm32h563/jerry_secure_app.elf` (Secure Application)
 -   `build/application/jerry_app.elf` (Non-Secure Application)
+
+### CMake Configuration Options
+
+The following CMake options can be passed during configuration to customize the build:
+
+#### Core Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `VENDOR` | `stm` | Microcontroller vendor selection |
+| `CMAKE_BUILD_TYPE` | - | Build type: `Debug`, `Release`, `RelWithDebInfo`, `MinSizeRel` |
+
+**Example with custom options:**
+```bash
+cmake -S . -B build -G Ninja \
+    -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake \
+    -DVENDOR=stm \
+    -DCMAKE_BUILD_TYPE=Debug
+```
 
 ## Available Commands
 
@@ -79,6 +98,30 @@ Run individual tools:
     ```bash
     cmake --build build --target cppcheck
     ```
+-   **CppCheck with MISRA** (MISRA C:2012 Compliance):
+    ```bash
+    # Configure with MISRA addon enabled
+    cmake -S . -B build -G Ninja \
+        -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake \
+        -DVENDOR=stm \
+        -DCPPCHECK_USE_ADDONS=ON
+
+    # Run cppcheck with MISRA checking
+    cmake --build build --target cppcheck
+
+    # View MISRA violations (Windows)
+    type build\cppcheck_report.txt | findstr /i "misra"
+
+    # View MISRA violations (Linux/macOS)
+    grep -i "misra" build/cppcheck_report.txt
+    ```
+    **Note:** MISRA checking requires:
+    - cppcheck with MISRA addon installed (typically at `<cppcheck-install>/share/cppcheck/addons/misra.py`)
+    - Python interpreter (`py` on Windows, `python3` on Linux/macOS)
+    - MISRA rule texts file at `refs/misra_c_2012__headlines_for_cppcheck.txt`
+
+    The MISRA addon configuration is in `config/misra.json`. Update the `python` field if your Python interpreter path differs.
+
 -   **Lizard** (Complexity Metrics):
     ```bash
     cmake --build build --target lizard
@@ -95,8 +138,99 @@ Run individual tools:
 ## Coding Standards
 
 -   **C/C++**: [Google CPP Coding Style](refs/cpp_coding_style.md)
--   **Python**: [Google Python Coding Style](refs/python_coding_style.md)   
+-   **Python**: [Google Python Coding Style](refs/python_coding_style.md)
 -   **Shell**: [Google Shell Coding Style](refs/shell_style_guide.md)
+
+## Modbus Library
+
+Jerry includes a custom Modbus library supporting RTU, ASCII, and TCP/IP protocols. The library is designed following SOLID principles with a callback-based architecture for maximum flexibility.
+
+### Features
+
+- **Protocol Support**: Modbus RTU, ASCII, and TCP/IP
+- **Operating Modes**: Slave (Server) and Master (Client)
+- **Function Codes**: FC01-FC06, FC15, FC16 (Read/Write Coils, Discrete Inputs, Holding Registers, Input Registers)
+- **No Dynamic Allocation**: All memory is statically allocated
+- **FreeRTOS Compatible**: Thread-safe design with static allocation
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Application Layer                         │
+│              (User Callbacks & Register Data)                │
+├─────────────────────────────────────────────────────────────┤
+│                      Core Layer                              │
+│           (modbus_core.c, modbus_pdu.c)                     │
+├─────────────────────────────────────────────────────────────┤
+│                    Protocol Layer                            │
+│      (modbus_rtu.c, modbus_ascii.c, modbus_tcp.c)           │
+├─────────────────────────────────────────────────────────────┤
+│                    Utility Layer                             │
+│            (modbus_crc.c, modbus_lrc.c)                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Code Generation Tool
+
+A Python-based code generator is provided to create register definitions from JSON configuration:
+
+```bash
+# Install dependencies
+pip install jinja2 jsonschema
+
+# Generate code from JSON configuration
+python tools/modbus_codegen/modbus_codegen.py \
+    tools/modbus_codegen/examples/jerry_registers.json \
+    --output-dir application/src/generated
+```
+
+This generates:
+- `<device>_registers.h` - Register address definitions and data structures
+- `<device>_registers.c` - Register data storage and initialization
+- `<device>_callbacks.c` - Modbus callback implementations
+
+### Modbus CMake Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `MODBUS_ENABLE_RTU` | `ON` | Enable Modbus RTU protocol support |
+| `MODBUS_ENABLE_ASCII` | `ON` | Enable Modbus ASCII protocol support |
+| `MODBUS_ENABLE_TCP` | `ON` | Enable Modbus TCP/IP protocol support |
+
+### Usage Example
+
+```c
+#include "modbus.h"
+#include "modbus_callbacks.h"
+
+/* Initialize Modbus context */
+modbus_context_t* ctx;
+modbus_config_t config = {
+    .mode = MODBUS_MODE_SLAVE,
+    .protocol = MODBUS_PROTOCOL_TCP,
+    .unit_id = 1,
+    .response_timeout_ms = 1000,
+};
+
+modbus_init(&ctx, &config);
+
+/* Process incoming request (in your communication task) */
+modbus_adu_t request, response;
+bool send_response;
+
+/* Parse received frame into request ADU */
+modbus_tcp_parse_frame(rx_buffer, rx_length, &request);
+
+/* Process request and generate response */
+modbus_slave_process_adu(ctx, &request, &response, &send_response);
+
+/* Build response frame */
+if (send_response) {
+    modbus_tcp_build_frame(&response, tx_buffer, sizeof(tx_buffer), &tx_length);
+    /* Send tx_buffer... */
+}
+```
 
 ## Vendor Specific Notes
 
@@ -143,13 +277,13 @@ STM32_Programmer_CLI -c port=SWD -w build/application/bsp/stm/stm32h563/jerry_se
 STM32_Programmer_CLI -c port=SWD -w build/application/jerry_app.elf -v -rst
 ```
 
-#### 3. Debugging tips 
+#### 3. Debugging tips
 
-Although a sample vscode's cortex-debug extension configuration has been provided. It is in `.vscode/launch.json`. User can select `OpenOCD STM32H563` launch config in `Run and Debug` view of vscode. 
+Although a sample vscode's cortex-debug extension configuration has been provided. It is in `.vscode/launch.json`. User can select `OpenOCD STM32H563` launch config in `Run and Debug` view of vscode.
 
 However, the recommendation is to use STM32CubeIDE environment. To set up the debug configuration for this project, follow the following steps:
 1. import any example of Nucleo-H563 board, here, `Nx_perf` example has been imported.
-2. Open `debug configuration` of this project. 
+2. Open `debug configuration` of this project.
 3. In `Debugger` tab, `Debug Probe` should be `ST-LINK (OpenOCD)`
 4. In `Startup` tab, make sure to have the configs as per the following image
 ![Startup configs](refs/imgs/debug_configuration_statup.png)
@@ -157,7 +291,7 @@ However, the recommendation is to use STM32CubeIDE environment. To set up the de
 
 Once the above debug configuration file has been set
 1. download the both secure and non-secure part of this application (see `Flash the Firmware` section).
-2. Debug the `Nx_perf` as `STM32 C/C++ Application`. 
+2. Debug the `Nx_perf` as `STM32 C/C++ Application`.
 
 #### 4. System Timer (SysTick) Behavior
 

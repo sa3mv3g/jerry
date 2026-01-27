@@ -45,6 +45,7 @@ set(FREERTOS_PORT "GCC_ARM_CM33_NTZ_NONSECURE" CACHE STRING "FreeRTOS Port")
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/FreeRTOS-Kernel)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lwip)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/modbus)
 add_subdirectory(${BSP_DIR})
 
 add_executable(jerry_app
@@ -62,6 +63,7 @@ target_link_libraries(jerry_app
         "-Wl,--whole-archive"
         lwip_stack
         stm32h563_bsp
+        modbus_stack
         "-Wl,--no-whole-archive"
         freertos_kernel
 )

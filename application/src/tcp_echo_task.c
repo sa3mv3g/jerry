@@ -24,20 +24,20 @@
 
 #if !USE_DHCP
 /* Static IP Configuration - modify these values as needed */
-#define STATIC_IP_ADDR0   169
-#define STATIC_IP_ADDR1   254
-#define STATIC_IP_ADDR2   4
-#define STATIC_IP_ADDR3   100
+#define STATIC_IP_ADDR0 169
+#define STATIC_IP_ADDR1 254
+#define STATIC_IP_ADDR2 4
+#define STATIC_IP_ADDR3 100
 
-#define STATIC_NETMASK0   255
-#define STATIC_NETMASK1   255
-#define STATIC_NETMASK2   255
-#define STATIC_NETMASK3   0
+#define STATIC_NETMASK0 255
+#define STATIC_NETMASK1 255
+#define STATIC_NETMASK2 255
+#define STATIC_NETMASK3 0
 
-#define STATIC_GW_ADDR0   172
-#define STATIC_GW_ADDR1   24
-#define STATIC_GW_ADDR2   231
-#define STATIC_GW_ADDR3   1
+#define STATIC_GW_ADDR0 172
+#define STATIC_GW_ADDR1 24
+#define STATIC_GW_ADDR2 231
+#define STATIC_GW_ADDR3 1
 #endif /* !USE_DHCP */
 /*---------------------------------------------------------------------------*/
 
@@ -153,9 +153,12 @@ void vTcpEchoTask(void *pvParameters) {
     IP4_ADDR(&gw, 0, 0, 0, 0);
 #else
     /* Use static IP configuration */
-    IP4_ADDR(&ipaddr, STATIC_IP_ADDR0, STATIC_IP_ADDR1, STATIC_IP_ADDR2, STATIC_IP_ADDR3);
-    IP4_ADDR(&netmask, STATIC_NETMASK0, STATIC_NETMASK1, STATIC_NETMASK2, STATIC_NETMASK3);
-    IP4_ADDR(&gw, STATIC_GW_ADDR0, STATIC_GW_ADDR1, STATIC_GW_ADDR2, STATIC_GW_ADDR3);
+    IP4_ADDR(&ipaddr, STATIC_IP_ADDR0, STATIC_IP_ADDR1, STATIC_IP_ADDR2,
+             STATIC_IP_ADDR3);
+    IP4_ADDR(&netmask, STATIC_NETMASK0, STATIC_NETMASK1, STATIC_NETMASK2,
+             STATIC_NETMASK3);
+    IP4_ADDR(&gw, STATIC_GW_ADDR0, STATIC_GW_ADDR1, STATIC_GW_ADDR2,
+             STATIC_GW_ADDR3);
 #endif /* USE_DHCP */
 
     /* Add the network interface */
@@ -187,13 +190,12 @@ void vTcpEchoTask(void *pvParameters) {
 
     /* Print initial netif configuration */
     printf("=== Network Interface Configuration ===\n");
-    printf("MAC Address: %02X:%02X:%02X:%02X:%02X:%02X\n",
-           gnetif.hwaddr[0], gnetif.hwaddr[1], gnetif.hwaddr[2],
-           gnetif.hwaddr[3], gnetif.hwaddr[4], gnetif.hwaddr[5]);
+    printf("MAC Address: %02X:%02X:%02X:%02X:%02X:%02X\n", gnetif.hwaddr[0],
+           gnetif.hwaddr[1], gnetif.hwaddr[2], gnetif.hwaddr[3],
+           gnetif.hwaddr[4], gnetif.hwaddr[5]);
     printf("MTU: %u\n", gnetif.mtu);
     printf("Flags: 0x%02X (UP=%d, LINK_UP=%d, ETHARP=%d, BCAST=%d)\n",
-           gnetif.flags,
-           (gnetif.flags & NETIF_FLAG_UP) ? 1 : 0,
+           gnetif.flags, (gnetif.flags & NETIF_FLAG_UP) ? 1 : 0,
            (gnetif.flags & NETIF_FLAG_LINK_UP) ? 1 : 0,
            (gnetif.flags & NETIF_FLAG_ETHARP) ? 1 : 0,
            (gnetif.flags & NETIF_FLAG_BROADCAST) ? 1 : 0);
@@ -210,7 +212,7 @@ void vTcpEchoTask(void *pvParameters) {
     while (!dhcp_supplied_address(&gnetif)) {
         vTaskDelay(pdMS_TO_TICKS(100));
         dhcp_timeout++;
-        if (dhcp_timeout >= 300) {  /* 30 seconds timeout */
+        if (dhcp_timeout >= 300) { /* 30 seconds timeout */
             printf("DHCP timeout! Using link-local address.\n");
             break;
         }

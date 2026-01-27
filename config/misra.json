@@ -1,7 +1,7 @@
 {
-    "script": "misra.py",
+    "script": "C:/mingw64/share/cppcheck/addons/misra.py",
+    "python": "py",
     "args": [
-        "--rule-texts=refs/misra_c_2012__headlines_for_cppcheck.txt",
-        "--check-rules"
+        "--rule-texts=C:/ti/workarea/jerry/refs/misra_c_2012__headlines_for_cppcheck.txt"
     ]
 }

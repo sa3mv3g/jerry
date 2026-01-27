@@ -17,6 +17,10 @@
 #define SYS_LIGHTWEIGHT_PROT            1
 #define LWIP_NETCONN                    1  /* Required for many apps */
 #define LWIP_SOCKET                     1  /* Required for POSIX sockets */
+/* Use LWIP_COMPAT_SOCKETS=2 to provide actual functions instead of macros.
+   This avoids conflicts with code that uses 'send', 'recv', 'select', etc.
+   as variable or function pointer names. */
+#define LWIP_COMPAT_SOCKETS             2
 /* Stop LwIP from defining struct timeval, as <sys/time.h> already does it */
 #define LWIP_TIMEVAL_PRIVATE            0
 #define LWIP_ERRNO_STDINCLUDE           1

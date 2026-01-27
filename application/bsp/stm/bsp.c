@@ -72,7 +72,6 @@ bsp_error_t BSP_Init() {
         Error_Handler();
     }
 
-
     MX_ETH_Init();
     MX_USB_HCD_Init();
 
