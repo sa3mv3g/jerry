@@ -83,8 +83,16 @@
 
 #define LWIP_NETIF_LINK_CALLBACK        1
 
+/* ------------------------------------------------
+   8. Statistics (for debugging memory issues)
+   ------------------------------------------------ */
 #define LWIP_STATS                      1
 #define LWIP_STATS_DISPLAY              1
 #define LINK_STATS                      1
+#define MEM_STATS                       1  /* Heap memory statistics */
+#define MEMP_STATS                      1  /* Memory pool statistics */
+#define SYS_STATS                       1  /* System statistics */
+#define TCP_STATS                       1  /* TCP statistics */
+#define IP_STATS                        1  /* IP statistics */
 
 #endif /* LWIP_LWIPOPTS_H */
