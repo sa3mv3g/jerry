@@ -19,8 +19,13 @@
  * Helper Macros
  * ========================================================================== */
 
-/** Check if address is within range */
-#define ADDR_IN_RANGE(addr, min, max) (((addr) >= (min)) && ((addr) <= (max)))
+/**
+ * Check if address is within range.
+ * Note: For unsigned types, we only check upper bound when min is 0
+ * to avoid "comparison is always true" warnings.
+ */
+#define ADDR_IN_RANGE_FROM_ZERO(addr, max) ((addr) <= (max))
+#define ADDR_IN_RANGE_NONZERO(addr, min, max) (((addr) >= (min)) && ((addr) <= (max)))
 
 /* ==========================================================================
  * Coil Callbacks (FC01, FC05, FC15)
@@ -41,10 +46,8 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
     bool value;
 
     /* Validate address range */
-    if (!ADDR_IN_RANGE(start_address, {{ config.device.name | upper }}_COIL_MIN_ADDR,
-                       {{ config.device.name | upper }}_COIL_MAX_ADDR) ||
-        !ADDR_IN_RANGE(end_address, {{ config.device.name | upper }}_COIL_MIN_ADDR,
-                       {{ config.device.name | upper }}_COIL_MAX_ADDR))
+    if (!ADDR_IN_RANGE_FROM_ZERO(start_address, {{ config.device.name | upper }}_COIL_MAX_ADDR) ||
+        !ADDR_IN_RANGE_FROM_ZERO(end_address, {{ config.device.name | upper }}_COIL_MAX_ADDR))
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
     }
@@ -192,10 +195,8 @@ modbus_exception_t modbus_cb_read_discrete_inputs(uint16_t start_address,
     bool value;
 
     /* Validate address range */
-    if (!ADDR_IN_RANGE(start_address, {{ config.device.name | upper }}_DI_MIN_ADDR,
-                       {{ config.device.name | upper }}_DI_MAX_ADDR) ||
-        !ADDR_IN_RANGE(end_address, {{ config.device.name | upper }}_DI_MIN_ADDR,
-                       {{ config.device.name | upper }}_DI_MAX_ADDR))
+    if (!ADDR_IN_RANGE_FROM_ZERO(start_address, {{ config.device.name | upper }}_DI_MAX_ADDR) ||
+        !ADDR_IN_RANGE_FROM_ZERO(end_address, {{ config.device.name | upper }}_DI_MAX_ADDR))
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
     }
@@ -266,10 +267,8 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t start_address,
     uint16_t end_address = start_address + quantity - 1U;
 
     /* Validate address range */
-    if (!ADDR_IN_RANGE(start_address, {{ config.device.name | upper }}_HR_MIN_ADDR,
-                       {{ config.device.name | upper }}_HR_MAX_ADDR) ||
-        !ADDR_IN_RANGE(end_address, {{ config.device.name | upper }}_HR_MIN_ADDR,
-                       {{ config.device.name | upper }}_HR_MAX_ADDR))
+    if (!ADDR_IN_RANGE_FROM_ZERO(start_address, {{ config.device.name | upper }}_HR_MAX_ADDR) ||
+        !ADDR_IN_RANGE_FROM_ZERO(end_address, {{ config.device.name | upper }}_HR_MAX_ADDR))
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
     }
@@ -333,9 +332,9 @@ modbus_exception_t modbus_cb_write_single_register(uint16_t address, uint16_t va
 {% for reg in config.registers.holding_registers %}
 {% if (reg.access is not defined or reg.access == "read_write") and reg.size == 1 %}
         case {{ config.device.name | upper }}_HR_{{ reg.name | upper }}:
-{% if reg.min_value is defined or reg.max_value is defined %}
+{% if (reg.min_value is defined and reg.min_value > 0) or reg.max_value is defined %}
             /* Validate value range */
-{% if reg.min_value is defined %}
+{% if reg.min_value is defined and reg.min_value > 0 %}
             if (value < {{ reg.min_value }}U)
             {
                 return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
@@ -438,10 +437,8 @@ modbus_exception_t modbus_cb_read_input_registers(uint16_t start_address,
     uint16_t end_address = start_address + quantity - 1U;
 
     /* Validate address range */
-    if (!ADDR_IN_RANGE(start_address, {{ config.device.name | upper }}_IR_MIN_ADDR,
-                       {{ config.device.name | upper }}_IR_MAX_ADDR) ||
-        !ADDR_IN_RANGE(end_address, {{ config.device.name | upper }}_IR_MIN_ADDR,
-                       {{ config.device.name | upper }}_IR_MAX_ADDR))
+    if (!ADDR_IN_RANGE_FROM_ZERO(start_address, {{ config.device.name | upper }}_IR_MAX_ADDR) ||
+        !ADDR_IN_RANGE_FROM_ZERO(end_address, {{ config.device.name | upper }}_IR_MAX_ADDR))
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
     }

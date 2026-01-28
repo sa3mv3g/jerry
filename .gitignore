@@ -63,6 +63,9 @@ build_tests/
 .roo/
 Lib/
 
+# Python files
+*.pyc
+
 # Ignore auto pulled dependencies
 application/dependencies/lwip/lwip-core
 application/dependencies/lwip/lwip-contrib
@@ -71,5 +74,6 @@ application/dependencies/cmsis/CMSIS_5
 application/dependencies/lwip/port/cmsis_lwip_port/Open_CMSIS_Pack_Lwip
 application/dependencies/lwip/stm32-mw-lwip
 application/dependencies/libmodbus/libmodbus-src
+application/src/generated
 
 !.vscode/launch.json

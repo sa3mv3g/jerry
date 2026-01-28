@@ -4,6 +4,9 @@
 # Application CMakeLists.txt
 include(FetchContent)
 
+# Include Modbus code generation configuration
+include(${CMAKE_SOURCE_DIR}/config/modbus_codegen.cmake)
+
 # Sources
 file(GLOB_RECURSE APP_SOURCES "src/*.c" "src/*.s")
 file(GLOB_RECURSE APP_HEADERS "inc/*.h")
@@ -48,6 +51,16 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lwip)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/modbus)
 add_subdirectory(${BSP_DIR})
 
+# ==========================================================================
+# Modbus Code Generation
+# ==========================================================================
+# Generate Modbus register code from JSON configuration
+modbus_generate_code(
+    CONFIG_FILE "${CMAKE_SOURCE_DIR}/config/jerry_registers.json"
+    OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/generated"
+    GENERATED_FILES MODBUS_GENERATED_SOURCES
+)
+
 add_executable(jerry_app
     ${APP_SOURCES}
     ${APP_HEADERS}
@@ -56,6 +69,13 @@ add_executable(jerry_app
 target_include_directories(jerry_app PRIVATE
     inc
     bsp
+    src/generated
+)
+
+# Add Modbus generated sources to the application
+modbus_add_generated_sources(
+    TARGET jerry_app
+    GENERATED_FILES ${MODBUS_GENERATED_SOURCES}
 )
 
 target_link_libraries(jerry_app

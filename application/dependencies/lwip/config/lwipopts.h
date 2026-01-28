@@ -17,6 +17,7 @@
 #define SYS_LIGHTWEIGHT_PROT            1
 #define LWIP_NETCONN                    1  /* Required for many apps */
 #define LWIP_SOCKET                     1  /* Required for POSIX sockets */
+#define LWIP_SO_RCVTIMEO                1  /* Enable receive timeout for sockets */
 /* Use LWIP_COMPAT_SOCKETS=2 to provide actual functions instead of macros.
    This avoids conflicts with code that uses 'send', 'recv', 'select', etc.
    as variable or function pointer names. */
@@ -32,8 +33,9 @@
 #define MEM_SIZE                        (16 * 1024) /* 16KB Heap */
 #define MEMP_NUM_PBUF                   16
 #define MEMP_NUM_UDP_PCB                4
-#define MEMP_NUM_TCP_PCB                5
+#define MEMP_NUM_TCP_PCB                10
 #define MEMP_NUM_TCP_PCB_LISTEN         8
+#define MEMP_NUM_NETCONN                10  /* Number of netconn structures */
 #define MEMP_NUM_SYS_TIMEOUT            10
 
 /* ------------------------------------------------

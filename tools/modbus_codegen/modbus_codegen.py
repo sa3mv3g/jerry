@@ -19,12 +19,17 @@ from pathlib import Path
 from typing import Any
 
 try:
-    import jsonschema
     from jinja2 import Environment, FileSystemLoader, select_autoescape
 except ImportError as e:
     print(f"Error: Missing required package: {e}")
-    print("Install with: pip install jinja2 jsonschema")
+    print("Install with: pip install jinja2")
     sys.exit(1)
+
+try:
+    import jsonschema
+    HAS_JSONSCHEMA = True
+except ImportError:
+    HAS_JSONSCHEMA = False
 
 # Configure logging
 logging.basicConfig(
@@ -97,11 +102,13 @@ class ModbusCodeGenerator:
 
         # Load and validate against schema
         schema_path = Path(__file__).parent / "schema" / "modbus_registers.schema.json"
-        if schema_path.exists():
+        if schema_path.exists() and HAS_JSONSCHEMA:
             with open(schema_path, encoding="utf-8") as f:
                 schema = json.load(f)
             jsonschema.validate(config, schema)
             logger.info("Configuration validated successfully")
+        elif not HAS_JSONSCHEMA:
+            logger.warning("jsonschema not installed, skipping validation")
         else:
             logger.warning("Schema file not found, skipping validation")
 
@@ -127,18 +134,7 @@ class ModbusCodeGenerator:
             "num_input_registers": len(registers.get("input_registers", [])),
         }
 
-        # Calculate address ranges
-        for reg_type in ["coils", "discrete_inputs", "holding_registers", "input_registers"]:
-            regs = registers.get(reg_type, [])
-            if regs:
-                addresses = [r["address"] for r in regs]
-                stats[f"{reg_type}_min_addr"] = min(addresses)
-                stats[f"{reg_type}_max_addr"] = max(addresses)
-            else:
-                stats[f"{reg_type}_min_addr"] = 0
-                stats[f"{reg_type}_max_addr"] = 0
-
-        # Add size information for multi-register types
+        # Add size information for multi-register types first
         for reg in registers.get("holding_registers", []):
             if "size" not in reg:
                 reg["size"] = 1
@@ -150,6 +146,19 @@ class ModbusCodeGenerator:
                 reg["size"] = 1
             if "data_type" not in reg:
                 reg["data_type"] = "uint16"
+
+        # Calculate address ranges (accounting for multi-register values)
+        for reg_type in ["coils", "discrete_inputs", "holding_registers", "input_registers"]:
+            regs = registers.get(reg_type, [])
+            if regs:
+                min_addr = min(r["address"] for r in regs)
+                # For max_addr, account for register size (uint32 takes 2 addresses)
+                max_addr = max(r["address"] + r.get("size", 1) - 1 for r in regs)
+                stats[f"{reg_type}_min_addr"] = min_addr
+                stats[f"{reg_type}_max_addr"] = max_addr
+            else:
+                stats[f"{reg_type}_min_addr"] = 0
+                stats[f"{reg_type}_max_addr"] = 0
 
         config["stats"] = stats
         return config
@@ -249,9 +258,11 @@ def main() -> int:
     except json.JSONDecodeError as e:
         logger.error("Invalid JSON: %s", e)
         return 1
-    except jsonschema.ValidationError as e:
-        logger.error("Configuration validation failed: %s", e.message)
-        return 1
+    except Exception as e:
+        if HAS_JSONSCHEMA and isinstance(e, jsonschema.ValidationError):
+            logger.error("Configuration validation failed: %s", e.message)
+            return 1
+        raise
     except Exception as e:
         logger.exception("Unexpected error: %s", e)
         return 1
