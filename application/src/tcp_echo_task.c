@@ -34,9 +34,9 @@
 #define STATIC_NETMASK2 255
 #define STATIC_NETMASK3 0
 
-#define STATIC_GW_ADDR0 172
-#define STATIC_GW_ADDR1 24
-#define STATIC_GW_ADDR2 231
+#define STATIC_GW_ADDR0 169
+#define STATIC_GW_ADDR1 254
+#define STATIC_GW_ADDR2 4
 #define STATIC_GW_ADDR3 1
 #endif /* !USE_DHCP */
 /*---------------------------------------------------------------------------*/
@@ -133,6 +133,11 @@ static void tcp_echo_thread(void *arg) {
     }
 }
 
+static void tcpip_init_done_callback(void *arg) {
+    (void)arg;
+    printf("*** tcpip_thread is running! ***\n");
+}
+
 void vTcpEchoTask(void *pvParameters) {
     ip4_addr_t ipaddr;
     ip4_addr_t netmask;
@@ -144,7 +149,7 @@ void vTcpEchoTask(void *pvParameters) {
 
     /* Initialize the LwIP stack */
     printf("Initializing LwIP...\n");
-    tcpip_init(NULL, NULL);
+    tcpip_init(tcpip_init_done_callback, NULL);
 
 #if USE_DHCP
     /* Initialize IP addresses to zero for DHCP */

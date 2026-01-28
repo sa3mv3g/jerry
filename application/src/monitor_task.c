@@ -19,7 +19,7 @@ void vMonitorTask(void* pvParameters) {
            uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL); */
 
         /* Log if dangerously low */
-        printf("hello\r\n");
+        /* Removed debug print */
 
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
