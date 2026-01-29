@@ -11,6 +11,9 @@ This script measures the performance of Modbus TCP communication:
 Usage:
     python test_modbus_performance.py --host 192.168.1.100 --port 502
 
+    # With source IP binding (for VPN/multi-interface systems):
+    python test_modbus_performance.py --host 169.254.4.100 --source-ip 169.254.4.50
+
 Copyright (c) 2026
 """
 
@@ -20,7 +23,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException
@@ -451,16 +454,39 @@ def run_all_performance_tests(
     host: str,
     port: int,
     unit_id: int,
-    quick: bool = False
+    quick: bool = False,
+    source_ip: Optional[str] = None
 ) -> list[PerformanceResult]:
-    """Run all performance tests."""
-    print(f"Connecting to Modbus TCP server at {host}:{port} (unit_id={unit_id})...")
+    """Run all performance tests.
 
-    client = ModbusTcpClient(host=host, port=port, timeout=5)
+    Args:
+        host: Target Modbus server IP address
+        port: Target Modbus server port
+        unit_id: Modbus unit/slave ID
+        quick: If True, run fewer iterations
+        source_ip: Optional source IP to bind to (for multi-interface systems)
+    """
+    print(f"Connecting to Modbus TCP server at {host}:{port} (unit_id={unit_id})...")
+    if source_ip:
+        print(f"Using source IP: {source_ip}")
+
+    # Create client with source address if specified
+    if source_ip:
+        client = ModbusTcpClient(
+            host=host,
+            port=port,
+            timeout=5,
+            source_address=(source_ip, 0)
+        )
+    else:
+        client = ModbusTcpClient(host=host, port=port, timeout=5)
+
     client.slave = unit_id
 
     if not client.connect():
         print(f"ERROR: Failed to connect to {host}:{port}")
+        if source_ip:
+            print(f"  (using source IP: {source_ip})")
         sys.exit(1)
 
     print("Connected successfully!")
@@ -584,6 +610,11 @@ def main():
         action="store_true",
         help="Print detailed results for each test"
     )
+    parser.add_argument(
+        "--source-ip",
+        default=None,
+        help="Source IP address to bind to (for multi-interface/VPN systems)"
+    )
 
     args = parser.parse_args()
 
@@ -592,6 +623,8 @@ def main():
     print("=" * 60)
     print(f"Target: {args.host}:{args.port}")
     print(f"Unit ID: {args.unit_id}")
+    if args.source_ip:
+        print(f"Source IP: {args.source_ip}")
     print(f"Mode: {'Quick' if args.quick else 'Full'}")
     print("=" * 60)
 
@@ -599,7 +632,8 @@ def main():
         args.host,
         args.port,
         args.unit_id,
-        args.quick
+        args.quick,
+        args.source_ip
     )
 
     if args.detailed:
