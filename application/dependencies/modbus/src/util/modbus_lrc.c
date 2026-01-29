@@ -31,14 +31,17 @@
  *       For a message with address 0x01 and function 0x03, the LRC is
  *       calculated on bytes [0x01, 0x03, ...], not on the ASCII characters.
  */
-uint8_t modbus_lrc(const uint8_t *data, uint16_t length) {
+uint8_t modbus_lrc(const uint8_t *data, uint16_t length)
+{
     uint8_t        lrc = 0U;
     const uint8_t *ptr = data;
     uint16_t       len = length;
 
-    if ((ptr != NULL) && (len > 0U)) {
+    if ((ptr != NULL) && (len > 0U))
+    {
         /* Sum all bytes */
-        while (len > 0U) {
+        while (len > 0U)
+        {
             lrc += *ptr;
             ptr++;
             len--;
@@ -58,13 +61,16 @@ uint8_t modbus_lrc(const uint8_t *data, uint16_t length) {
  * @param[in] length Total length including the LRC byte
  * @return bool true if LRC is valid, false otherwise
  */
-bool modbus_lrc_verify(const uint8_t *data, uint16_t length) {
+bool modbus_lrc_verify(const uint8_t *data, uint16_t length)
+{
     bool result = false;
 
-    if ((data != NULL) && (length >= 2U)) {
+    if ((data != NULL) && (length >= 2U))
+    {
         /* Calculate sum of all bytes including LRC - should be 0 */
         uint8_t sum = 0U;
-        for (uint16_t i = 0U; i < length; i++) {
+        for (uint16_t i = 0U; i < length; i++)
+        {
             sum += data[i];
         }
 
@@ -80,7 +86,8 @@ bool modbus_lrc_verify(const uint8_t *data, uint16_t length) {
  * @param[in] nibble Value 0-15 to convert
  * @return char ASCII character '0'-'9' or 'A'-'F'
  */
-static char nibble_to_ascii(uint8_t nibble) {
+static char nibble_to_ascii(uint8_t nibble)
+{
     static const char hex_chars[] = "0123456789ABCDEF";
     return hex_chars[nibble & 0x0FU];
 }
@@ -91,16 +98,24 @@ static char nibble_to_ascii(uint8_t nibble) {
  * @param[in] c ASCII character '0'-'9', 'A'-'F', or 'a'-'f'
  * @return int8_t Value 0-15, or -1 if invalid character
  */
-static int8_t ascii_to_nibble(char c) {
+static int8_t ascii_to_nibble(char c)
+{
     int8_t result = -1;
 
-    if ((c >= '0') && (c <= '9')) {
+    if ((c >= '0') && (c <= '9'))
+    {
         result = (int8_t)(c - '0');
-    } else if ((c >= 'A') && (c <= 'F')) {
+    }
+    else if ((c >= 'A') && (c <= 'F'))
+    {
         result = (int8_t)(c - 'A' + 10);
-    } else if ((c >= 'a') && (c <= 'f')) {
+    }
+    else if ((c >= 'a') && (c <= 'f'))
+    {
         result = (int8_t)(c - 'a' + 10);
-    } else {
+    }
+    else
+    {
         /* result already -1 */
     }
 
@@ -114,8 +129,10 @@ static int8_t ascii_to_nibble(char c) {
  * @param[out] high_char Pointer to store high nibble ASCII character
  * @param[out] low_char Pointer to store low nibble ASCII character
  */
-void modbus_byte_to_ascii(uint8_t byte, char *high_char, char *low_char) {
-    if ((high_char != NULL) && (low_char != NULL)) {
+void modbus_byte_to_ascii(uint8_t byte, char *high_char, char *low_char)
+{
+    if ((high_char != NULL) && (low_char != NULL))
+    {
         *high_char = nibble_to_ascii((byte >> 4U) & 0x0FU);
         *low_char  = nibble_to_ascii(byte & 0x0FU);
     }
@@ -131,18 +148,23 @@ void modbus_byte_to_ascii(uint8_t byte, char *high_char, char *low_char) {
  * chars
  */
 modbus_error_t modbus_ascii_to_byte(char high_char, char low_char,
-                                    uint8_t *byte) {
+                                    uint8_t *byte)
+{
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if (byte != NULL) {
+    if (byte != NULL)
+    {
         int8_t high_nibble = ascii_to_nibble(high_char);
         int8_t low_nibble  = ascii_to_nibble(low_char);
 
-        if ((high_nibble >= 0) && (low_nibble >= 0)) {
+        if ((high_nibble >= 0) && (low_nibble >= 0))
+        {
             *byte =
                 (uint8_t)(((uint8_t)high_nibble << 4U) | (uint8_t)low_nibble);
             result = MODBUS_OK;
-        } else {
+        }
+        else
+        {
             result = MODBUS_ERROR_FRAME;
         }
     }
@@ -161,14 +183,18 @@ modbus_error_t modbus_ascii_to_byte(char high_char, char low_char,
  * @return uint16_t Number of ASCII characters written, or 0 on error
  */
 uint16_t modbus_binary_to_ascii(const uint8_t *binary, uint16_t binary_len,
-                                char *ascii, uint16_t ascii_size) {
+                                char *ascii, uint16_t ascii_size)
+{
     uint16_t result = 0U;
 
-    if ((binary != NULL) && (ascii != NULL) && (binary_len > 0U)) {
+    if ((binary != NULL) && (ascii != NULL) && (binary_len > 0U))
+    {
         /* Check if output buffer is large enough */
         uint16_t ascii_len = binary_len * 2U;
-        if (ascii_size >= ascii_len) {
-            for (uint16_t i = 0U; i < binary_len; i++) {
+        if (ascii_size >= ascii_len)
+        {
+            for (uint16_t i = 0U; i < binary_len; i++)
+            {
                 modbus_byte_to_ascii(binary[i], &ascii[i * 2U],
                                      &ascii[(i * 2U) + 1U]);
             }
@@ -189,22 +215,28 @@ uint16_t modbus_binary_to_ascii(const uint8_t *binary, uint16_t binary_len,
  * @return uint16_t Number of binary bytes written, or 0 on error
  */
 uint16_t modbus_ascii_to_binary(const char *ascii, uint16_t ascii_len,
-                                uint8_t *binary, uint16_t binary_size) {
+                                uint8_t *binary, uint16_t binary_size)
+{
     uint16_t result        = 0U;
     bool     conversion_ok = true;
 
     if ((ascii != NULL) && (binary != NULL) && (ascii_len > 0U) &&
-        ((ascii_len % 2U) == 0U)) {
+        ((ascii_len % 2U) == 0U))
+    {
         uint16_t binary_len = ascii_len / 2U;
-        if (binary_size >= binary_len) {
-            for (uint16_t i = 0U; (i < binary_len) && conversion_ok; i++) {
+        if (binary_size >= binary_len)
+        {
+            for (uint16_t i = 0U; (i < binary_len) && conversion_ok; i++)
+            {
                 modbus_error_t err = modbus_ascii_to_byte(
                     ascii[i * 2U], ascii[(i * 2U) + 1U], &binary[i]);
-                if (err != MODBUS_OK) {
+                if (err != MODBUS_OK)
+                {
                     conversion_ok = false;
                 }
             }
-            if (conversion_ok) {
+            if (conversion_ok)
+            {
                 result = binary_len;
             }
         }

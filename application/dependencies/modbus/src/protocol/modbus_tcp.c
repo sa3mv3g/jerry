@@ -53,7 +53,8 @@
  * @param[out] buffer Pointer to buffer
  * @param[in] value Value to write
  */
-static void tcp_write_uint16_be(uint8_t *buffer, uint16_t value) {
+static void tcp_write_uint16_be(uint8_t *buffer, uint16_t value)
+{
     buffer[0] = (uint8_t)(value >> 8U);
     buffer[1] = (uint8_t)(value & 0xFFU);
 }
@@ -64,7 +65,8 @@ static void tcp_write_uint16_be(uint8_t *buffer, uint16_t value) {
  * @param[in] buffer Pointer to buffer
  * @return uint16_t Value read from buffer
  */
-static uint16_t tcp_read_uint16_be(const uint8_t *buffer) {
+static uint16_t tcp_read_uint16_be(const uint8_t *buffer)
+{
     return (uint16_t)(((uint16_t)buffer[0] << 8U) | (uint16_t)buffer[1]);
 }
 
@@ -85,10 +87,12 @@ static uint16_t tcp_read_uint16_be(const uint8_t *buffer) {
  */
 modbus_error_t modbus_tcp_build_frame(const modbus_adu_t *adu, uint8_t *frame,
                                       uint16_t  frame_size,
-                                      uint16_t *frame_length) {
+                                      uint16_t *frame_length)
+{
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if ((adu != NULL) && (frame != NULL) && (frame_length != NULL)) {
+    if ((adu != NULL) && (frame != NULL) && (frame_length != NULL))
+    {
         /* Calculate PDU length */
         uint16_t pdu_length =
             1U + adu->pdu.data_length; /* function code + data */
@@ -96,7 +100,8 @@ modbus_error_t modbus_tcp_build_frame(const modbus_adu_t *adu, uint8_t *frame,
         /* Calculate total frame length: MBAP header + PDU */
         uint16_t total_length = MODBUS_TCP_MBAP_SIZE + pdu_length;
 
-        if (frame_size >= total_length) {
+        if (frame_size >= total_length)
+        {
             /* Build MBAP header */
             tcp_write_uint16_be(&frame[MBAP_OFFSET_TRANSACTION_ID],
                                 adu->transaction_id);
@@ -110,13 +115,18 @@ modbus_error_t modbus_tcp_build_frame(const modbus_adu_t *adu, uint8_t *frame,
             modbus_error_t err = modbus_pdu_serialize(
                 &adu->pdu, &frame[MBAP_OFFSET_PDU],
                 (uint16_t)(frame_size - MODBUS_TCP_MBAP_SIZE), &pdu_length);
-            if (err == MODBUS_OK) {
+            if (err == MODBUS_OK)
+            {
                 *frame_length = total_length;
                 result        = MODBUS_OK;
-            } else {
+            }
+            else
+            {
                 result = err;
             }
-        } else {
+        }
+        else
+        {
             result = MODBUS_ERROR_BUFFER_OVERFLOW;
         }
     }
@@ -135,32 +145,43 @@ modbus_error_t modbus_tcp_build_frame(const modbus_adu_t *adu, uint8_t *frame,
  * @return modbus_error_t MODBUS_OK on success
  */
 modbus_error_t modbus_tcp_parse_frame(const uint8_t *frame,
-                                      uint16_t       frame_length,
-                                      modbus_adu_t  *adu) {
+                                      uint16_t frame_length, modbus_adu_t *adu)
+{
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if ((frame != NULL) && (adu != NULL)) {
+    if ((frame != NULL) && (adu != NULL))
+    {
         /* Validate minimum frame length */
-        if (frame_length < MODBUS_TCP_MIN_FRAME_SIZE) {
+        if (frame_length < MODBUS_TCP_MIN_FRAME_SIZE)
+        {
             result = MODBUS_ERROR_FRAME;
-        } else if (frame_length > MODBUS_TCP_MAX_FRAME_SIZE) {
+        }
+        else if (frame_length > MODBUS_TCP_MAX_FRAME_SIZE)
+        {
             /* Validate maximum frame length */
             result = MODBUS_ERROR_FRAME;
-        } else {
+        }
+        else
+        {
             /* Validate protocol ID (must be 0 for Modbus) */
             uint16_t protocol_id =
                 tcp_read_uint16_be(&frame[MBAP_OFFSET_PROTOCOL_ID]);
-            if (protocol_id != MODBUS_TCP_PROTOCOL_ID) {
+            if (protocol_id != MODBUS_TCP_PROTOCOL_ID)
+            {
                 result = MODBUS_ERROR_FRAME;
-            } else {
+            }
+            else
+            {
                 /* Validate length field */
                 uint16_t length_field =
                     tcp_read_uint16_be(&frame[MBAP_OFFSET_LENGTH]);
-                if ((MODBUS_TCP_MBAP_SIZE - 1U + length_field) !=
-                    frame_length) {
+                if ((MODBUS_TCP_MBAP_SIZE - 1U + length_field) != frame_length)
+                {
                     /* Length field doesn't match actual frame length */
                     result = MODBUS_ERROR_FRAME;
-                } else {
+                }
+                else
+                {
                     /* Extract MBAP header fields */
                     adu->transaction_id =
                         tcp_read_uint16_be(&frame[MBAP_OFFSET_TRANSACTION_ID]);
@@ -173,9 +194,12 @@ modbus_error_t modbus_tcp_parse_frame(const uint8_t *frame,
                                    1U); /* Subtract Unit ID byte */
                     modbus_error_t err = modbus_pdu_deserialize(
                         &adu->pdu, &frame[MBAP_OFFSET_PDU], pdu_length);
-                    if (err == MODBUS_OK) {
+                    if (err == MODBUS_OK)
+                    {
                         result = MODBUS_OK;
-                    } else {
+                    }
+                    else
+                    {
                         result = err;
                     }
                 }
@@ -198,7 +222,8 @@ static uint16_t s_transaction_id = 0U;
  *
  * @return uint16_t Next transaction ID
  */
-uint16_t modbus_tcp_get_next_transaction_id(void) {
+uint16_t modbus_tcp_get_next_transaction_id(void)
+{
     uint16_t id = s_transaction_id;
     s_transaction_id++;
     return id;
@@ -223,7 +248,8 @@ void modbus_tcp_set_transaction_id(uint16_t id) { s_transaction_id = id; }
 /**
  * @brief TCP receiver states
  */
-typedef enum {
+typedef enum
+{
     TCP_RX_STATE_HEADER = 0, /**< Receiving MBAP header */
     TCP_RX_STATE_PDU,        /**< Receiving PDU data */
     TCP_RX_STATE_COMPLETE,   /**< Frame reception complete */
@@ -233,7 +259,8 @@ typedef enum {
 /**
  * @brief TCP receiver context
  */
-typedef struct {
+typedef struct
+{
     modbus_tcp_rx_state_t state;                /**< Current receiver state */
     uint8_t  buffer[MODBUS_TCP_MAX_FRAME_SIZE]; /**< Receive buffer */
     uint16_t index;                             /**< Current buffer index */
@@ -250,10 +277,12 @@ typedef struct {
  * @return modbus_error_t MODBUS_OK on success
  */
 modbus_error_t modbus_tcp_rx_init(modbus_tcp_rx_context_t *ctx,
-                                  uint32_t                 timeout_ms) {
+                                  uint32_t                 timeout_ms)
+{
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if (ctx != NULL) {
+    if (ctx != NULL)
+    {
         ctx->state           = TCP_RX_STATE_HEADER;
         ctx->index           = 0U;
         ctx->expected_length = MODBUS_TCP_MBAP_SIZE;
@@ -270,8 +299,10 @@ modbus_error_t modbus_tcp_rx_init(modbus_tcp_rx_context_t *ctx,
  *
  * @param[in,out] ctx Pointer to receiver context
  */
-void modbus_tcp_rx_reset(modbus_tcp_rx_context_t *ctx) {
-    if (ctx != NULL) {
+void modbus_tcp_rx_reset(modbus_tcp_rx_context_t *ctx)
+{
+    if (ctx != NULL)
+    {
         ctx->state           = TCP_RX_STATE_HEADER;
         ctx->index           = 0U;
         ctx->expected_length = MODBUS_TCP_MBAP_SIZE;
@@ -289,24 +320,31 @@ void modbus_tcp_rx_reset(modbus_tcp_rx_context_t *ctx) {
  */
 modbus_error_t modbus_tcp_rx_process_data(modbus_tcp_rx_context_t *ctx,
                                           const uint8_t *data, uint16_t length,
-                                          uint32_t current_time_ms) {
+                                          uint32_t current_time_ms)
+{
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if ((ctx != NULL) && (data != NULL)) {
+    if ((ctx != NULL) && (data != NULL))
+    {
         if ((ctx->state == TCP_RX_STATE_COMPLETE) ||
-            (ctx->state == TCP_RX_STATE_ERROR)) {
+            (ctx->state == TCP_RX_STATE_ERROR))
+        {
             result = MODBUS_ERROR_INVALID_STATE;
-        } else {
+        }
+        else
+        {
             result          = MODBUS_OK;
             bool processing = true;
 
             /* Record start time on first byte */
-            if (ctx->index == 0U) {
+            if (ctx->index == 0U)
+            {
                 ctx->start_time = current_time_ms;
             }
 
             uint16_t offset = 0U;
-            while ((offset < length) && processing && (result == MODBUS_OK)) {
+            while ((offset < length) && processing && (result == MODBUS_OK))
+            {
                 uint16_t remaining =
                     (uint16_t)(ctx->expected_length - ctx->index);
                 uint16_t bytes_to_copy =
@@ -315,10 +353,13 @@ modbus_error_t modbus_tcp_rx_process_data(modbus_tcp_rx_context_t *ctx,
                         : remaining;
 
                 /* Check buffer overflow */
-                if ((ctx->index + bytes_to_copy) > MODBUS_TCP_MAX_FRAME_SIZE) {
+                if ((ctx->index + bytes_to_copy) > MODBUS_TCP_MAX_FRAME_SIZE)
+                {
                     ctx->state = TCP_RX_STATE_ERROR;
                     result     = MODBUS_ERROR_BUFFER_OVERFLOW;
-                } else {
+                }
+                else
+                {
                     /* Copy data to buffer */
                     (void)memcpy(&ctx->buffer[ctx->index], &data[offset],
                                  bytes_to_copy);
@@ -326,8 +367,10 @@ modbus_error_t modbus_tcp_rx_process_data(modbus_tcp_rx_context_t *ctx,
                     offset += bytes_to_copy;
 
                     /* Check if current phase is complete */
-                    if (ctx->index >= ctx->expected_length) {
-                        if (ctx->state == TCP_RX_STATE_HEADER) {
+                    if (ctx->index >= ctx->expected_length)
+                    {
+                        if (ctx->state == TCP_RX_STATE_HEADER)
+                        {
                             /* Header complete - validate and get PDU length */
                             uint16_t protocol_id = tcp_read_uint16_be(
                                 &ctx->buffer[MBAP_OFFSET_PROTOCOL_ID]);
@@ -335,32 +378,44 @@ modbus_error_t modbus_tcp_rx_process_data(modbus_tcp_rx_context_t *ctx,
                                 &ctx->buffer[MBAP_OFFSET_LENGTH]);
 
                             /* Validate protocol ID */
-                            if (protocol_id != MODBUS_TCP_PROTOCOL_ID) {
+                            if (protocol_id != MODBUS_TCP_PROTOCOL_ID)
+                            {
                                 ctx->state = TCP_RX_STATE_ERROR;
                                 result     = MODBUS_ERROR_FRAME;
-                            } else if ((length_field < 2U) ||
-                                       (length_field > 254U)) {
+                            }
+                            else if ((length_field < 2U) ||
+                                     (length_field > 254U))
+                            {
                                 /* Validate length field */
                                 ctx->state = TCP_RX_STATE_ERROR;
                                 result     = MODBUS_ERROR_FRAME;
-                            } else {
+                            }
+                            else
+                            {
                                 /* Calculate expected total length */
                                 ctx->expected_length =
                                     MODBUS_TCP_MBAP_SIZE - 1U + length_field;
 
                                 if (ctx->expected_length >
-                                    MODBUS_TCP_MAX_FRAME_SIZE) {
+                                    MODBUS_TCP_MAX_FRAME_SIZE)
+                                {
                                     ctx->state = TCP_RX_STATE_ERROR;
                                     result     = MODBUS_ERROR_FRAME;
-                                } else {
+                                }
+                                else
+                                {
                                     ctx->state = TCP_RX_STATE_PDU;
                                 }
                             }
-                        } else if (ctx->state == TCP_RX_STATE_PDU) {
+                        }
+                        else if (ctx->state == TCP_RX_STATE_PDU)
+                        {
                             /* Frame complete */
                             ctx->state = TCP_RX_STATE_COMPLETE;
                             processing = false;
-                        } else {
+                        }
+                        else
+                        {
                             /* MISRA C:2012 Rule 15.7 - All if...else if
                              * constructs shall be terminated with an else
                              * statement. This else handles unexpected states
@@ -383,10 +438,12 @@ modbus_error_t modbus_tcp_rx_process_data(modbus_tcp_rx_context_t *ctx,
  * @param[in] ctx Pointer to receiver context
  * @return bool true if frame is complete, false otherwise
  */
-bool modbus_tcp_rx_is_complete(const modbus_tcp_rx_context_t *ctx) {
+bool modbus_tcp_rx_is_complete(const modbus_tcp_rx_context_t *ctx)
+{
     bool result = false;
 
-    if (ctx != NULL) {
+    if (ctx != NULL)
+    {
         result = (ctx->state == TCP_RX_STATE_COMPLETE);
     }
 
@@ -401,12 +458,15 @@ bool modbus_tcp_rx_is_complete(const modbus_tcp_rx_context_t *ctx) {
  * @return bool true if timed out, false otherwise
  */
 bool modbus_tcp_rx_is_timeout(const modbus_tcp_rx_context_t *ctx,
-                              uint32_t                       current_time_ms) {
+                              uint32_t                       current_time_ms)
+{
     bool result = false;
 
-    if (ctx != NULL) {
+    if (ctx != NULL)
+    {
         if ((ctx->state != TCP_RX_STATE_COMPLETE) &&
-            (ctx->state != TCP_RX_STATE_ERROR) && (ctx->index > 0U)) {
+            (ctx->state != TCP_RX_STATE_ERROR) && (ctx->index > 0U))
+        {
             uint32_t elapsed = current_time_ms - ctx->start_time;
             result           = (elapsed >= ctx->timeout_ms);
         }
@@ -424,16 +484,20 @@ bool modbus_tcp_rx_is_timeout(const modbus_tcp_rx_context_t *ctx,
  * @return modbus_error_t MODBUS_OK on success
  */
 modbus_error_t modbus_tcp_rx_get_frame(const modbus_tcp_rx_context_t *ctx,
-                                       const uint8_t                **frame,
-                                       uint16_t                      *length) {
+                                       const uint8_t **frame, uint16_t *length)
+{
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if ((ctx != NULL) && (frame != NULL) && (length != NULL)) {
-        if (ctx->state == TCP_RX_STATE_COMPLETE) {
+    if ((ctx != NULL) && (frame != NULL) && (length != NULL))
+    {
+        if (ctx->state == TCP_RX_STATE_COMPLETE)
+        {
             *frame  = ctx->buffer;
             *length = ctx->index;
             result  = MODBUS_OK;
-        } else {
+        }
+        else
+        {
             result = MODBUS_ERROR_INVALID_STATE;
         }
     }
@@ -451,10 +515,12 @@ modbus_error_t modbus_tcp_rx_get_frame(const modbus_tcp_rx_context_t *ctx,
  * @param[in] frame Pointer to frame buffer (must have at least 6 bytes)
  * @return uint16_t Length field value
  */
-uint16_t modbus_tcp_get_length_field(const uint8_t *frame) {
+uint16_t modbus_tcp_get_length_field(const uint8_t *frame)
+{
     uint16_t result = 0U;
 
-    if (frame != NULL) {
+    if (frame != NULL)
+    {
         result = tcp_read_uint16_be(&frame[MBAP_OFFSET_LENGTH]);
     }
 
@@ -467,10 +533,12 @@ uint16_t modbus_tcp_get_length_field(const uint8_t *frame) {
  * @param[in] frame Pointer to frame buffer (must have at least 2 bytes)
  * @return uint16_t Transaction ID
  */
-uint16_t modbus_tcp_get_transaction_id(const uint8_t *frame) {
+uint16_t modbus_tcp_get_transaction_id(const uint8_t *frame)
+{
     uint16_t result = 0U;
 
-    if (frame != NULL) {
+    if (frame != NULL)
+    {
         result = tcp_read_uint16_be(&frame[MBAP_OFFSET_TRANSACTION_ID]);
     }
 
@@ -483,10 +551,12 @@ uint16_t modbus_tcp_get_transaction_id(const uint8_t *frame) {
  * @param[in] frame Pointer to frame buffer (must have at least 7 bytes)
  * @return uint8_t Unit ID
  */
-uint8_t modbus_tcp_get_unit_id(const uint8_t *frame) {
+uint8_t modbus_tcp_get_unit_id(const uint8_t *frame)
+{
     uint8_t result = 0U;
 
-    if (frame != NULL) {
+    if (frame != NULL)
+    {
         result = frame[MBAP_OFFSET_UNIT_ID];
     }
 

@@ -10,12 +10,14 @@
 #define CONST 10000
 
 /* FOTA Task */
-void vFotaTask(void* pvParameters) {
+void vFotaTask(void* pvParameters)
+{
     (void)pvParameters;
 
     /* Initialize FOTA (Flash, Security, etc.) */
 
-    for (;;) {
+    for (;;)
+    {
         /* Check for updates */
         /* Verify signature */
         /* Write to dual bank */

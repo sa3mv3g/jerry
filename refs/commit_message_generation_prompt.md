@@ -24,4 +24,4 @@ Based *strictly* on the output captured in Phase 1, generate a commit message fo
 ### Output
 Provide **only** the final commit message text in UTF-8 format.
 
-Do not stage any file under no circumstances.
+Do not stage any file under any circumstances.

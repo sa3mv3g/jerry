@@ -22,7 +22,8 @@
 /**
  * @brief Modbus library error codes
  */
-typedef enum {
+typedef enum
+{
     MODBUS_OK = 0,                /**< Operation successful */
     MODBUS_ERROR_INVALID_PARAM,   /**< Invalid parameter */
     MODBUS_ERROR_INVALID_STATE,   /**< Invalid state for operation */
@@ -44,7 +45,8 @@ typedef enum {
 /**
  * @brief Modbus exception codes as defined in the Modbus specification
  */
-typedef enum {
+typedef enum
+{
     MODBUS_EXCEPTION_NONE = 0x00, /**< No exception */
     MODBUS_EXCEPTION_ILLEGAL_FUNCTION =
         0x01, /**< Function code not supported */
@@ -66,7 +68,8 @@ typedef enum {
 /**
  * @brief Modbus function codes
  */
-typedef enum {
+typedef enum
+{
     /* Bit access - Physical Discrete Inputs */
     MODBUS_FC_READ_COILS           = 0x01, /**< Read Coils (FC01) */
     MODBUS_FC_READ_DISCRETE_INPUTS = 0x02, /**< Read Discrete Inputs (FC02) */
@@ -110,7 +113,8 @@ typedef enum {
 /**
  * @brief Modbus protocol types
  */
-typedef enum {
+typedef enum
+{
     MODBUS_PROTOCOL_RTU = 0, /**< Modbus RTU (binary, CRC-16) */
     MODBUS_PROTOCOL_ASCII,   /**< Modbus ASCII (hex encoded, LRC) */
     MODBUS_PROTOCOL_TCP      /**< Modbus TCP/IP */
@@ -119,7 +123,8 @@ typedef enum {
 /**
  * @brief Modbus operating modes
  */
-typedef enum {
+typedef enum
+{
     MODBUS_MODE_SLAVE = 0, /**< Slave/Server mode */
     MODBUS_MODE_MASTER     /**< Master/Client mode */
 } modbus_mode_t;
@@ -134,7 +139,8 @@ typedef enum {
  * The PDU is protocol-independent and contains the function code and data.
  * Maximum PDU size is 253 bytes (1 byte function code + 252 bytes data).
  */
-typedef struct {
+typedef struct
+{
     uint8_t  function_code;                  /**< Function code */
     uint8_t  data[MODBUS_MAX_PDU_SIZE - 1U]; /**< PDU data (max 252 bytes) */
     uint16_t data_length;                    /**< Length of data in bytes */
@@ -145,7 +151,8 @@ typedef struct {
  *
  * The ADU includes the PDU plus protocol-specific addressing and framing.
  */
-typedef struct {
+typedef struct
+{
     uint8_t      unit_id;        /**< Unit identifier (slave address) */
     modbus_pdu_t pdu;            /**< Protocol Data Unit */
     uint16_t     transaction_id; /**< Transaction ID (TCP only) */
@@ -159,7 +166,8 @@ typedef struct {
 /**
  * @brief Read coils/discrete inputs request
  */
-typedef struct {
+typedef struct
+{
     uint16_t start_address; /**< Starting address */
     uint16_t quantity;      /**< Number of coils/inputs to read */
 } modbus_read_bits_request_t;
@@ -167,7 +175,8 @@ typedef struct {
 /**
  * @brief Read registers request
  */
-typedef struct {
+typedef struct
+{
     uint16_t start_address; /**< Starting address */
     uint16_t quantity;      /**< Number of registers to read */
 } modbus_read_registers_request_t;
@@ -175,7 +184,8 @@ typedef struct {
 /**
  * @brief Write single coil request
  */
-typedef struct {
+typedef struct
+{
     uint16_t address; /**< Coil address */
     bool     value;   /**< Coil value (true = ON, false = OFF) */
 } modbus_write_single_coil_request_t;
@@ -183,7 +193,8 @@ typedef struct {
 /**
  * @brief Write single register request
  */
-typedef struct {
+typedef struct
+{
     uint16_t address; /**< Register address */
     uint16_t value;   /**< Register value */
 } modbus_write_single_register_request_t;
@@ -191,7 +202,8 @@ typedef struct {
 /**
  * @brief Write multiple coils request
  */
-typedef struct {
+typedef struct
+{
     uint16_t       start_address; /**< Starting address */
     uint16_t       quantity;      /**< Number of coils to write */
     const uint8_t *values;        /**< Coil values (bit-packed) */
@@ -200,7 +212,8 @@ typedef struct {
 /**
  * @brief Write multiple registers request
  */
-typedef struct {
+typedef struct
+{
     uint16_t        start_address; /**< Starting address */
     uint16_t        quantity;      /**< Number of registers to write */
     const uint16_t *values;        /**< Register values */
@@ -213,7 +226,8 @@ typedef struct {
 /**
  * @brief Modbus state machine states
  */
-typedef enum {
+typedef enum
+{
     MODBUS_STATE_IDLE = 0,         /**< Idle, waiting for request/response */
     MODBUS_STATE_RECEIVING,        /**< Receiving frame data */
     MODBUS_STATE_PROCESSING,       /**< Processing received frame */
@@ -229,7 +243,8 @@ typedef enum {
 /**
  * @brief Serial port parity options
  */
-typedef enum {
+typedef enum
+{
     MODBUS_PARITY_NONE = 0, /**< No parity */
     MODBUS_PARITY_ODD,      /**< Odd parity */
     MODBUS_PARITY_EVEN      /**< Even parity */
@@ -238,7 +253,8 @@ typedef enum {
 /**
  * @brief Serial port configuration
  */
-typedef struct {
+typedef struct
+{
     uint32_t        baudrate;  /**< Baud rate (e.g., 9600, 19200, 115200) */
     uint8_t         data_bits; /**< Data bits (7 or 8) */
     uint8_t         stop_bits; /**< Stop bits (1 or 2) */
@@ -252,7 +268,8 @@ typedef struct {
 /**
  * @brief TCP connection configuration
  */
-typedef struct {
+typedef struct
+{
     uint16_t port;       /**< TCP port number */
     uint32_t timeout_ms; /**< Connection timeout in milliseconds */
 } modbus_tcp_config_t;
@@ -264,7 +281,8 @@ typedef struct {
 /**
  * @brief Modbus context configuration
  */
-typedef struct {
+typedef struct
+{
     modbus_mode_t     mode;        /**< Operating mode (slave/master) */
     modbus_protocol_t protocol;    /**< Protocol type (RTU/ASCII/TCP) */
     uint8_t           unit_id;     /**< Unit ID (slave address) */
@@ -272,7 +290,8 @@ typedef struct {
     uint32_t inter_frame_delay_us; /**< Inter-frame delay (RTU only) */
 
     /* Protocol-specific configuration */
-    union {
+    union
+    {
         modbus_serial_config_t serial; /**< Serial config (RTU/ASCII) */
         modbus_tcp_config_t    tcp;    /**< TCP config */
     } transport;

@@ -8,16 +8,17 @@
 #ifndef LWIP_ARCH_CC_H
 #define LWIP_ARCH_CC_H
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 
 /* Define timeval structure for embedded (no sys/time.h) */
 #ifndef _TIMEVAL_DEFINED
 #define _TIMEVAL_DEFINED
-struct timeval {
-    long tv_sec;   /* seconds */
-    long tv_usec;  /* microseconds */
+struct timeval
+{
+    long tv_sec;  /* seconds */
+    long tv_usec; /* microseconds */
 };
 #endif
 
@@ -46,26 +47,35 @@ typedef uintptr_t mem_ptr_t;
 #define SZT_F "zu"
 
 /* Compiler hints for packing structures */
-#define PACK_STRUCT_FIELD(x)    x
-#define PACK_STRUCT_STRUCT      __attribute__((packed))
+#define PACK_STRUCT_FIELD(x) x
+#define PACK_STRUCT_STRUCT   __attribute__((packed))
 #define PACK_STRUCT_BEGIN
 #define PACK_STRUCT_END
 
 /* Platform specific diagnostic output */
-#define LWIP_PLATFORM_DIAG(x)   do { printf x; } while(0)
-#define LWIP_PLATFORM_ASSERT(x) do { printf("Assertion \"%s\" failed at line %d in %s\n", \
-                                           x, __LINE__, __FILE__); while(1); } while(0)
+#define LWIP_PLATFORM_DIAG(x) \
+    do                        \
+    {                         \
+        printf x;             \
+    } while (0)
+#define LWIP_PLATFORM_ASSERT(x)                                           \
+    do                                                                    \
+    {                                                                     \
+        printf("Assertion \"%s\" failed at line %d in %s\n", x, __LINE__, \
+               __FILE__);                                                 \
+        while (1);                                                        \
+    } while (0)
 
 /* Error codes - use errno values */
-#define LWIP_ERRNO_INCLUDE <errno.h>
-#define LWIP_ERRNO_STDINCLUDE   1
+#define LWIP_ERRNO_INCLUDE    <errno.h>
+#define LWIP_ERRNO_STDINCLUDE 1
 
 /* Random number generation */
 #define LWIP_RAND() ((u32_t)rand())
 
 /* Compiler hints */
 #ifndef LWIP_NO_STDINT_H
-#define LWIP_NO_STDINT_H   0
+#define LWIP_NO_STDINT_H 0
 #endif
 
 #ifndef LWIP_NO_INTTYPES_H
@@ -73,7 +83,7 @@ typedef uintptr_t mem_ptr_t;
 #endif
 
 #ifndef LWIP_NO_LIMITS_H
-#define LWIP_NO_LIMITS_H   0
+#define LWIP_NO_LIMITS_H 0
 #endif
 
 #endif /* LWIP_ARCH_CC_H */

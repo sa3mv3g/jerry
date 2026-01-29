@@ -41,20 +41,16 @@ static uint16_t s_pwm_duty_cycle[4] = {5000U, 5000U, 5000U, 5000U};
 static uint32_t s_pwm_frequency[4] = {1000U, 1000U, 1000U, 1000U};
 
 /** Simulated RTC */
-static peripheral_rtc_datetime_t s_rtc = {
-    .year   = 2026U,
-    .month  = 1U,
-    .day    = 28U,
-    .hour   = 12U,
-    .minute = 0U,
-    .second = 0U};
+static peripheral_rtc_datetime_t s_rtc = {.year   = 2026U,
+                                          .month  = 1U,
+                                          .day    = 28U,
+                                          .hour   = 12U,
+                                          .minute = 0U,
+                                          .second = 0U};
 
 /** Application version (compile-time constants) */
 static const peripheral_app_version_t s_app_version = {
-    .major        = 1U,
-    .minor        = 0U,
-    .patch        = 0U,
-    .build_number = 1U};
+    .major = 1U, .minor = 0U, .patch = 0U, .build_number = 1U};
 
 /** Counter for simulating changing values */
 static uint32_t s_simulation_counter = 0U;
@@ -63,25 +59,30 @@ static uint32_t s_simulation_counter = 0U;
  * Digital Input Adapter Implementation
  * ========================================================================== */
 
-void peripheral_digital_input_init(void) {
+void peripheral_digital_input_init(void)
+{
     /* Initialize with random pattern for testing */
     s_digital_inputs = 0xA5U; /* Alternating pattern */
 }
 
-bool peripheral_digital_input_read(uint8_t channel) {
+bool peripheral_digital_input_read(uint8_t channel)
+{
     bool result = false;
 
-    if (channel < 8U) {
+    if (channel < 8U)
+    {
         result = ((s_digital_inputs >> channel) & 0x01U) != 0U;
     }
 
     return result;
 }
 
-uint8_t peripheral_digital_input_read_all(void) {
+uint8_t peripheral_digital_input_read_all(void)
+{
     /* Simulate changing inputs - toggle bit 0 every 100 calls */
     s_simulation_counter++;
-    if ((s_simulation_counter % 100U) == 0U) {
+    if ((s_simulation_counter % 100U) == 0U)
+    {
         s_digital_inputs ^= 0x01U;
     }
 
@@ -94,27 +95,35 @@ uint8_t peripheral_digital_input_read_all(void) {
 
 void peripheral_digital_output_init(void) { s_digital_outputs = 0x0000U; }
 
-void peripheral_digital_output_write(uint8_t channel, bool value) {
-    if (channel < 16U) {
-        if (value) {
+void peripheral_digital_output_write(uint8_t channel, bool value)
+{
+    if (channel < 16U)
+    {
+        if (value)
+        {
             s_digital_outputs |= (uint16_t)(1U << channel);
-        } else {
+        }
+        else
+        {
             s_digital_outputs &= (uint16_t)(~(1U << channel));
         }
     }
 }
 
-bool peripheral_digital_output_read(uint8_t channel) {
+bool peripheral_digital_output_read(uint8_t channel)
+{
     bool result = false;
 
-    if (channel < 16U) {
+    if (channel < 16U)
+    {
         result = ((s_digital_outputs >> channel) & 0x01U) != 0U;
     }
 
     return result;
 }
 
-void peripheral_digital_output_write_all(uint16_t values) {
+void peripheral_digital_output_write_all(uint16_t values)
+{
     s_digital_outputs = values;
 }
 
@@ -124,7 +133,8 @@ uint16_t peripheral_digital_output_read_all(void) { return s_digital_outputs; }
  * ADC Adapter Implementation
  * ========================================================================== */
 
-void peripheral_adc_init(void) {
+void peripheral_adc_init(void)
+{
     /* Initialize with mid-range values */
     s_adc_values[0] = 2048U;
     s_adc_values[1] = 1024U;
@@ -132,19 +142,24 @@ void peripheral_adc_init(void) {
     s_adc_values[3] = 512U;
 }
 
-uint16_t peripheral_adc_read(uint8_t channel) {
+uint16_t peripheral_adc_read(uint8_t channel)
+{
     uint16_t result = 0U;
 
-    if (channel < 4U) {
+    if (channel < 4U)
+    {
         /* Simulate slight variation in ADC readings */
         uint16_t variation = (uint16_t)(rand() % 32U);
         int16_t  offset    = (int16_t)(variation - 16);
         int32_t  new_value = (int32_t)s_adc_values[channel] + offset;
 
         /* Clamp to 12-bit range */
-        if (new_value < 0) {
+        if (new_value < 0)
+        {
             new_value = 0;
-        } else if (new_value > 4095) {
+        }
+        else if (new_value > 4095)
+        {
             new_value = 4095;
         }
 
@@ -155,8 +170,10 @@ uint16_t peripheral_adc_read(uint8_t channel) {
     return result;
 }
 
-void peripheral_adc_read_all(uint16_t values[4]) {
-    for (uint8_t i = 0U; i < 4U; i++) {
+void peripheral_adc_read_all(uint16_t values[4])
+{
+    for (uint8_t i = 0U; i < 4U; i++)
+    {
         values[i] = peripheral_adc_read(i);
     }
 }
@@ -165,66 +182,84 @@ void peripheral_adc_read_all(uint16_t values[4]) {
  * PWM Adapter Implementation
  * ========================================================================== */
 
-void peripheral_pwm_init(void) {
-    for (uint8_t i = 0U; i < 4U; i++) {
+void peripheral_pwm_init(void)
+{
+    for (uint8_t i = 0U; i < 4U; i++)
+    {
         s_pwm_enabled[i]    = false;
         s_pwm_duty_cycle[i] = 5000U; /* 50% */
         s_pwm_frequency[i]  = 1000U; /* 1 kHz */
     }
 }
 
-void peripheral_pwm_enable(uint8_t channel, bool enable) {
-    if (channel < 4U) {
+void peripheral_pwm_enable(uint8_t channel, bool enable)
+{
+    if (channel < 4U)
+    {
         s_pwm_enabled[channel] = enable;
     }
 }
 
-bool peripheral_pwm_is_enabled(uint8_t channel) {
+bool peripheral_pwm_is_enabled(uint8_t channel)
+{
     bool result = false;
 
-    if (channel < 4U) {
+    if (channel < 4U)
+    {
         result = s_pwm_enabled[channel];
     }
 
     return result;
 }
 
-void peripheral_pwm_set_duty_cycle(uint8_t channel, uint16_t duty_cycle) {
-    if (channel < 4U) {
+void peripheral_pwm_set_duty_cycle(uint8_t channel, uint16_t duty_cycle)
+{
+    if (channel < 4U)
+    {
         /* Clamp to valid range */
-        if (duty_cycle > 10000U) {
+        if (duty_cycle > 10000U)
+        {
             duty_cycle = 10000U;
         }
         s_pwm_duty_cycle[channel] = duty_cycle;
     }
 }
 
-uint16_t peripheral_pwm_get_duty_cycle(uint8_t channel) {
+uint16_t peripheral_pwm_get_duty_cycle(uint8_t channel)
+{
     uint16_t result = 0U;
 
-    if (channel < 4U) {
+    if (channel < 4U)
+    {
         result = s_pwm_duty_cycle[channel];
     }
 
     return result;
 }
 
-void peripheral_pwm_set_frequency(uint8_t channel, uint32_t frequency) {
-    if (channel < 4U) {
+void peripheral_pwm_set_frequency(uint8_t channel, uint32_t frequency)
+{
+    if (channel < 4U)
+    {
         /* Clamp to reasonable range (1 Hz to 1 MHz) */
-        if (frequency < 1U) {
+        if (frequency < 1U)
+        {
             frequency = 1U;
-        } else if (frequency > 1000000U) {
+        }
+        else if (frequency > 1000000U)
+        {
             frequency = 1000000U;
         }
         s_pwm_frequency[channel] = frequency;
     }
 }
 
-uint32_t peripheral_pwm_get_frequency(uint8_t channel) {
+uint32_t peripheral_pwm_get_frequency(uint8_t channel)
+{
     uint32_t result = 0U;
 
-    if (channel < 4U) {
+    if (channel < 4U)
+    {
         result = s_pwm_frequency[channel];
     }
 
@@ -235,7 +270,8 @@ uint32_t peripheral_pwm_get_frequency(uint8_t channel) {
  * RTC Adapter Implementation
  * ========================================================================== */
 
-void peripheral_rtc_init(void) {
+void peripheral_rtc_init(void)
+{
     /* Initialize with a default date/time */
     s_rtc.year   = 2026U;
     s_rtc.month  = 1U;
@@ -245,21 +281,27 @@ void peripheral_rtc_init(void) {
     s_rtc.second = 0U;
 }
 
-void peripheral_rtc_get_datetime(peripheral_rtc_datetime_t *datetime) {
-    if (datetime != NULL) {
+void peripheral_rtc_get_datetime(peripheral_rtc_datetime_t *datetime)
+{
+    if (datetime != NULL)
+    {
         /* Simulate time passing - increment seconds */
         s_rtc.second++;
-        if (s_rtc.second >= 60U) {
+        if (s_rtc.second >= 60U)
+        {
             s_rtc.second = 0U;
             s_rtc.minute++;
-            if (s_rtc.minute >= 60U) {
+            if (s_rtc.minute >= 60U)
+            {
                 s_rtc.minute = 0U;
                 s_rtc.hour++;
-                if (s_rtc.hour >= 24U) {
+                if (s_rtc.hour >= 24U)
+                {
                     s_rtc.hour = 0U;
                     s_rtc.day++;
                     /* Simplified - don't handle month/year rollover */
-                    if (s_rtc.day > 28U) {
+                    if (s_rtc.day > 28U)
+                    {
                         s_rtc.day = 1U;
                     }
                 }
@@ -270,8 +312,10 @@ void peripheral_rtc_get_datetime(peripheral_rtc_datetime_t *datetime) {
     }
 }
 
-void peripheral_rtc_set_datetime(const peripheral_rtc_datetime_t *datetime) {
-    if (datetime != NULL) {
+void peripheral_rtc_set_datetime(const peripheral_rtc_datetime_t *datetime)
+{
+    if (datetime != NULL)
+    {
         s_rtc = *datetime;
     }
 }
@@ -280,8 +324,10 @@ void peripheral_rtc_set_datetime(const peripheral_rtc_datetime_t *datetime) {
  * System Info Adapter Implementation
  * ========================================================================== */
 
-void peripheral_get_app_version(peripheral_app_version_t *version) {
-    if (version != NULL) {
+void peripheral_get_app_version(peripheral_app_version_t *version)
+{
+    if (version != NULL)
+    {
         *version = s_app_version;
     }
 }
@@ -292,7 +338,8 @@ uint32_t peripheral_get_system_tick(void) { return xTaskGetTickCount(); }
  * Initialization and Update Functions
  * ========================================================================== */
 
-void peripheral_adapters_init(void) {
+void peripheral_adapters_init(void)
+{
     peripheral_digital_input_init();
     peripheral_digital_output_init();
     peripheral_adc_init();
@@ -303,15 +350,16 @@ void peripheral_adapters_init(void) {
     srand((unsigned int)xTaskGetTickCount());
 }
 
-void peripheral_adapters_update_registers(void) {
+void peripheral_adapters_update_registers(void)
+{
     /* Get pointers to register structures */
-    jerry_device_coils_t           *coils   = jerry_device_get_coils();
-    jerry_device_discrete_inputs_t *di      = jerry_device_get_discrete_inputs();
-    jerry_device_holding_registers_t *hr    = jerry_device_get_holding_registers();
-    jerry_device_input_registers_t   *ir    = jerry_device_get_input_registers();
+    jerry_device_coils_t             *coils = jerry_device_get_coils();
+    jerry_device_discrete_inputs_t   *di = jerry_device_get_discrete_inputs();
+    jerry_device_holding_registers_t *hr = jerry_device_get_holding_registers();
+    jerry_device_input_registers_t   *ir = jerry_device_get_input_registers();
 
     /* Update discrete inputs from hardware */
-    uint8_t inputs = peripheral_digital_input_read_all();
+    uint8_t inputs      = peripheral_digital_input_read_all();
     di->digital_input_0 = ((inputs >> 0U) & 0x01U) != 0U;
     di->digital_input_1 = ((inputs >> 1U) & 0x01U) != 0U;
     di->digital_input_2 = ((inputs >> 2U) & 0x01U) != 0U;
@@ -346,7 +394,7 @@ void peripheral_adapters_update_registers(void) {
     hr->adc_3_value = ir->adc_3_value;
 
     /* Update system tick */
-    uint32_t tick = peripheral_get_system_tick();
+    uint32_t tick        = peripheral_get_system_tick();
     hr->system_tick_low  = (uint16_t)(tick & 0xFFFFU);
     hr->system_tick_high = (uint16_t)((tick >> 16U) & 0xFFFFU);
 
@@ -381,10 +429,11 @@ void peripheral_adapters_update_registers(void) {
     coils->pwm_3_enable = peripheral_pwm_is_enabled(3);
 }
 
-void peripheral_adapters_apply_outputs(void) {
+void peripheral_adapters_apply_outputs(void)
+{
     /* Get pointers to register structures */
     jerry_device_coils_t             *coils = jerry_device_get_coils();
-    jerry_device_holding_registers_t *hr    = jerry_device_get_holding_registers();
+    jerry_device_holding_registers_t *hr = jerry_device_get_holding_registers();
 
     /* Apply digital outputs from coils */
     uint16_t outputs = 0U;
@@ -424,13 +473,13 @@ void peripheral_adapters_apply_outputs(void) {
     peripheral_pwm_set_frequency(2, hr->pwm_2_frequency);
     peripheral_pwm_set_frequency(3, hr->pwm_3_frequency);
 
-    /* Apply RTC if changed (would need change detection in real implementation) */
-    peripheral_rtc_datetime_t rtc = {
-        .year   = hr->rtc_year,
-        .month  = (uint8_t)hr->rtc_month,
-        .day    = (uint8_t)hr->rtc_day,
-        .hour   = (uint8_t)hr->rtc_hour,
-        .minute = (uint8_t)hr->rtc_minute,
-        .second = (uint8_t)hr->rtc_second};
+    /* Apply RTC if changed (would need change detection in real implementation)
+     */
+    peripheral_rtc_datetime_t rtc = {.year   = hr->rtc_year,
+                                     .month  = (uint8_t)hr->rtc_month,
+                                     .day    = (uint8_t)hr->rtc_day,
+                                     .hour   = (uint8_t)hr->rtc_hour,
+                                     .minute = (uint8_t)hr->rtc_minute,
+                                     .second = (uint8_t)hr->rtc_second};
     peripheral_rtc_set_datetime(&rtc);
 }

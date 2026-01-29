@@ -5,16 +5,15 @@
  * LwIP System Architecture for FreeRTOS (Static Allocation)
  */
 
-#include "lwip/opt.h"
-#include "lwip/sys.h"
-#include "lwip/stats.h"
+#include <string.h>
 
 #include "FreeRTOS.h"
-#include "task.h"
+#include "lwip/opt.h"
+#include "lwip/stats.h"
+#include "lwip/sys.h"
 #include "queue.h"
 #include "semphr.h"
-
-#include <string.h>
+#include "task.h"
 
 #if !NO_SYS
 
@@ -25,16 +24,19 @@
 /* Static mutex storage pool */
 #define MAX_MUTEXES 8
 static StaticSemaphore_t mutexBuffers[MAX_MUTEXES];
-static uint8_t mutexUsed[MAX_MUTEXES] = {0};
+static uint8_t           mutexUsed[MAX_MUTEXES] = {0};
 
 err_t sys_mutex_new(sys_mutex_t *mutex)
 {
     int i;
-    for (i = 0; i < MAX_MUTEXES; i++) {
-        if (mutexUsed[i] == 0) {
+    for (i = 0; i < MAX_MUTEXES; i++)
+    {
+        if (mutexUsed[i] == 0)
+        {
             mutexUsed[i] = 1;
-            *mutex = xSemaphoreCreateMutexStatic(&mutexBuffers[i]);
-            if (*mutex == NULL) {
+            *mutex       = xSemaphoreCreateMutexStatic(&mutexBuffers[i]);
+            if (*mutex == NULL)
+            {
                 mutexUsed[i] = 0;
                 SYS_STATS_INC(mutex.err);
                 return ERR_MEM;
@@ -52,10 +54,7 @@ void sys_mutex_lock(sys_mutex_t *mutex)
     xSemaphoreTake(*mutex, portMAX_DELAY);
 }
 
-void sys_mutex_unlock(sys_mutex_t *mutex)
-{
-    xSemaphoreGive(*mutex);
-}
+void sys_mutex_unlock(sys_mutex_t *mutex) { xSemaphoreGive(*mutex); }
 
 void sys_mutex_free(sys_mutex_t *mutex)
 {
@@ -63,8 +62,10 @@ void sys_mutex_free(sys_mutex_t *mutex)
     SYS_STATS_DEC(mutex.used);
     vSemaphoreDelete(*mutex);
     /* Find and free the static buffer */
-    for (i = 0; i < MAX_MUTEXES; i++) {
-        if (*mutex == (SemaphoreHandle_t)&mutexBuffers[i]) {
+    for (i = 0; i < MAX_MUTEXES; i++)
+    {
+        if (*mutex == (SemaphoreHandle_t)&mutexBuffers[i])
+        {
             mutexUsed[i] = 0;
             break;
         }
@@ -78,16 +79,19 @@ void sys_mutex_free(sys_mutex_t *mutex)
 
 #define MAX_SEMAPHORES 16
 static StaticSemaphore_t semBuffers[MAX_SEMAPHORES];
-static uint8_t semUsed[MAX_SEMAPHORES] = {0};
+static uint8_t           semUsed[MAX_SEMAPHORES] = {0};
 
 err_t sys_sem_new(sys_sem_t *sem, u8_t count)
 {
     int i;
-    for (i = 0; i < MAX_SEMAPHORES; i++) {
-        if (semUsed[i] == 0) {
+    for (i = 0; i < MAX_SEMAPHORES; i++)
+    {
+        if (semUsed[i] == 0)
+        {
             semUsed[i] = 1;
             *sem = xSemaphoreCreateCountingStatic(0xFF, count, &semBuffers[i]);
-            if (*sem == NULL) {
+            if (*sem == NULL)
+            {
                 semUsed[i] = 0;
                 SYS_STATS_INC(sem.err);
                 return ERR_MEM;
@@ -100,10 +104,7 @@ err_t sys_sem_new(sys_sem_t *sem, u8_t count)
     return ERR_MEM;
 }
 
-void sys_sem_signal(sys_sem_t *sem)
-{
-    xSemaphoreGive(*sem);
-}
+void sys_sem_signal(sys_sem_t *sem) { xSemaphoreGive(*sem); }
 
 u32_t sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
 {
@@ -113,17 +114,23 @@ u32_t sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
 
     startTick = xTaskGetTickCount();
 
-    if (timeout == 0) {
+    if (timeout == 0)
+    {
         xSemaphoreTake(*sem, portMAX_DELAY);
-        endTick = xTaskGetTickCount();
+        endTick      = xTaskGetTickCount();
         elapsedTicks = endTick - startTick;
         return (u32_t)(elapsedTicks * portTICK_PERIOD_MS);
-    } else {
-        if (xSemaphoreTake(*sem, pdMS_TO_TICKS(timeout)) == pdTRUE) {
-            endTick = xTaskGetTickCount();
+    }
+    else
+    {
+        if (xSemaphoreTake(*sem, pdMS_TO_TICKS(timeout)) == pdTRUE)
+        {
+            endTick      = xTaskGetTickCount();
             elapsedTicks = endTick - startTick;
             return (u32_t)(elapsedTicks * portTICK_PERIOD_MS);
-        } else {
+        }
+        else
+        {
             return SYS_ARCH_TIMEOUT;
         }
     }
@@ -134,8 +141,10 @@ void sys_sem_free(sys_sem_t *sem)
     int i;
     SYS_STATS_DEC(sem.used);
     vSemaphoreDelete(*sem);
-    for (i = 0; i < MAX_SEMAPHORES; i++) {
-        if (*sem == (SemaphoreHandle_t)&semBuffers[i]) {
+    for (i = 0; i < MAX_SEMAPHORES; i++)
+    {
+        if (*sem == (SemaphoreHandle_t)&semBuffers[i])
+        {
             semUsed[i] = 0;
             break;
         }
@@ -148,22 +157,25 @@ void sys_sem_free(sys_sem_t *sem)
 /*-----------------------------------------------------------------------------------*/
 
 #define MAX_MBOXES 8
-#define MBOX_SIZE 16
+#define MBOX_SIZE  16
 static StaticQueue_t mboxStaticBuffers[MAX_MBOXES];
-static uint8_t mboxStorage[MAX_MBOXES][MBOX_SIZE * sizeof(void *)];
-static uint8_t mboxUsed[MAX_MBOXES] = {0};
+static uint8_t       mboxStorage[MAX_MBOXES][MBOX_SIZE * sizeof(void *)];
+static uint8_t       mboxUsed[MAX_MBOXES] = {0};
 
 err_t sys_mbox_new(sys_mbox_t *mbox, int size)
 {
     int i;
     (void)size; /* Use fixed size */
 
-    for (i = 0; i < MAX_MBOXES; i++) {
-        if (mboxUsed[i] == 0) {
+    for (i = 0; i < MAX_MBOXES; i++)
+    {
+        if (mboxUsed[i] == 0)
+        {
             mboxUsed[i] = 1;
-            *mbox = xQueueCreateStatic(MBOX_SIZE, sizeof(void *),
-                                       mboxStorage[i], &mboxStaticBuffers[i]);
-            if (*mbox == NULL) {
+            *mbox       = xQueueCreateStatic(MBOX_SIZE, sizeof(void *),
+                                             mboxStorage[i], &mboxStaticBuffers[i]);
+            if (*mbox == NULL)
+            {
                 mboxUsed[i] = 0;
                 SYS_STATS_INC(mbox.err);
                 return ERR_MEM;
@@ -178,16 +190,20 @@ err_t sys_mbox_new(sys_mbox_t *mbox, int size)
 
 void sys_mbox_post(sys_mbox_t *mbox, void *msg)
 {
-    while (xQueueSendToBack(*mbox, &msg, portMAX_DELAY) != pdTRUE) {
+    while (xQueueSendToBack(*mbox, &msg, portMAX_DELAY) != pdTRUE)
+    {
         /* Keep trying */
     }
 }
 
 err_t sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
 {
-    if (xQueueSendToBack(*mbox, &msg, 0) == pdTRUE) {
+    if (xQueueSendToBack(*mbox, &msg, 0) == pdTRUE)
+    {
         return ERR_OK;
-    } else {
+    }
+    else
+    {
         SYS_STATS_INC(mbox.err);
         return ERR_MEM;
     }
@@ -196,10 +212,14 @@ err_t sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
 err_t sys_mbox_trypost_fromisr(sys_mbox_t *mbox, void *msg)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    if (xQueueSendToBackFromISR(*mbox, &msg, &xHigherPriorityTaskWoken) == pdTRUE) {
+    if (xQueueSendToBackFromISR(*mbox, &msg, &xHigherPriorityTaskWoken) ==
+        pdTRUE)
+    {
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
         return ERR_OK;
-    } else {
+    }
+    else
+    {
         return ERR_MEM;
     }
 }
@@ -209,25 +229,32 @@ u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
     TickType_t startTick;
     TickType_t endTick;
     TickType_t elapsedTicks;
-    void *dummyPtr;
+    void      *dummyPtr;
 
-    if (msg == NULL) {
+    if (msg == NULL)
+    {
         msg = &dummyPtr;
     }
 
     startTick = xTaskGetTickCount();
 
-    if (timeout == 0) {
+    if (timeout == 0)
+    {
         xQueueReceive(*mbox, msg, portMAX_DELAY);
-        endTick = xTaskGetTickCount();
+        endTick      = xTaskGetTickCount();
         elapsedTicks = endTick - startTick;
         return (u32_t)(elapsedTicks * portTICK_PERIOD_MS);
-    } else {
-        if (xQueueReceive(*mbox, msg, pdMS_TO_TICKS(timeout)) == pdTRUE) {
-            endTick = xTaskGetTickCount();
+    }
+    else
+    {
+        if (xQueueReceive(*mbox, msg, pdMS_TO_TICKS(timeout)) == pdTRUE)
+        {
+            endTick      = xTaskGetTickCount();
             elapsedTicks = endTick - startTick;
             return (u32_t)(elapsedTicks * portTICK_PERIOD_MS);
-        } else {
+        }
+        else
+        {
             *msg = NULL;
             return SYS_ARCH_TIMEOUT;
         }
@@ -238,13 +265,17 @@ u32_t sys_arch_mbox_tryfetch(sys_mbox_t *mbox, void **msg)
 {
     void *dummyPtr;
 
-    if (msg == NULL) {
+    if (msg == NULL)
+    {
         msg = &dummyPtr;
     }
 
-    if (xQueueReceive(*mbox, msg, 0) == pdTRUE) {
+    if (xQueueReceive(*mbox, msg, 0) == pdTRUE)
+    {
         return 0;
-    } else {
+    }
+    else
+    {
         return SYS_MBOX_EMPTY;
     }
 }
@@ -252,11 +283,14 @@ u32_t sys_arch_mbox_tryfetch(sys_mbox_t *mbox, void **msg)
 void sys_mbox_free(sys_mbox_t *mbox)
 {
     int i;
-    if (*mbox != NULL) {
+    if (*mbox != NULL)
+    {
         SYS_STATS_DEC(mbox.used);
         vQueueDelete(*mbox);
-        for (i = 0; i < MAX_MBOXES; i++) {
-            if (*mbox == (QueueHandle_t)&mboxStaticBuffers[i]) {
+        for (i = 0; i < MAX_MBOXES; i++)
+        {
+            if (*mbox == (QueueHandle_t)&mboxStaticBuffers[i])
+            {
                 mboxUsed[i] = 0;
                 break;
             }
@@ -269,11 +303,11 @@ void sys_mbox_free(sys_mbox_t *mbox)
 /* Thread Functions - Using Static Allocation */
 /*-----------------------------------------------------------------------------------*/
 
-#define MAX_THREADS 4
+#define MAX_THREADS       4
 #define THREAD_STACK_SIZE 512
 static StaticTask_t threadTCBs[MAX_THREADS];
-static StackType_t threadStacks[MAX_THREADS][THREAD_STACK_SIZE];
-static uint8_t threadUsed[MAX_THREADS] = {0};
+static StackType_t  threadStacks[MAX_THREADS][THREAD_STACK_SIZE];
+static uint8_t      threadUsed[MAX_THREADS] = {0};
 
 sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg,
                             int stacksize, int prio)
@@ -281,9 +315,11 @@ sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg,
     int i;
     (void)stacksize; /* Use fixed stack size */
 
-    for (i = 0; i < MAX_THREADS; i++) {
-        if (threadUsed[i] == 0) {
-            threadUsed[i] = 1;
+    for (i = 0; i < MAX_THREADS; i++)
+    {
+        if (threadUsed[i] == 0)
+        {
+            threadUsed[i]           = 1;
             TaskHandle_t taskHandle = xTaskCreateStatic(
                 thread, name, THREAD_STACK_SIZE, arg, (UBaseType_t)prio,
                 threadStacks[i], &threadTCBs[i]);
@@ -321,9 +357,6 @@ u32_t sys_now(void)
     return (u32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
 }
 
-void sys_init(void)
-{
-    /* Nothing to do for FreeRTOS */
-}
+void sys_init(void) { /* Nothing to do for FreeRTOS */ }
 
 #endif /* !NO_SYS */

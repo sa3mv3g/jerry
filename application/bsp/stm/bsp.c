@@ -7,7 +7,8 @@ void SystemClock_Config(void);
 
 extern uint32_t __eth_dma_start;
 
-static void MPU_Config(void) {
+static void MPU_Config(void)
+{
     MPU_Region_InitTypeDef     MPU_InitStruct     = {0};
     MPU_Attributes_InitTypeDef MPU_AttributesInit = {0};
 
@@ -37,7 +38,8 @@ static void MPU_Config(void) {
     HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }
 
-bsp_error_t BSP_Init() {
+bsp_error_t BSP_Init()
+{
     /* Reset of all peripherals, Initializes the Flash interface and the
      * Systick. */
     HAL_Init();
@@ -68,7 +70,8 @@ bsp_error_t BSP_Init() {
     BspCOMInit.StopBits   = COM_STOPBITS_1;
     BspCOMInit.Parity     = COM_PARITY_NONE;
     BspCOMInit.HwFlowCtl  = COM_HWCONTROL_NONE;
-    if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE) {
+    if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE)
+    {
         Error_Handler();
     }
 

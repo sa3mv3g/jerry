@@ -24,9 +24,9 @@
 
 #if !USE_DHCP
 /* Static IP Configuration - modify these values as needed */
-#define STATIC_IP_ADDR0 169
-#define STATIC_IP_ADDR1 254
-#define STATIC_IP_ADDR2 4
+#define STATIC_IP_ADDR0 192
+#define STATIC_IP_ADDR1 168
+#define STATIC_IP_ADDR2 2
 #define STATIC_IP_ADDR3 100
 
 #define STATIC_NETMASK0 255
@@ -34,8 +34,8 @@
 #define STATIC_NETMASK2 255
 #define STATIC_NETMASK3 0
 
-#define STATIC_GW_ADDR0 169
-#define STATIC_GW_ADDR1 254
+#define STATIC_GW_ADDR0 192
+#define STATIC_GW_ADDR1 168
 #define STATIC_GW_ADDR2 4
 #define STATIC_GW_ADDR3 1
 #endif /* !USE_DHCP */
@@ -52,10 +52,12 @@ static StackType_t  xEthernetTaskStack[512];
 /* This function is typically provided by the LwIP port or BSP */
 extern err_t ethernetif_init(struct netif *netif);
 
-static void vEthernetTask(void *pvParameters) {
+static void vEthernetTask(void *pvParameters)
+{
     struct netif *netif = (struct netif *)pvParameters;
     int           count = 0;
-    while (1) {
+    while (1)
+    {
         /* Check link status periodically */
         ethernetif_check_link(netif);
 
@@ -65,12 +67,13 @@ static void vEthernetTask(void *pvParameters) {
          * conditions and intermittent packet loss. */
 
         count++;
-        if (count >= 500) { /* 5 seconds */
+        if (count >= 500)
+        { /* 5 seconds */
             count = 0;
             (void)printf("Stats - RX: %d, TX: %d, DROP: %d, RX_INT: %u\n",
-                   (int)lwip_stats.link.recv, (int)lwip_stats.link.xmit,
-                   (int)lwip_stats.link.drop,
-                   (unsigned int)ethernetif_get_rx_int_count());
+                         (int)lwip_stats.link.recv, (int)lwip_stats.link.xmit,
+                         (int)lwip_stats.link.drop,
+                         (unsigned int)ethernetif_get_rx_int_count());
         }
 
         vTaskDelay(pdMS_TO_TICKS(10));
@@ -78,17 +81,22 @@ static void vEthernetTask(void *pvParameters) {
 }
 
 #if LWIP_NETIF_LINK_CALLBACK
-static void link_callback(struct netif *netif) {
-    if (netif_is_link_up(netif)) {
+static void link_callback(struct netif *netif)
+{
+    if (netif_is_link_up(netif))
+    {
         printf("Link status changed: UP\n");
         /* Optional: Re-trigger DHCP or other actions if needed */
-    } else {
+    }
+    else
+    {
         printf("Link status changed: DOWN\n");
     }
 }
 #endif
 
-static void tcp_echo_thread(void *arg) {
+static void tcp_echo_thread(void *arg)
+{
     struct netconn *conn, *newconn;
     err_t           err;
     LWIP_UNUSED_ARG(arg);
@@ -96,28 +104,34 @@ static void tcp_echo_thread(void *arg) {
     /* Create a new connection identifier */
     conn = netconn_new(NETCONN_TCP);
 
-    if (conn != NULL) {
+    if (conn != NULL)
+    {
         /* Bind connection to well known port 7 */
         err = netconn_bind(conn, NULL, 7);
 
-        if (err == ERR_OK) {
+        if (err == ERR_OK)
+        {
             /* Tell connection to go into listening mode */
             netconn_listen(conn);
             printf("TCP Echo Server listening on port 7\n");
 
-            while (1) {
+            while (1)
+            {
                 /* Grab new connection. */
                 err = netconn_accept(conn, &newconn);
 
                 /* Process the new connection. */
-                if (err == ERR_OK) {
+                if (err == ERR_OK)
+                {
                     printf("New connection accepted\n");
                     struct netbuf *buf;
                     void          *data;
                     u16_t          len;
 
-                    while ((err = netconn_recv(newconn, &buf)) == ERR_OK) {
-                        do {
+                    while ((err = netconn_recv(newconn, &buf)) == ERR_OK)
+                    {
+                        do
+                        {
                             netbuf_data(buf, &data, &len);
                             err =
                                 netconn_write(newconn, data, len, NETCONN_COPY);
@@ -130,21 +144,27 @@ static void tcp_echo_thread(void *arg) {
                     printf("Connection closed\n");
                 }
             }
-        } else {
+        }
+        else
+        {
             printf("Failed to bind connection: %d\n", err);
             netconn_delete(conn);
         }
-    } else {
+    }
+    else
+    {
         printf("Failed to create new connection\n");
     }
 }
 
-static void tcpip_init_done_callback(void *arg) {
+static void tcpip_init_done_callback(void *arg)
+{
     (void)arg;
     printf("*** tcpip_thread is running! ***\n");
 }
 
-void vTcpEchoTask(void *pvParameters) {
+void vTcpEchoTask(void *pvParameters)
+{
     ip4_addr_t ipaddr;
     ip4_addr_t netmask;
     ip4_addr_t gw;
@@ -193,9 +213,12 @@ void vTcpEchoTask(void *pvParameters) {
     /* Always bring the interface up administratively so DHCP can start */
     netif_set_up(&gnetif);
 
-    if (netif_is_link_up(&gnetif)) {
+    if (netif_is_link_up(&gnetif))
+    {
         printf("Initial Link status: UP\n");
-    } else {
+    }
+    else
+    {
         printf("Initial Link status: DOWN\n");
     }
 
@@ -220,10 +243,12 @@ void vTcpEchoTask(void *pvParameters) {
     /* Wait for DHCP to obtain an IP address */
     printf("Waiting for DHCP to obtain IP address...\n");
     uint32_t dhcp_timeout = 0;
-    while (!dhcp_supplied_address(&gnetif)) {
+    while (!dhcp_supplied_address(&gnetif))
+    {
         vTaskDelay(pdMS_TO_TICKS(100));
         dhcp_timeout++;
-        if (dhcp_timeout >= 300) { /* 30 seconds timeout */
+        if (dhcp_timeout >= 300)
+        { /* 30 seconds timeout */
             printf("DHCP timeout! Using link-local address.\n");
             break;
         }

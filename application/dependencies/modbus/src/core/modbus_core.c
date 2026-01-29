@@ -43,7 +43,8 @@
  *
  * Contains all state and configuration for a Modbus instance.
  */
-struct modbus_context {
+struct modbus_context
+{
     modbus_config_t config;      /**< Configuration */
     modbus_state_t  state;       /**< Current state */
     bool            initialized; /**< Initialization flag */
@@ -70,11 +71,12 @@ struct modbus_context {
  * @param[in] config Pointer to configuration structure
  * @return modbus_error_t MODBUS_OK on success
  */
-modbus_error_t modbus_init(modbus_context_t      *ctx,
-                           const modbus_config_t *config) {
+modbus_error_t modbus_init(modbus_context_t *ctx, const modbus_config_t *config)
+{
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if ((ctx != NULL) && (config != NULL)) {
+    if ((ctx != NULL) && (config != NULL))
+    {
         /* Initialize context */
         (void)memset(ctx, 0, sizeof(modbus_context_t));
         (void)memcpy(&ctx->config, config, sizeof(modbus_config_t));
@@ -99,13 +101,18 @@ size_t modbus_context_size(void) { return sizeof(modbus_context_t); }
  * @param[in] ctx Pointer to context to deinitialize
  * @return modbus_error_t MODBUS_OK on success
  */
-modbus_error_t modbus_deinit(modbus_context_t *ctx) {
+modbus_error_t modbus_deinit(modbus_context_t *ctx)
+{
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if (ctx != NULL) {
-        if (!ctx->initialized) {
+    if (ctx != NULL)
+    {
+        if (!ctx->initialized)
+        {
             result = MODBUS_ERROR_NOT_INITIALIZED;
-        } else {
+        }
+        else
+        {
             /* Clear context */
             ctx->initialized = false;
             ctx->state       = MODBUS_STATE_IDLE;
@@ -122,10 +129,12 @@ modbus_error_t modbus_deinit(modbus_context_t *ctx) {
  * @param[in] ctx Pointer to context
  * @return modbus_state_t Current state
  */
-modbus_state_t modbus_get_state(const modbus_context_t *ctx) {
+modbus_state_t modbus_get_state(const modbus_context_t *ctx)
+{
     modbus_state_t result = MODBUS_STATE_ERROR;
 
-    if ((ctx != NULL) && (ctx->initialized)) {
+    if ((ctx != NULL) && (ctx->initialized))
+    {
         result = ctx->state;
     }
 
@@ -141,7 +150,8 @@ modbus_state_t modbus_get_state(const modbus_context_t *ctx) {
  */
 static modbus_error_t process_read_coils(modbus_context_t   *ctx,
                                          const modbus_pdu_t *request,
-                                         modbus_pdu_t       *response) {
+                                         modbus_pdu_t       *response)
+{
     uint16_t           start_address;
     uint16_t           quantity;
     modbus_exception_t exception;
@@ -150,24 +160,32 @@ static modbus_error_t process_read_coils(modbus_context_t   *ctx,
 
     err =
         modbus_pdu_decode_read_bits_request(request, &start_address, &quantity);
-    if (err != MODBUS_OK) {
+    if (err != MODBUS_OK)
+    {
         result =
             modbus_pdu_encode_exception(response, MODBUS_FC_READ_COILS,
                                         MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else if ((quantity == 0U) || (quantity > MAX_READ_COILS)) {
+    }
+    else if ((quantity == 0U) || (quantity > MAX_READ_COILS))
+    {
         /* Validate quantity */
         result =
             modbus_pdu_encode_exception(response, MODBUS_FC_READ_COILS,
                                         MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else {
+    }
+    else
+    {
         /* Call user callback */
         exception =
             modbus_cb_read_coils(start_address, quantity, ctx->coil_buffer);
-        if (exception != MODBUS_EXCEPTION_NONE) {
+        if (exception != MODBUS_EXCEPTION_NONE)
+        {
             ctx->exceptions_sent++;
             result = modbus_pdu_encode_exception(response, MODBUS_FC_READ_COILS,
                                                  exception);
-        } else {
+        }
+        else
+        {
             result = modbus_pdu_encode_read_bits_response(
                 response, MODBUS_FC_READ_COILS, ctx->coil_buffer, quantity);
         }
@@ -181,7 +199,8 @@ static modbus_error_t process_read_coils(modbus_context_t   *ctx,
  */
 static modbus_error_t process_read_discrete_inputs(modbus_context_t   *ctx,
                                                    const modbus_pdu_t *request,
-                                                   modbus_pdu_t *response) {
+                                                   modbus_pdu_t       *response)
+{
     uint16_t           start_address;
     uint16_t           quantity;
     modbus_exception_t exception;
@@ -190,24 +209,32 @@ static modbus_error_t process_read_discrete_inputs(modbus_context_t   *ctx,
 
     err =
         modbus_pdu_decode_read_bits_request(request, &start_address, &quantity);
-    if (err != MODBUS_OK) {
+    if (err != MODBUS_OK)
+    {
         result = modbus_pdu_encode_exception(
             response, MODBUS_FC_READ_DISCRETE_INPUTS,
             MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else if ((quantity == 0U) || (quantity > MAX_READ_COILS)) {
+    }
+    else if ((quantity == 0U) || (quantity > MAX_READ_COILS))
+    {
         /* Validate quantity */
         result = modbus_pdu_encode_exception(
             response, MODBUS_FC_READ_DISCRETE_INPUTS,
             MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else {
+    }
+    else
+    {
         /* Call user callback */
         exception = modbus_cb_read_discrete_inputs(start_address, quantity,
                                                    ctx->coil_buffer);
-        if (exception != MODBUS_EXCEPTION_NONE) {
+        if (exception != MODBUS_EXCEPTION_NONE)
+        {
             ctx->exceptions_sent++;
             result = modbus_pdu_encode_exception(
                 response, MODBUS_FC_READ_DISCRETE_INPUTS, exception);
-        } else {
+        }
+        else
+        {
             result = modbus_pdu_encode_read_bits_response(
                 response, MODBUS_FC_READ_DISCRETE_INPUTS, ctx->coil_buffer,
                 quantity);
@@ -221,8 +248,8 @@ static modbus_error_t process_read_discrete_inputs(modbus_context_t   *ctx,
  * @brief Process Read Holding Registers (FC03) request
  */
 static modbus_error_t process_read_holding_registers(
-    modbus_context_t *ctx, const modbus_pdu_t *request,
-    modbus_pdu_t *response) {
+    modbus_context_t *ctx, const modbus_pdu_t *request, modbus_pdu_t *response)
+{
     uint16_t           start_address;
     uint16_t           quantity;
     modbus_exception_t exception;
@@ -231,24 +258,32 @@ static modbus_error_t process_read_holding_registers(
 
     err = modbus_pdu_decode_read_registers_request(request, &start_address,
                                                    &quantity);
-    if (err != MODBUS_OK) {
+    if (err != MODBUS_OK)
+    {
         result = modbus_pdu_encode_exception(
             response, MODBUS_FC_READ_HOLDING_REGISTERS,
             MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else if ((quantity == 0U) || (quantity > MAX_READ_REGISTERS)) {
+    }
+    else if ((quantity == 0U) || (quantity > MAX_READ_REGISTERS))
+    {
         /* Validate quantity */
         result = modbus_pdu_encode_exception(
             response, MODBUS_FC_READ_HOLDING_REGISTERS,
             MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else {
+    }
+    else
+    {
         /* Call user callback */
         exception = modbus_cb_read_holding_registers(start_address, quantity,
                                                      ctx->register_buffer);
-        if (exception != MODBUS_EXCEPTION_NONE) {
+        if (exception != MODBUS_EXCEPTION_NONE)
+        {
             ctx->exceptions_sent++;
             result = modbus_pdu_encode_exception(
                 response, MODBUS_FC_READ_HOLDING_REGISTERS, exception);
-        } else {
+        }
+        else
+        {
             result = modbus_pdu_encode_read_registers_response(
                 response, MODBUS_FC_READ_HOLDING_REGISTERS,
                 ctx->register_buffer, quantity);
@@ -263,7 +298,8 @@ static modbus_error_t process_read_holding_registers(
  */
 static modbus_error_t process_read_input_registers(modbus_context_t   *ctx,
                                                    const modbus_pdu_t *request,
-                                                   modbus_pdu_t *response) {
+                                                   modbus_pdu_t       *response)
+{
     uint16_t           start_address;
     uint16_t           quantity;
     modbus_exception_t exception;
@@ -272,24 +308,32 @@ static modbus_error_t process_read_input_registers(modbus_context_t   *ctx,
 
     err = modbus_pdu_decode_read_registers_request(request, &start_address,
                                                    &quantity);
-    if (err != MODBUS_OK) {
+    if (err != MODBUS_OK)
+    {
         result = modbus_pdu_encode_exception(
             response, MODBUS_FC_READ_INPUT_REGISTERS,
             MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else if ((quantity == 0U) || (quantity > MAX_READ_REGISTERS)) {
+    }
+    else if ((quantity == 0U) || (quantity > MAX_READ_REGISTERS))
+    {
         /* Validate quantity */
         result = modbus_pdu_encode_exception(
             response, MODBUS_FC_READ_INPUT_REGISTERS,
             MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else {
+    }
+    else
+    {
         /* Call user callback */
         exception = modbus_cb_read_input_registers(start_address, quantity,
                                                    ctx->register_buffer);
-        if (exception != MODBUS_EXCEPTION_NONE) {
+        if (exception != MODBUS_EXCEPTION_NONE)
+        {
             ctx->exceptions_sent++;
             result = modbus_pdu_encode_exception(
                 response, MODBUS_FC_READ_INPUT_REGISTERS, exception);
-        } else {
+        }
+        else
+        {
             result = modbus_pdu_encode_read_registers_response(
                 response, MODBUS_FC_READ_INPUT_REGISTERS, ctx->register_buffer,
                 quantity);
@@ -304,7 +348,8 @@ static modbus_error_t process_read_input_registers(modbus_context_t   *ctx,
  */
 static modbus_error_t process_write_single_coil(modbus_context_t   *ctx,
                                                 const modbus_pdu_t *request,
-                                                modbus_pdu_t       *response) {
+                                                modbus_pdu_t       *response)
+{
     uint16_t           address;
     bool               value;
     modbus_exception_t exception;
@@ -315,17 +360,23 @@ static modbus_error_t process_write_single_coil(modbus_context_t   *ctx,
 
     err =
         modbus_pdu_decode_write_single_coil_request(request, &address, &value);
-    if (err != MODBUS_OK) {
+    if (err != MODBUS_OK)
+    {
         result =
             modbus_pdu_encode_exception(response, MODBUS_FC_WRITE_SINGLE_COIL,
                                         MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else {
+    }
+    else
+    {
         /* Call user callback */
         exception = modbus_cb_write_single_coil(address, value);
-        if (exception != MODBUS_EXCEPTION_NONE) {
+        if (exception != MODBUS_EXCEPTION_NONE)
+        {
             result = modbus_pdu_encode_exception(
                 response, MODBUS_FC_WRITE_SINGLE_COIL, exception);
-        } else {
+        }
+        else
+        {
             /* Echo request as response */
             result = modbus_pdu_encode_write_single_response(
                 response, MODBUS_FC_WRITE_SINGLE_COIL, address,
@@ -341,7 +392,8 @@ static modbus_error_t process_write_single_coil(modbus_context_t   *ctx,
  */
 static modbus_error_t process_write_single_register(modbus_context_t   *ctx,
                                                     const modbus_pdu_t *request,
-                                                    modbus_pdu_t *response) {
+                                                    modbus_pdu_t *response)
+{
     uint16_t           address;
     uint16_t           value;
     modbus_exception_t exception;
@@ -352,17 +404,23 @@ static modbus_error_t process_write_single_register(modbus_context_t   *ctx,
 
     err = modbus_pdu_decode_write_single_register_request(request, &address,
                                                           &value);
-    if (err != MODBUS_OK) {
+    if (err != MODBUS_OK)
+    {
         result = modbus_pdu_encode_exception(
             response, MODBUS_FC_WRITE_SINGLE_REGISTER,
             MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else {
+    }
+    else
+    {
         /* Call user callback */
         exception = modbus_cb_write_single_register(address, value);
-        if (exception != MODBUS_EXCEPTION_NONE) {
+        if (exception != MODBUS_EXCEPTION_NONE)
+        {
             result = modbus_pdu_encode_exception(
                 response, MODBUS_FC_WRITE_SINGLE_REGISTER, exception);
-        } else {
+        }
+        else
+        {
             /* Echo request as response */
             result = modbus_pdu_encode_write_single_response(
                 response, MODBUS_FC_WRITE_SINGLE_REGISTER, address, value);
@@ -377,7 +435,8 @@ static modbus_error_t process_write_single_register(modbus_context_t   *ctx,
  */
 static modbus_error_t process_write_multiple_coils(modbus_context_t   *ctx,
                                                    const modbus_pdu_t *request,
-                                                   modbus_pdu_t *response) {
+                                                   modbus_pdu_t       *response)
+{
     uint16_t           start_address;
     uint16_t           quantity;
     const uint8_t     *values;
@@ -389,23 +448,31 @@ static modbus_error_t process_write_multiple_coils(modbus_context_t   *ctx,
 
     err = modbus_pdu_decode_write_multiple_coils_request(
         request, &start_address, &quantity, &values);
-    if (err != MODBUS_OK) {
+    if (err != MODBUS_OK)
+    {
         result = modbus_pdu_encode_exception(
             response, MODBUS_FC_WRITE_MULTIPLE_COILS,
             MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else if ((quantity == 0U) || (quantity > MAX_WRITE_COILS)) {
+    }
+    else if ((quantity == 0U) || (quantity > MAX_WRITE_COILS))
+    {
         /* Validate quantity */
         result = modbus_pdu_encode_exception(
             response, MODBUS_FC_WRITE_MULTIPLE_COILS,
             MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else {
+    }
+    else
+    {
         /* Call user callback */
         exception =
             modbus_cb_write_multiple_coils(start_address, quantity, values);
-        if (exception != MODBUS_EXCEPTION_NONE) {
+        if (exception != MODBUS_EXCEPTION_NONE)
+        {
             result = modbus_pdu_encode_exception(
                 response, MODBUS_FC_WRITE_MULTIPLE_COILS, exception);
-        } else {
+        }
+        else
+        {
             result = modbus_pdu_encode_write_multiple_response(
                 response, MODBUS_FC_WRITE_MULTIPLE_COILS, start_address,
                 quantity);
@@ -419,8 +486,8 @@ static modbus_error_t process_write_multiple_coils(modbus_context_t   *ctx,
  * @brief Process Write Multiple Registers (FC16) request
  */
 static modbus_error_t process_write_multiple_registers(
-    modbus_context_t *ctx, const modbus_pdu_t *request,
-    modbus_pdu_t *response) {
+    modbus_context_t *ctx, const modbus_pdu_t *request, modbus_pdu_t *response)
+{
     uint16_t           start_address;
     uint16_t           quantity;
     modbus_exception_t exception;
@@ -430,23 +497,31 @@ static modbus_error_t process_write_multiple_registers(
     err = modbus_pdu_decode_write_multiple_registers_request(
         request, &start_address, &quantity, ctx->register_buffer,
         MAX_WRITE_REGISTERS);
-    if (err != MODBUS_OK) {
+    if (err != MODBUS_OK)
+    {
         result = modbus_pdu_encode_exception(
             response, MODBUS_FC_WRITE_MULTIPLE_REGISTERS,
             MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else if ((quantity == 0U) || (quantity > MAX_WRITE_REGISTERS)) {
+    }
+    else if ((quantity == 0U) || (quantity > MAX_WRITE_REGISTERS))
+    {
         /* Validate quantity */
         result = modbus_pdu_encode_exception(
             response, MODBUS_FC_WRITE_MULTIPLE_REGISTERS,
             MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
-    } else {
+    }
+    else
+    {
         /* Call user callback */
         exception = modbus_cb_write_multiple_registers(start_address, quantity,
                                                        ctx->register_buffer);
-        if (exception != MODBUS_EXCEPTION_NONE) {
+        if (exception != MODBUS_EXCEPTION_NONE)
+        {
             result = modbus_pdu_encode_exception(
                 response, MODBUS_FC_WRITE_MULTIPLE_REGISTERS, exception);
-        } else {
+        }
+        else
+        {
             result = modbus_pdu_encode_write_multiple_response(
                 response, MODBUS_FC_WRITE_MULTIPLE_REGISTERS, start_address,
                 quantity);
@@ -470,18 +545,24 @@ static modbus_error_t process_write_multiple_registers(
  */
 modbus_error_t modbus_slave_process_pdu(modbus_context_t   *ctx,
                                         const modbus_pdu_t *request,
-                                        modbus_pdu_t       *response) {
+                                        modbus_pdu_t       *response)
+{
     modbus_error_t err;
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if ((ctx != NULL) && (request != NULL) && (response != NULL)) {
-        if (!ctx->initialized) {
+    if ((ctx != NULL) && (request != NULL) && (response != NULL))
+    {
+        if (!ctx->initialized)
+        {
             result = MODBUS_ERROR_NOT_INITIALIZED;
-        } else {
+        }
+        else
+        {
             ctx->requests_processed++;
 
             /* Process based on function code */
-            switch (request->function_code) {
+            switch (request->function_code)
+            {
                 case MODBUS_FC_READ_COILS:
                     err = process_read_coils(ctx, request, response);
                     break;
@@ -525,7 +606,8 @@ modbus_error_t modbus_slave_process_pdu(modbus_context_t   *ctx,
                     break;
             }
 
-            if (err != MODBUS_OK) {
+            if (err != MODBUS_OK)
+            {
                 ctx->errors_count++;
             }
 
@@ -549,25 +631,33 @@ modbus_error_t modbus_slave_process_pdu(modbus_context_t   *ctx,
 modbus_error_t modbus_slave_process_adu(modbus_context_t   *ctx,
                                         const modbus_adu_t *request,
                                         modbus_adu_t       *response,
-                                        bool               *send_response) {
+                                        bool               *send_response)
+{
     modbus_error_t err;
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
     if ((ctx != NULL) && (request != NULL) && (response != NULL) &&
-        (send_response != NULL)) {
+        (send_response != NULL))
+    {
         /* Check if request is for this slave */
         if ((request->unit_id != ctx->config.unit_id) &&
-            (request->unit_id != 0U)) {
+            (request->unit_id != 0U))
+        {
             /* Not for us - don't respond */
             *send_response = false;
             result         = MODBUS_OK;
-        } else {
+        }
+        else
+        {
             /* Process PDU */
             err = modbus_slave_process_pdu(ctx, &request->pdu, &response->pdu);
-            if (err != MODBUS_OK) {
+            if (err != MODBUS_OK)
+            {
                 *send_response = false;
                 result         = err;
-            } else {
+            }
+            else
+            {
                 /* Copy addressing info to response */
                 response->unit_id        = ctx->config.unit_id;
                 response->transaction_id = request->transaction_id;
@@ -593,10 +683,12 @@ modbus_error_t modbus_slave_process_adu(modbus_context_t   *ctx,
  * @param[in] ctx Pointer to context
  * @return uint32_t Number of requests processed
  */
-uint32_t modbus_get_requests_processed(const modbus_context_t *ctx) {
+uint32_t modbus_get_requests_processed(const modbus_context_t *ctx)
+{
     uint32_t result = 0U;
 
-    if ((ctx != NULL) && (ctx->initialized)) {
+    if ((ctx != NULL) && (ctx->initialized))
+    {
         result = ctx->requests_processed;
     }
 
@@ -609,10 +701,12 @@ uint32_t modbus_get_requests_processed(const modbus_context_t *ctx) {
  * @param[in] ctx Pointer to context
  * @return uint32_t Number of errors
  */
-uint32_t modbus_get_errors_count(const modbus_context_t *ctx) {
+uint32_t modbus_get_errors_count(const modbus_context_t *ctx)
+{
     uint32_t result = 0U;
 
-    if ((ctx != NULL) && (ctx->initialized)) {
+    if ((ctx != NULL) && (ctx->initialized))
+    {
         result = ctx->errors_count;
     }
 
@@ -625,10 +719,12 @@ uint32_t modbus_get_errors_count(const modbus_context_t *ctx) {
  * @param[in] ctx Pointer to context
  * @return uint32_t Number of exceptions sent
  */
-uint32_t modbus_get_exceptions_sent(const modbus_context_t *ctx) {
+uint32_t modbus_get_exceptions_sent(const modbus_context_t *ctx)
+{
     uint32_t result = 0U;
 
-    if ((ctx != NULL) && (ctx->initialized)) {
+    if ((ctx != NULL) && (ctx->initialized))
+    {
         result = ctx->exceptions_sent;
     }
 
@@ -640,8 +736,10 @@ uint32_t modbus_get_exceptions_sent(const modbus_context_t *ctx) {
  *
  * @param[in] ctx Pointer to context
  */
-void modbus_reset_statistics(modbus_context_t *ctx) {
-    if ((ctx != NULL) && (ctx->initialized)) {
+void modbus_reset_statistics(modbus_context_t *ctx)
+{
+    if ((ctx != NULL) && (ctx->initialized))
+    {
         ctx->requests_processed = 0U;
         ctx->errors_count       = 0U;
         ctx->exceptions_sent    = 0U;

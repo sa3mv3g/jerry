@@ -62,10 +62,12 @@
  */
 modbus_error_t modbus_ascii_build_frame(const modbus_adu_t *adu, char *frame,
                                         uint16_t  frame_size,
-                                        uint16_t *frame_length) {
+                                        uint16_t *frame_length)
+{
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if ((adu != NULL) && (frame != NULL) && (frame_length != NULL)) {
+    if ((adu != NULL) && (frame != NULL) && (frame_length != NULL))
+    {
         uint8_t binary_buffer[MODBUS_ASCII_MAX_BINARY_LEN];
 
         /* Build binary data: address + PDU */
@@ -75,7 +77,8 @@ modbus_error_t modbus_ascii_build_frame(const modbus_adu_t *adu, char *frame,
         modbus_error_t err =
             modbus_pdu_serialize(&adu->pdu, &binary_buffer[1],
                                  MODBUS_ASCII_MAX_BINARY_LEN - 1U, &pdu_len);
-        if (err == MODBUS_OK) {
+        if (err == MODBUS_OK)
+        {
             uint16_t binary_len = 1U + pdu_len; /* address + PDU */
 
             /* Calculate LRC on binary data */
@@ -86,7 +89,8 @@ modbus_error_t modbus_ascii_build_frame(const modbus_adu_t *adu, char *frame,
             binary_len++;
 
             /* Calculate required frame size: : + hex_data + CR + LF */
-            if (frame_size >= (1U + (binary_len * 2U) + 2U)) {
+            if (frame_size >= (1U + (binary_len * 2U) + 2U))
+            {
                 /* Build frame: Start character */
                 frame[0] = MODBUS_ASCII_START_CHAR;
 
@@ -94,20 +98,27 @@ modbus_error_t modbus_ascii_build_frame(const modbus_adu_t *adu, char *frame,
                 uint16_t ascii_len =
                     modbus_binary_to_ascii(binary_buffer, binary_len, &frame[1],
                                            (uint16_t)(frame_size - 3U));
-                if (ascii_len > 0U) {
+                if (ascii_len > 0U)
+                {
                     /* Build frame: End characters */
                     frame[1U + ascii_len]      = MODBUS_ASCII_END_CR;
                     frame[1U + ascii_len + 1U] = MODBUS_ASCII_END_LF;
 
                     *frame_length = 1U + ascii_len + 2U;
                     result        = MODBUS_OK;
-                } else {
+                }
+                else
+                {
                     result = MODBUS_ERROR_BUFFER_OVERFLOW;
                 }
-            } else {
+            }
+            else
+            {
                 result = MODBUS_ERROR_BUFFER_OVERFLOW;
             }
-        } else {
+        }
+        else
+        {
             result = err;
         }
     }
@@ -127,41 +138,58 @@ modbus_error_t modbus_ascii_build_frame(const modbus_adu_t *adu, char *frame,
  */
 modbus_error_t modbus_ascii_parse_frame(const char   *frame,
                                         uint16_t      frame_length,
-                                        modbus_adu_t *adu) {
+                                        modbus_adu_t *adu)
+{
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if ((frame != NULL) && (adu != NULL)) {
+    if ((frame != NULL) && (adu != NULL))
+    {
         /* Validate minimum frame length */
-        if (frame_length < MODBUS_ASCII_MIN_FRAME_LEN) {
+        if (frame_length < MODBUS_ASCII_MIN_FRAME_LEN)
+        {
             result = MODBUS_ERROR_FRAME;
-        } else if (frame[0] != MODBUS_ASCII_START_CHAR) {
+        }
+        else if (frame[0] != MODBUS_ASCII_START_CHAR)
+        {
             /* Validate start character */
             result = MODBUS_ERROR_FRAME;
-        } else if ((frame[frame_length - 2U] != MODBUS_ASCII_END_CR) ||
-                   (frame[frame_length - 1U] != MODBUS_ASCII_END_LF)) {
+        }
+        else if ((frame[frame_length - 2U] != MODBUS_ASCII_END_CR) ||
+                 (frame[frame_length - 1U] != MODBUS_ASCII_END_LF))
+        {
             /* Validate end characters */
             result = MODBUS_ERROR_FRAME;
-        } else {
+        }
+        else
+        {
             /* Calculate hex data length (excluding : and CR LF) */
             uint16_t hex_len = (uint16_t)(frame_length - 3U);
 
             /* Hex length must be even */
-            if ((hex_len % 2U) != 0U) {
+            if ((hex_len % 2U) != 0U)
+            {
                 result = MODBUS_ERROR_FRAME;
-            } else {
+            }
+            else
+            {
                 uint8_t binary_buffer[MODBUS_ASCII_MAX_BINARY_LEN +
                                       1U]; /* +1 for LRC */
 
                 /* Convert hex to binary */
                 uint16_t binary_len = modbus_ascii_to_binary(
                     &frame[1], hex_len, binary_buffer, sizeof(binary_buffer));
-                if (binary_len == 0U) {
+                if (binary_len == 0U)
+                {
                     result = MODBUS_ERROR_FRAME;
-                } else if (!modbus_lrc_verify(binary_buffer, binary_len)) {
+                }
+                else if (!modbus_lrc_verify(binary_buffer, binary_len))
+                {
                     /* Verify LRC (binary data includes LRC byte) */
                     result =
                         MODBUS_ERROR_CRC; /* Using CRC error for LRC failure */
-                } else {
+                }
+                else
+                {
                     /* Extract address (first byte) */
                     adu->unit_id = binary_buffer[0];
 
@@ -169,12 +197,15 @@ modbus_error_t modbus_ascii_parse_frame(const char   *frame,
                     modbus_error_t err =
                         modbus_pdu_deserialize(&adu->pdu, &binary_buffer[1],
                                                (uint16_t)(binary_len - 2U));
-                    if (err == MODBUS_OK) {
+                    if (err == MODBUS_OK)
+                    {
                         /* Clear TCP-specific fields */
                         adu->transaction_id = 0U;
                         adu->protocol_id    = 0U;
                         result              = MODBUS_OK;
-                    } else {
+                    }
+                    else
+                    {
                         result = err;
                     }
                 }
@@ -192,7 +223,8 @@ modbus_error_t modbus_ascii_parse_frame(const char   *frame,
 /**
  * @brief ASCII receiver states
  */
-typedef enum {
+typedef enum
+{
     ASCII_RX_STATE_IDLE = 0,    /**< Waiting for start character ':' */
     ASCII_RX_STATE_RECEIVING,   /**< Receiving hex data */
     ASCII_RX_STATE_CR_RECEIVED, /**< CR received, waiting for LF */
@@ -203,7 +235,8 @@ typedef enum {
 /**
  * @brief ASCII receiver context
  */
-typedef struct {
+typedef struct
+{
     modbus_ascii_rx_state_t state;               /**< Current receiver state */
     char     buffer[MODBUS_ASCII_MAX_FRAME_LEN]; /**< Receive buffer */
     uint16_t index;                              /**< Current buffer index */
@@ -219,10 +252,12 @@ typedef struct {
  * @return modbus_error_t MODBUS_OK on success
  */
 modbus_error_t modbus_ascii_rx_init(modbus_ascii_rx_context_t *ctx,
-                                    uint32_t                   timeout_ms) {
+                                    uint32_t                   timeout_ms)
+{
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if (ctx != NULL) {
+    if (ctx != NULL)
+    {
         ctx->state      = ASCII_RX_STATE_IDLE;
         ctx->index      = 0U;
         ctx->start_time = 0U;
@@ -238,8 +273,10 @@ modbus_error_t modbus_ascii_rx_init(modbus_ascii_rx_context_t *ctx,
  *
  * @param[in,out] ctx Pointer to receiver context
  */
-void modbus_ascii_rx_reset(modbus_ascii_rx_context_t *ctx) {
-    if (ctx != NULL) {
+void modbus_ascii_rx_reset(modbus_ascii_rx_context_t *ctx)
+{
+    if (ctx != NULL)
+    {
         ctx->state = ASCII_RX_STATE_IDLE;
         ctx->index = 0U;
     }
@@ -254,15 +291,19 @@ void modbus_ascii_rx_reset(modbus_ascii_rx_context_t *ctx) {
  * @return modbus_error_t MODBUS_OK on success
  */
 modbus_error_t modbus_ascii_rx_process_char(modbus_ascii_rx_context_t *ctx,
-                                            char c, uint32_t current_time_ms) {
+                                            char c, uint32_t current_time_ms)
+{
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if (ctx != NULL) {
+    if (ctx != NULL)
+    {
         result = MODBUS_OK;
 
-        switch (ctx->state) {
+        switch (ctx->state)
+        {
             case ASCII_RX_STATE_IDLE:
-                if (c == MODBUS_ASCII_START_CHAR) {
+                if (c == MODBUS_ASCII_START_CHAR)
+                {
                     /* Start of new frame */
                     ctx->buffer[0]  = c;
                     ctx->index      = 1U;
@@ -273,27 +314,38 @@ modbus_error_t modbus_ascii_rx_process_char(modbus_ascii_rx_context_t *ctx,
                 break;
 
             case ASCII_RX_STATE_RECEIVING:
-                if (c == MODBUS_ASCII_START_CHAR) {
+                if (c == MODBUS_ASCII_START_CHAR)
+                {
                     /* New frame start - restart reception */
                     ctx->buffer[0]  = c;
                     ctx->index      = 1U;
                     ctx->start_time = current_time_ms;
-                } else if (c == MODBUS_ASCII_END_CR) {
+                }
+                else if (c == MODBUS_ASCII_END_CR)
+                {
                     /* CR received */
-                    if (ctx->index < MODBUS_ASCII_MAX_FRAME_LEN) {
+                    if (ctx->index < MODBUS_ASCII_MAX_FRAME_LEN)
+                    {
                         ctx->buffer[ctx->index] = c;
                         ctx->index++;
                         ctx->state = ASCII_RX_STATE_CR_RECEIVED;
-                    } else {
+                    }
+                    else
+                    {
                         ctx->state = ASCII_RX_STATE_ERROR;
                         result     = MODBUS_ERROR_BUFFER_OVERFLOW;
                     }
-                } else {
+                }
+                else
+                {
                     /* Regular character */
-                    if (ctx->index < MODBUS_ASCII_MAX_FRAME_LEN) {
+                    if (ctx->index < MODBUS_ASCII_MAX_FRAME_LEN)
+                    {
                         ctx->buffer[ctx->index] = c;
                         ctx->index++;
-                    } else {
+                    }
+                    else
+                    {
                         ctx->state = ASCII_RX_STATE_ERROR;
                         result     = MODBUS_ERROR_BUFFER_OVERFLOW;
                     }
@@ -301,23 +353,31 @@ modbus_error_t modbus_ascii_rx_process_char(modbus_ascii_rx_context_t *ctx,
                 break;
 
             case ASCII_RX_STATE_CR_RECEIVED:
-                if (c == MODBUS_ASCII_END_LF) {
+                if (c == MODBUS_ASCII_END_LF)
+                {
                     /* Frame complete */
-                    if (ctx->index < MODBUS_ASCII_MAX_FRAME_LEN) {
+                    if (ctx->index < MODBUS_ASCII_MAX_FRAME_LEN)
+                    {
                         ctx->buffer[ctx->index] = c;
                         ctx->index++;
                         ctx->state = ASCII_RX_STATE_COMPLETE;
-                    } else {
+                    }
+                    else
+                    {
                         ctx->state = ASCII_RX_STATE_ERROR;
                         result     = MODBUS_ERROR_BUFFER_OVERFLOW;
                     }
-                } else if (c == MODBUS_ASCII_START_CHAR) {
+                }
+                else if (c == MODBUS_ASCII_START_CHAR)
+                {
                     /* New frame start - restart reception */
                     ctx->buffer[0]  = c;
                     ctx->index      = 1U;
                     ctx->start_time = current_time_ms;
                     ctx->state      = ASCII_RX_STATE_RECEIVING;
-                } else {
+                }
+                else
+                {
                     /* Invalid character after CR */
                     ctx->state = ASCII_RX_STATE_ERROR;
                     result     = MODBUS_ERROR_FRAME;
@@ -345,10 +405,12 @@ modbus_error_t modbus_ascii_rx_process_char(modbus_ascii_rx_context_t *ctx,
  * @param[in] ctx Pointer to receiver context
  * @return bool true if frame is complete, false otherwise
  */
-bool modbus_ascii_rx_is_complete(const modbus_ascii_rx_context_t *ctx) {
+bool modbus_ascii_rx_is_complete(const modbus_ascii_rx_context_t *ctx)
+{
     bool result = false;
 
-    if (ctx != NULL) {
+    if (ctx != NULL)
+    {
         result = (ctx->state == ASCII_RX_STATE_COMPLETE);
     }
 
@@ -363,12 +425,15 @@ bool modbus_ascii_rx_is_complete(const modbus_ascii_rx_context_t *ctx) {
  * @return bool true if timed out, false otherwise
  */
 bool modbus_ascii_rx_is_timeout(const modbus_ascii_rx_context_t *ctx,
-                                uint32_t current_time_ms) {
+                                uint32_t current_time_ms)
+{
     bool result = false;
 
-    if (ctx != NULL) {
+    if (ctx != NULL)
+    {
         if ((ctx->state == ASCII_RX_STATE_RECEIVING) ||
-            (ctx->state == ASCII_RX_STATE_CR_RECEIVED)) {
+            (ctx->state == ASCII_RX_STATE_CR_RECEIVED))
+        {
             uint32_t elapsed = current_time_ms - ctx->start_time;
             result           = (elapsed >= ctx->timeout_ms);
         }
@@ -386,15 +451,20 @@ bool modbus_ascii_rx_is_timeout(const modbus_ascii_rx_context_t *ctx,
  * @return modbus_error_t MODBUS_OK on success
  */
 modbus_error_t modbus_ascii_rx_get_frame(const modbus_ascii_rx_context_t *ctx,
-                                         const char **frame, uint16_t *length) {
+                                         const char **frame, uint16_t *length)
+{
     modbus_error_t result = MODBUS_ERROR_INVALID_PARAM;
 
-    if ((ctx != NULL) && (frame != NULL) && (length != NULL)) {
-        if (ctx->state == ASCII_RX_STATE_COMPLETE) {
+    if ((ctx != NULL) && (frame != NULL) && (length != NULL))
+    {
+        if (ctx->state == ASCII_RX_STATE_COMPLETE)
+        {
             *frame  = ctx->buffer;
             *length = ctx->index;
             result  = MODBUS_OK;
-        } else {
+        }
+        else
+        {
             result = MODBUS_ERROR_INVALID_STATE;
         }
     }
@@ -413,13 +483,17 @@ modbus_error_t modbus_ascii_rx_get_frame(const modbus_ascii_rx_context_t *ctx,
  * @param[in] slave_address Configured slave address
  * @return bool true if address matches or is broadcast
  */
-bool modbus_ascii_address_match(uint8_t frame_address, uint8_t slave_address) {
+bool modbus_ascii_address_match(uint8_t frame_address, uint8_t slave_address)
+{
     bool result;
 
     /* Broadcast address matches all slaves */
-    if (frame_address == MODBUS_ASCII_BROADCAST_ADDR) {
+    if (frame_address == MODBUS_ASCII_BROADCAST_ADDR)
+    {
         result = true;
-    } else {
+    }
+    else
+    {
         /* Direct address match */
         result = (frame_address == slave_address);
     }
@@ -433,6 +507,7 @@ bool modbus_ascii_address_match(uint8_t frame_address, uint8_t slave_address) {
  * @param[in] address Address to check
  * @return bool true if broadcast address
  */
-bool modbus_ascii_is_broadcast(uint8_t address) {
+bool modbus_ascii_is_broadcast(uint8_t address)
+{
     return (address == MODBUS_ASCII_BROADCAST_ADDR);
 }

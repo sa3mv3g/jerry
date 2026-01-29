@@ -77,7 +77,8 @@ extern uint32_t SystemCoreClock;
 
 /* Define to trap errors during development. */
 #define configASSERT(x)           \
-    if ((x) == 0) {               \
+    if ((x) == 0)                 \
+    {                             \
         taskDISABLE_INTERRUPTS(); \
         for (;;);                 \
     }

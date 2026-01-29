@@ -52,13 +52,16 @@ static const uint16_t s_crc16_table[256] = {
  * Public Functions
  * ========================================================================== */
 
-uint16_t modbus_crc16(const uint8_t *data, uint16_t length) {
+uint16_t modbus_crc16(const uint8_t *data, uint16_t length)
+{
     uint16_t       crc = 0xFFFFU;
     const uint8_t *ptr = data;
     uint16_t       len = length;
 
-    if (ptr != NULL) {
-        while (len > 0U) {
+    if (ptr != NULL)
+    {
+        while (len > 0U)
+        {
             uint8_t index = (uint8_t)(crc ^ (*ptr));
             crc           = (crc >> 8U) ^ s_crc16_table[index];
             ptr++;
@@ -83,22 +86,29 @@ uint16_t modbus_crc16(const uint8_t *data, uint16_t length) {
  * @param[in] length Length of data
  * @return CRC-16 value
  */
-uint16_t modbus_crc16_bitwise(const uint8_t *data, uint16_t length) {
+uint16_t modbus_crc16_bitwise(const uint8_t *data, uint16_t length)
+{
     uint16_t       crc = 0U;
     const uint8_t *ptr = data;
     uint16_t       len = length;
 
-    if (ptr != NULL) {
+    if (ptr != NULL)
+    {
         crc = 0xFFFFU;
-        while (len > 0U) {
+        while (len > 0U)
+        {
             crc ^= (uint16_t)(*ptr);
             ptr++;
             len--;
 
-            for (uint8_t i = 0U; i < 8U; i++) {
-                if ((crc & 0x0001U) != 0U) {
+            for (uint8_t i = 0U; i < 8U; i++)
+            {
+                if ((crc & 0x0001U) != 0U)
+                {
                     crc = (crc >> 1U) ^ 0xA001U;
-                } else {
+                }
+                else
+                {
                     crc >>= 1U;
                 }
             }
@@ -118,10 +128,12 @@ uint16_t modbus_crc16_bitwise(const uint8_t *data, uint16_t length) {
  * @param[in] frame_length Total frame length including 2 CRC bytes
  * @return true if CRC is valid, false otherwise
  */
-bool modbus_crc16_verify(const uint8_t *frame, uint16_t frame_length) {
+bool modbus_crc16_verify(const uint8_t *frame, uint16_t frame_length)
+{
     bool result = false;
 
-    if ((frame != NULL) && (frame_length >= 3U)) {
+    if ((frame != NULL) && (frame_length >= 3U))
+    {
         /* Calculate CRC over data (excluding CRC bytes) */
         uint16_t calculated_crc =
             modbus_crc16(frame, (uint16_t)(frame_length - 2U));
@@ -145,10 +157,12 @@ bool modbus_crc16_verify(const uint8_t *frame, uint16_t frame_length) {
  * @param[in]     data_length  Length of data (without CRC)
  * @return Total frame length including CRC (data_length + 2)
  */
-uint16_t modbus_crc16_append(uint8_t *frame, uint16_t data_length) {
+uint16_t modbus_crc16_append(uint8_t *frame, uint16_t data_length)
+{
     uint16_t result = 0U;
 
-    if (frame != NULL) {
+    if (frame != NULL)
+    {
         uint16_t crc = modbus_crc16(frame, data_length);
 
         /* Append CRC (low byte first) */
