@@ -19,25 +19,48 @@ set(LWIP_DEPS_PATH "${DEPS_PATH}/lwip")
 # All cmake FetchContent_Declare's target should be of
 # /FCD_.*/ to make name unique.
 
+# ==========================================================================
+# FetchContent Progress Messages
+# ==========================================================================
+message(STATUS "")
+message(STATUS "=== Fetching External Dependencies ===")
+
 # 1. Download Official STM32 LwIP Middleware
+message(STATUS "[1/2] Declaring STM32 LwIP Middleware (stm32-mw-lwip v2.1.3_20241213)...")
 FetchContent_Declare(
     FCD_stm32_mw_lwip
     GIT_REPOSITORY https://github.com/STMicroelectronics/stm32-mw-lwip.git
     GIT_TAG        v2.1.3_20241213
     SOURCE_DIR     "${LWIP_DEPS_PATH}/stm32-mw-lwip"
+    GIT_PROGRESS   TRUE
 )
 
 # 2. Download FreeRTOS-Kernel
+message(STATUS "[2/2] Declaring FreeRTOS-Kernel (V11.2.0)...")
 FetchContent_Declare(
     FCD_freertos_kernel
     GIT_REPOSITORY https://github.com/FreeRTOS/FreeRTOS-Kernel.git
     GIT_TAG        V11.2.0
     SOURCE_DIR     "${DEPS_PATH}/FreeRTOS-Kernel"
     SOURCE_SUBDIR  "EXTRACT_ONLY"
+    GIT_PROGRESS   TRUE
 )
 
 # Populate the content at configure time
+message(STATUS "")
+message(STATUS "Fetching dependencies (this may take a while on first run)...")
+message(STATUS "  - STM32 LwIP Middleware: ${LWIP_DEPS_PATH}/stm32-mw-lwip")
+message(STATUS "  - FreeRTOS-Kernel: ${DEPS_PATH}/FreeRTOS-Kernel")
+message(STATUS "")
 FetchContent_MakeAvailable(FCD_stm32_mw_lwip FCD_freertos_kernel)
+message(STATUS "")
+message(STATUS "=== Dependencies fetched successfully ===")
+message(STATUS "")
+
+# ==========================================================================
+# Configure Libraries
+# ==========================================================================
+message(STATUS "=== Configuring Libraries ===")
 
 # 3rd Party Libs would be added here
 add_library(freertos_config INTERFACE)
@@ -46,10 +69,20 @@ target_compile_definitions(freertos_config INTERFACE projCOVERAGE_TEST=0)
 
 set(FREERTOS_PORT "GCC_ARM_CM33_NTZ_NONSECURE" CACHE STRING "FreeRTOS Port")
 
+message(STATUS "[1/4] Adding FreeRTOS-Kernel...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/FreeRTOS-Kernel)
+
+message(STATUS "[2/4] Adding LwIP stack...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lwip)
+
+message(STATUS "[3/4] Adding Modbus stack...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/modbus)
+
+message(STATUS "[4/4] Adding BSP (${BSP_DIR})...")
 add_subdirectory(${BSP_DIR})
+
+message(STATUS "=== Libraries configured ===")
+message(STATUS "")
 
 # ==========================================================================
 # Modbus Code Generation
