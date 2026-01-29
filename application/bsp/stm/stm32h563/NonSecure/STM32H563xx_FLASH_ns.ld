@@ -133,6 +133,19 @@ SECTIONS
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 
+  /* Ethernet DMA descriptors and buffers - MUST BE FIRST in RAM for MPU non-cacheable region */
+  .eth_dma_mem 0x20050000 (NOLOAD) :
+  {
+    . = ALIGN(4);
+    __eth_dma_start = .;
+    *(.RxDecripSection)
+    *(.TxDecripSection)
+    *(.driver.eth_mac0_rx_buf)
+    *(.driver.eth_mac0_tx_buf)
+    . = ALIGN(4);
+    __eth_dma_end = .;
+  } >RAM
+
   /* Initialized data sections into "RAM" Ram type memory */
   .data :
   {

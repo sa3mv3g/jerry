@@ -1,0 +1,324 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/modbus-registers.schema.json",
+  "title": "Modbus Register Configuration",
+  "description": "Schema for defining Modbus registers, coils, and discrete inputs",
+  "type": "object",
+  "required": ["device", "registers"],
+  "properties": {
+    "device": {
+      "type": "object",
+      "description": "Device information",
+      "required": ["name", "slave_id"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Device name",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Device description"
+        },
+        "slave_id": {
+          "type": "integer",
+          "description": "Default Modbus slave ID",
+          "minimum": 1,
+          "maximum": 247
+        },
+        "version": {
+          "type": "string",
+          "description": "Configuration version"
+        }
+      }
+    },
+    "registers": {
+      "type": "object",
+      "description": "Register definitions grouped by type",
+      "properties": {
+        "coils": {
+          "type": "array",
+          "description": "Coils (read/write bits) - Function codes 01, 05, 15",
+          "items": {
+            "$ref": "#/definitions/coil"
+          }
+        },
+        "discrete_inputs": {
+          "type": "array",
+          "description": "Discrete inputs (read-only bits) - Function code 02",
+          "items": {
+            "$ref": "#/definitions/discrete_input"
+          }
+        },
+        "holding_registers": {
+          "type": "array",
+          "description": "Holding registers (read/write 16-bit) - Function codes 03, 06, 16",
+          "items": {
+            "$ref": "#/definitions/holding_register"
+          }
+        },
+        "input_registers": {
+          "type": "array",
+          "description": "Input registers (read-only 16-bit) - Function code 04",
+          "items": {
+            "$ref": "#/definitions/input_register"
+          }
+        }
+      }
+    },
+    "enums": {
+      "type": "array",
+      "description": "Enumeration definitions for register values",
+      "items": {
+        "$ref": "#/definitions/enum_definition"
+      }
+    },
+    "groups": {
+      "type": "array",
+      "description": "Logical groupings of registers",
+      "items": {
+        "$ref": "#/definitions/register_group"
+      }
+    }
+  },
+  "definitions": {
+    "coil": {
+      "type": "object",
+      "required": ["name", "address"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Coil name (C identifier)",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+        },
+        "address": {
+          "type": "integer",
+          "description": "Modbus address (0-65535)",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description"
+        },
+        "default_value": {
+          "type": "boolean",
+          "description": "Default value",
+          "default": false
+        },
+        "group": {
+          "type": "string",
+          "description": "Group this coil belongs to"
+        },
+        "access": {
+          "type": "string",
+          "enum": ["read_write", "read_only"],
+          "default": "read_write"
+        }
+      }
+    },
+    "discrete_input": {
+      "type": "object",
+      "required": ["name", "address"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Discrete input name (C identifier)",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+        },
+        "address": {
+          "type": "integer",
+          "description": "Modbus address (0-65535)",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description"
+        },
+        "group": {
+          "type": "string",
+          "description": "Group this input belongs to"
+        }
+      }
+    },
+    "holding_register": {
+      "type": "object",
+      "required": ["name", "address"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Register name (C identifier)",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+        },
+        "address": {
+          "type": "integer",
+          "description": "Modbus address (0-65535)",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description"
+        },
+        "data_type": {
+          "type": "string",
+          "description": "Data type",
+          "enum": ["uint16", "int16", "uint32", "int32", "float32", "enum"],
+          "default": "uint16"
+        },
+        "size": {
+          "type": "integer",
+          "description": "Number of registers (1 for 16-bit, 2 for 32-bit)",
+          "minimum": 1,
+          "maximum": 4,
+          "default": 1
+        },
+        "default_value": {
+          "type": "number",
+          "description": "Default value",
+          "default": 0
+        },
+        "min_value": {
+          "type": "number",
+          "description": "Minimum allowed value"
+        },
+        "max_value": {
+          "type": "number",
+          "description": "Maximum allowed value"
+        },
+        "scale_factor": {
+          "type": "number",
+          "description": "Scale factor for engineering units",
+          "default": 1.0
+        },
+        "unit": {
+          "type": "string",
+          "description": "Engineering unit (e.g., 'degC', 'mA', '%')"
+        },
+        "enum_type": {
+          "type": "string",
+          "description": "Enum type name (when data_type is 'enum')"
+        },
+        "group": {
+          "type": "string",
+          "description": "Group this register belongs to"
+        },
+        "access": {
+          "type": "string",
+          "enum": ["read_write", "read_only"],
+          "default": "read_write"
+        },
+        "persistent": {
+          "type": "boolean",
+          "description": "Whether value should be saved to non-volatile storage",
+          "default": false
+        }
+      }
+    },
+    "input_register": {
+      "type": "object",
+      "required": ["name", "address"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Register name (C identifier)",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+        },
+        "address": {
+          "type": "integer",
+          "description": "Modbus address (0-65535)",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description"
+        },
+        "data_type": {
+          "type": "string",
+          "description": "Data type",
+          "enum": ["uint16", "int16", "uint32", "int32", "float32", "enum"],
+          "default": "uint16"
+        },
+        "size": {
+          "type": "integer",
+          "description": "Number of registers (1 for 16-bit, 2 for 32-bit)",
+          "minimum": 1,
+          "maximum": 4,
+          "default": 1
+        },
+        "scale_factor": {
+          "type": "number",
+          "description": "Scale factor for engineering units",
+          "default": 1.0
+        },
+        "unit": {
+          "type": "string",
+          "description": "Engineering unit"
+        },
+        "enum_type": {
+          "type": "string",
+          "description": "Enum type name (when data_type is 'enum')"
+        },
+        "group": {
+          "type": "string",
+          "description": "Group this register belongs to"
+        }
+      }
+    },
+    "enum_definition": {
+      "type": "object",
+      "required": ["name", "values"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Enum type name (C identifier)",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Enum description"
+        },
+        "values": {
+          "type": "array",
+          "description": "Enum values",
+          "items": {
+            "type": "object",
+            "required": ["name", "value"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Value name (C identifier)",
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+              },
+              "value": {
+                "type": "integer",
+                "description": "Numeric value"
+              },
+              "description": {
+                "type": "string",
+                "description": "Value description"
+              }
+            }
+          }
+        }
+      }
+    },
+    "register_group": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Group name",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Group description"
+        }
+      }
+    }
+  }
+}

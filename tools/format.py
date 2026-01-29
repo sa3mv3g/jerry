@@ -31,7 +31,9 @@ def main():
     # Search patterns
     patterns = [
         os.path.join(root_dir, "application", "src", "**", "*.[ch]"),
-        os.path.join(root_dir, "application", "inc", "**", "*.[ch]")
+        os.path.join(root_dir, "application", "inc", "**", "*.[ch]"),
+        os.path.join(root_dir, "application", "dependencies", "modbus", "src", "**", "*.[ch]"),
+        os.path.join(root_dir, "application", "dependencies", "modbus", "inc", "**", "*.[ch]"),
     ]
 
     files = []

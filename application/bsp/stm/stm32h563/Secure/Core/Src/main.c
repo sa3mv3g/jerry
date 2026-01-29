@@ -153,10 +153,15 @@ void MX_GTZC_S_Init(void)
   MPCBB_ConfigTypeDef MPCBB_Area_Desc = {0};
 
   /* USER CODE BEGIN GTZC_S_Init 1 */
-
+  /* Configure ETH peripheral as non-secure so DMA can access non-secure SRAM3 */
+  if (HAL_GTZC_TZSC_ConfigPeriphAttributes(GTZC_PERIPH_ETHERNET, GTZC_TZSC_PERIPH_NSEC) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE END GTZC_S_Init 1 */
   MPCBB_Area_Desc.SecureRWIllegalMode = GTZC_MPCBB_SRWILADIS_ENABLE;
   MPCBB_Area_Desc.InvertSecureState = GTZC_MPCBB_INVSECSTATE_NOT_INVERTED;
+  /* SRAM3 Security Configuration: All blocks non-secure (0 = non-secure) */
   MPCBB_Area_Desc.AttributeConfig.MPCBB_SecConfig_array[0] =   0x00000000;
   MPCBB_Area_Desc.AttributeConfig.MPCBB_SecConfig_array[1] =   0x00000000;
   MPCBB_Area_Desc.AttributeConfig.MPCBB_SecConfig_array[2] =   0x00000000;
@@ -177,26 +182,32 @@ void MX_GTZC_S_Init(void)
   MPCBB_Area_Desc.AttributeConfig.MPCBB_SecConfig_array[17] =   0x00000000;
   MPCBB_Area_Desc.AttributeConfig.MPCBB_SecConfig_array[18] =   0x00000000;
   MPCBB_Area_Desc.AttributeConfig.MPCBB_SecConfig_array[19] =   0x00000000;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[0] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[1] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[2] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[3] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[4] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[5] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[6] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[7] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[8] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[9] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[10] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[11] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[12] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[13] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[14] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[15] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[16] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[17] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[18] =   0xFFFFFFFF;
-  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[19] =   0xFFFFFFFF;
+  /* SRAM3 Privilege Configuration: All blocks NON-PRIVILEGED (0 = non-privileged)
+   * CRITICAL: The ETH DMA is a bus master that runs in non-privileged mode.
+   * If SRAM3 is configured as privileged (0xFFFFFFFF), the ETH DMA cannot access
+   * the DMA descriptors and RX buffers, causing RBU errors and RPS=4 (Suspended).
+   * Setting to 0x00000000 allows the ETH DMA to access SRAM3.
+   */
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[0] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[1] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[2] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[3] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[4] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[5] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[6] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[7] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[8] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[9] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[10] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[11] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[12] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[13] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[14] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[15] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[16] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[17] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[18] =   0x00000000;
+  MPCBB_Area_Desc.AttributeConfig.MPCBB_PrivConfig_array[19] =   0x00000000;
   MPCBB_Area_Desc.AttributeConfig.MPCBB_LockConfig_array[0] =   0x00000000;
   if (HAL_GTZC_MPCBB_ConfigMem(SRAM3_BASE, &MPCBB_Area_Desc) != HAL_OK)
   {

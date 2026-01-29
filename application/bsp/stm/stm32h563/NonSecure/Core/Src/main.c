@@ -43,8 +43,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 ETH_TxPacketConfigTypeDef TxConfig;
-ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
-ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
+/* Place DMA Descriptors in non-cacheable SRAM region via section attributes */
+__attribute__((section(".RxDecripSection"))) ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
+__attribute__((section(".TxDecripSection"))) ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
 
 COM_InitTypeDef BspCOMInit;
 ADC_HandleTypeDef hadc1;
@@ -65,13 +66,51 @@ HCD_HandleTypeDef hhcd_USB_DRD_FS;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void MPU_Config(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void MPU_Config(void)
+{
+  MPU_Region_InitTypeDef MPU_InitStruct = {0};
+  MPU_Attributes_InitTypeDef MPU_AttributesInit = {0};
 
+  /* Disables the MPU */
+  HAL_MPU_Disable();
+
+  /* Configure the MPU attributes for Ethernet DMA Buffers
+   * Attribute 0: Normal memory, Non-cacheable
+   * This is the recommended setting for DMA buffers per STM32 documentation.
+   * Non-cacheable ensures CPU and DMA see the same data without cache maintenance.
+   */
+  MPU_AttributesInit.Number = MPU_ATTRIBUTES_NUMBER0;
+  MPU_AttributesInit.Attributes = MPU_NOT_CACHEABLE;
+  HAL_MPU_ConfigMemoryAttributes(&MPU_AttributesInit);
+
+  /* Configure the MPU region for ETH DMA descriptors and buffers
+   * Region: 0x20050000 - 0x20057FFF (32KB)
+   * - Non-cacheable (via attribute)
+   * - Inner Shareable (for DMA coherency on single-core systems)
+   * - Read/Write access for all privilege levels
+   * - No instruction execution (data only)
+   */
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+  MPU_InitStruct.BaseAddress = 0x20050000;
+  MPU_InitStruct.LimitAddress = 0x20057FFF; /* 32KB region */
+  MPU_InitStruct.AttributesIndex = MPU_ATTRIBUTES_NUMBER0;
+  MPU_InitStruct.AccessPermission = MPU_REGION_ALL_RW;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_INNER_SHAREABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /* Enables the MPU */
+  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+}
 /* USER CODE END 0 */
 
 /**
@@ -217,12 +256,21 @@ void MX_ETH_Init(void)
 
   /* USER CODE END ETH_Init 1 */
   heth.Instance = ETH;
-  MACAddr[0] = 0x00;
-  MACAddr[1] = 0x80;
-  MACAddr[2] = 0xE1;
-  MACAddr[3] = 0x00;
-  MACAddr[4] = 0x00;
-  MACAddr[5] = 0x00;
+  /***************************************************************************
+   * MAC Address Configuration
+   *
+   * IMPORTANT: This MAC address MUST match the one in ethernetif.h
+   * (ETH_MAC_ADDR0-5). If they don't match, unicast packets will be
+   * filtered by hardware and ping will fail!
+   *
+   * Single source of truth: application/dependencies/lwip/port/stm32h5/ethernetif.h
+   ***************************************************************************/
+  MACAddr[0] = 0x00U;
+  MACAddr[1] = 0x80U;
+  MACAddr[2] = 0xE1U;
+  MACAddr[3] = 0x00U;
+  MACAddr[4] = 0x00U;
+  MACAddr[5] = 0x01U;
   heth.Init.MACAddr = &MACAddr[0];
   heth.Init.MediaInterface = HAL_ETH_RMII_MODE;
   heth.Init.TxDesc = DMATxDscrTab;
