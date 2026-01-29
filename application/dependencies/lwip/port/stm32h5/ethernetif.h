@@ -22,7 +22,7 @@ extern "C" {
  * Both ethernetif.c and main.c (MX_ETH_Init) must use these values.
  * If they don't match, unicast packets will be filtered by hardware!
  *
- * The MAC address 00:80:E1:xx:xx:xx is in the locally administered range.  
+ * The MAC address 00:80:E1:xx:xx:xx is in the locally administered range.
  ******************************************************************************/
 #define ETH_MAC_ADDR0   0x00U
 #define ETH_MAC_ADDR1   0x80U
@@ -61,6 +61,12 @@ void ethernetif_input(struct netif *netif);
  * @param argument pointer to netif structure
  */
 void ethernet_link_thread(void *argument);
+
+/**
+ * @brief Get the RX interrupt count (for debugging)
+ * @return Number of RX interrupts received
+ */
+uint32_t ethernetif_get_rx_int_count(void);
 
 #ifdef __cplusplus
 }

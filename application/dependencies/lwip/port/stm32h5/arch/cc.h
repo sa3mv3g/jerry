@@ -35,13 +35,14 @@ typedef uintptr_t mem_ptr_t;
 #define BYTE_ORDER LITTLE_ENDIAN
 #endif
 
-/* Define (sn)printf formatters for these LwIP types */
+/* Define (sn)printf formatters for these LwIP types
+ * On ARM Cortex-M, uint32_t is 'unsigned long', so use "lu" format */
 #define U16_F "hu"
 #define S16_F "hd"
 #define X16_F "hx"
-#define U32_F "u"
-#define S32_F "d"
-#define X32_F "x"
+#define U32_F "lu"
+#define S32_F "ld"
+#define X32_F "lx"
 #define SZT_F "zu"
 
 /* Compiler hints for packing structures */

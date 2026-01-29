@@ -56,15 +56,21 @@ static void vEthernetTask(void *pvParameters) {
     struct netif *netif = (struct netif *)pvParameters;
     int           count = 0;
     while (1) {
+        /* Check link status periodically */
         ethernetif_check_link(netif);
-        ethernetif_poll(netif);
+
+        /* NOTE: ethernetif_poll() removed - packet reception is handled by
+         * the interrupt-driven ethernetif_input_task in ethernetif.c.
+         * Having both polling and interrupt-driven reception caused race
+         * conditions and intermittent packet loss. */
 
         count++;
         if (count >= 500) { /* 5 seconds */
             count = 0;
-            printf("Stats - RX: %d, TX: %d, DROP: %d\n",
+            (void)printf("Stats - RX: %d, TX: %d, DROP: %d, RX_INT: %u\n",
                    (int)lwip_stats.link.recv, (int)lwip_stats.link.xmit,
-                   (int)lwip_stats.link.drop);
+                   (int)lwip_stats.link.drop,
+                   (unsigned int)ethernetif_get_rx_int_count());
         }
 
         vTaskDelay(pdMS_TO_TICKS(10));

@@ -24,7 +24,7 @@
 #define LOG_TASK_STACK_SIZE      256
 #define MODBUS_TASK_STACK_SIZE   512
 #define FOTA_TASK_STACK_SIZE     512
-#define MONITOR_TASK_STACK_SIZE  128
+#define MONITOR_TASK_STACK_SIZE  256  /* Increased from 128 for printf calls */
 #define TCP_ECHO_TASK_STACK_SIZE 1024
 
 /* ==========================================================================
@@ -191,6 +191,15 @@ void print_lwip_memory_stats(void) {
         (void)printf("    Errors:    %u\n", (unsigned int)lwip_stats.memp[MEMP_PBUF]->err);
     }
 
+    /* TCP_SEG pool - critical for diagnosing memory leaks with NETCONN_COPY */
+    if (lwip_stats.memp[MEMP_TCP_SEG] != NULL) {
+        (void)printf("  TCP_SEG Pool:\n");
+        (void)printf("    Available: %u\n", (unsigned int)lwip_stats.memp[MEMP_TCP_SEG]->avail);
+        (void)printf("    Used:      %u\n", (unsigned int)lwip_stats.memp[MEMP_TCP_SEG]->used);
+        (void)printf("    Max Used:  %u\n", (unsigned int)lwip_stats.memp[MEMP_TCP_SEG]->max);
+        (void)printf("    Errors:    %u\n", (unsigned int)lwip_stats.memp[MEMP_TCP_SEG]->err);
+    }
+
     /* TCP PCB pool - check for NULL before accessing */
     if (lwip_stats.memp[MEMP_TCP_PCB] != NULL) {
         (void)printf("  TCP_PCB Pool:\n");
@@ -211,6 +220,7 @@ void print_lwip_memory_stats(void) {
 
     /* Check for errors - with NULL checks and explicit parentheses (MISRA 12.1) */
     if (((lwip_stats.memp[MEMP_PBUF] != NULL) && (lwip_stats.memp[MEMP_PBUF]->err > 0)) ||
+        ((lwip_stats.memp[MEMP_TCP_SEG] != NULL) && (lwip_stats.memp[MEMP_TCP_SEG]->err > 0)) ||
         ((lwip_stats.memp[MEMP_TCP_PCB] != NULL) && (lwip_stats.memp[MEMP_TCP_PCB]->err > 0)) ||
         ((lwip_stats.memp[MEMP_NETCONN] != NULL) && (lwip_stats.memp[MEMP_NETCONN]->err > 0))) {
         (void)printf("\n  !!! MEMORY POOL EXHAUSTION DETECTED !!!\n");

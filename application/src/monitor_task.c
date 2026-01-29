@@ -27,6 +27,7 @@ extern void print_task_stack_usage(void);
 /* Static counters for tracking errors */
 static uint32_t s_last_mem_err = 0;
 static uint32_t s_last_pbuf_err = 0;
+static uint32_t s_last_tcp_seg_err = 0;
 static uint32_t s_last_tcp_pcb_err = 0;
 static uint32_t s_last_netconn_err = 0;
 
@@ -50,6 +51,14 @@ static void check_lwip_errors(void) {
         (void)printf("!!! NEW PBUF POOL ERROR !!! (total: %u)\n",
                (unsigned int)lwip_stats.memp[MEMP_PBUF]->err);
         s_last_pbuf_err = lwip_stats.memp[MEMP_PBUF]->err;
+    }
+
+    /* Check TCP_SEG pool errors - critical for NETCONN_COPY memory leak diagnosis */
+    if ((lwip_stats.memp[MEMP_TCP_SEG] != NULL) &&
+        (lwip_stats.memp[MEMP_TCP_SEG]->err > s_last_tcp_seg_err)) {
+        (void)printf("!!! NEW TCP_SEG POOL ERROR !!! (total: %u)\n",
+               (unsigned int)lwip_stats.memp[MEMP_TCP_SEG]->err);
+        s_last_tcp_seg_err = lwip_stats.memp[MEMP_TCP_SEG]->err;
     }
 
     /* Check TCP PCB pool errors - with NULL check and explicit parentheses (MISRA 12.1) */

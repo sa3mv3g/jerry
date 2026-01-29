@@ -30,13 +30,30 @@
    3. Memory Options (Tailor to STM32H5 RAM)
    ------------------------------------------------ */
 #define MEM_ALIGNMENT                   4
-#define MEM_SIZE                        (16 * 1024) /* 16KB Heap */
+#define MEM_SIZE                        (4 * 1024) /* 4KB Heap - actual usage ~120 bytes max */
 #define MEMP_NUM_PBUF                   16
 #define MEMP_NUM_UDP_PCB                4
 #define MEMP_NUM_TCP_PCB                10
-#define MEMP_NUM_TCP_PCB_LISTEN         8
+#define MEMP_NUM_TCP_PCB_LISTEN         2   /* Only need 1-2 listening sockets */
 #define MEMP_NUM_NETCONN                10  /* Number of netconn structures */
 #define MEMP_NUM_SYS_TIMEOUT            10
+#define MEMP_NUM_TCP_SEG                32  /* TCP segments for queuing */
+
+/* ------------------------------------------------
+   3b. TCP Tuning for Embedded Systems
+   ------------------------------------------------ */
+#define TCP_MSS                         1460 /* Maximum segment size */
+#define TCP_WND                         (2 * TCP_MSS) /* Receive window size - reduced to limit memory */
+#define TCP_SND_BUF                     (2 * TCP_MSS) /* Send buffer size - reduced to prevent heap exhaustion */
+#define TCP_SND_QUEUELEN                8   /* Number of segments in send queue (must be > TCP_SNDQUEUELOWAT) */
+#define TCP_QUEUE_OOSEQ                 0   /* Disable out-of-order segment queuing to save memory */
+#define LWIP_TCP_SACK_OUT               0   /* Disable SACK to save memory */
+
+/* Reduce TIME_WAIT duration for faster connection recycling */
+#define TCP_MSL                         1000 /* 1 second MSL (default is 60000ms) */
+
+/* Enable send timeout to prevent blocking forever */
+#define LWIP_SO_SNDTIMEO                1
 
 /* ------------------------------------------------
    4. IP Version Support

@@ -8,7 +8,7 @@
   */
 
 /* Enable debug logging - set to 1 to enable, 0 to disable */
-#define ETH_DEBUG_ENABLE  1
+#define ETH_DEBUG_ENABLE  0
 
 #if ETH_DEBUG_ENABLE
 #include <stdio.h>
@@ -293,7 +293,16 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
     ETH_BufferTypeDef Txbuffer[ETH_TX_DESC_CNT];
     HAL_StatusTypeDef tx_status;
 
-    ETH_DEBUG("TX: len=%u", (unsigned)p->tot_len);
+    /* Update link statistics */
+    LINK_STATS_INC(link.xmit);
+
+    /* Log TX packet details */
+    uint8_t *data = (uint8_t *)p->payload;
+    (void)data;
+    ETH_DEBUG("TX: len=%u, dst=%02X:%02X:%02X:%02X:%02X:%02X, type=0x%02X%02X",
+              (unsigned)p->tot_len,
+              data[0], data[1], data[2], data[3], data[4], data[5],
+              data[12], data[13]);
 
     memset(Txbuffer, 0, ETH_TX_DESC_CNT * sizeof(ETH_BufferTypeDef));
     for (q = p; q != NULL; q = q->next) {
@@ -332,12 +341,19 @@ static struct pbuf *low_level_input(struct netif *netif)
 {
     (void)netif;
     struct pbuf *p = NULL;
-    HAL_StatusTypeDef status;
 
-    status = HAL_ETH_ReadData(&heth, (void **)&p);
-    if (status == HAL_OK && p != NULL) {
+    if (HAL_ETH_ReadData(&heth, (void **)&p) == HAL_OK && p != NULL) {
         __DSB();
-        ETH_DEBUG("RX: len=%u", (unsigned)p->tot_len);
+        /* Update link statistics */
+        LINK_STATS_INC(link.recv);
+
+        /* Log packet details including first bytes for protocol identification */
+        uint8_t *data = (uint8_t *)p->payload;
+        (void) data;
+        ETH_DEBUG("RX: len=%u, dst=%02X:%02X:%02X:%02X:%02X:%02X, type=0x%02X%02X",
+                  (unsigned)p->tot_len,
+                  data[0], data[1], data[2], data[3], data[4], data[5],
+                  data[12], data[13]);
     }
     return p;
 }
@@ -347,24 +363,33 @@ void ethernetif_input(struct netif *netif)
     struct pbuf *p;
     p = low_level_input(netif);
     if (p != NULL) {
-        if (netif->input(p, netif) != ERR_OK) {
+        err_t err = netif->input(p, netif);
+        if (err != ERR_OK) {
+            ETH_DEBUG("netif->input FAILED: err=%d", (int)err);
             pbuf_free(p);
         }
     }
 }
+
+/* Counter for RX interrupts - for debugging */
+static volatile uint32_t RxIntCount = 0;
+
+/* Debug counters for semaphore takes and packets processed */
+static volatile uint32_t SemTakeCount = 0;
+static volatile uint32_t PktProcessedCount = 0;
 
 static void ethernetif_input_task(void *argument)
 {
     struct pbuf *p;
     struct netif *netif = (struct netif *)argument;
 
-    ETH_DEBUG("ethernetif_input_task: Started");
-
     for (;;) {
         if (xSemaphoreTake(RxPktSemaphore, pdMS_TO_TICKS(5000)) == pdTRUE) {
+            SemTakeCount++;
             do {
                 p = low_level_input(netif);
                 if (p != NULL) {
+                    PktProcessedCount++;
                     if (netif->input(p, netif) != ERR_OK) {
                         ETH_DEBUG("netif->input FAILED!");
                         pbuf_free(p);
@@ -393,19 +418,64 @@ void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth_param)
 {
     (void)heth_param;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    RxIntCount++;
     if (RxPktSemaphore) {
         xSemaphoreGiveFromISR(RxPktSemaphore, &xHigherPriorityTaskWoken);
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
 }
 
+/* Debug function to get semaphore take count */
+uint32_t ethernetif_get_sem_take_count(void)
+{
+    return SemTakeCount;
+}
+
+/* Debug function to get processed packet count */
+uint32_t ethernetif_get_pkt_processed_count(void)
+{
+    return PktProcessedCount;
+}
+
+uint32_t ethernetif_get_rx_int_count(void)
+{
+    return RxIntCount;
+}
+
 void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *heth_param)
 {
-    (void)heth_param;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    /* Release transmitted packets - this calls HAL_ETH_TxFreeCallback for each
+     * completed packet, which frees the associated pbuf.
+     * CRITICAL: This must be called to prevent memory leaks! */
+    HAL_ETH_ReleaseTxPacket(heth_param);
+
     if (TxPktSemaphore) {
         xSemaphoreGiveFromISR(TxPktSemaphore, &xHigherPriorityTaskWoken);
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+}
+
+/**
+ * @brief  HAL ETH TX Free Callback - Frees pbuf after transmission completes
+ * @param  buff: Pointer to the packet data (actually a pbuf pointer cast to uint32_t*)
+ * @note   This callback is invoked by HAL_ETH_ReleaseTxPacket() for each
+ *         transmitted packet. The buff parameter is the pData field from
+ *         ETH_TxPacketConfigTypeDef, which we set to the pbuf pointer.
+ *
+ *         Without this callback, transmitted pbufs are never freed, causing
+ *         heap exhaustion during sustained traffic.
+ */
+void HAL_ETH_TxFreeCallback(uint32_t *buff)
+{
+    /* The buff parameter is actually the pbuf pointer we stored in TxConfig.pData */
+    struct pbuf *p = (struct pbuf *)buff;
+
+    if (p != NULL) {
+        /* Free the pbuf - this decrements the reference count.
+         * The pbuf was ref'd in low_level_output() before transmission. */
+        pbuf_free(p);
     }
 }
 
