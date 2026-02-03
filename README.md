@@ -43,7 +43,7 @@ Vendor specific tools:
 
 1.  **Configure the project**:
     ```bash
-    cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake -DVENDOR=stm
+    cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake -DVENDOR=stm32h563
     ```
 
 2.  **Build the firmware**:
@@ -52,7 +52,7 @@ Vendor specific tools:
     ```
 
 This will produce two binaries:
--   `build/application/bsp/stm/stm32h563/jerry_secure_app.elf` (Secure Application)
+-   `build/application/bsp/stm32h563/jerry_secure_app.elf` (Secure Application)
 -   `build/application/jerry_app.elf` (Non-Secure Application)
 
 ### CMake Configuration Options
@@ -63,14 +63,14 @@ The following CMake options can be passed during configuration to customize the 
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `VENDOR` | `stm` | Microcontroller vendor selection |
+| `VENDOR` | `stm32h563` | Microcontroller vendor selection |
 | `CMAKE_BUILD_TYPE` | - | Build type: `Debug`, `Release`, `RelWithDebInfo`, `MinSizeRel` |
 
 **Example with custom options:**
 ```bash
 cmake -S . -B build -G Ninja \
     -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake \
-    -DVENDOR=stm \
+    -DVENDOR=stm32h563 \
     -DCMAKE_BUILD_TYPE=Debug
 ```
 
@@ -103,7 +103,7 @@ Run individual tools:
     # Configure with MISRA addon enabled
     cmake -S . -B build -G Ninja \
         -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake \
-        -DVENDOR=stm \
+        -DVENDOR=stm32h563 \
         -DCPPCHECK_USE_ADDONS=ON
 
     # Run cppcheck with MISRA checking
@@ -269,7 +269,7 @@ You must flash **both** the Secure and Non-Secure applications.
 
 **Flash Secure App (to 0x0C000000):**
 ```bash
-STM32_Programmer_CLI -c port=SWD -w build/application/bsp/stm/stm32h563/jerry_secure_app.elf -v -rst
+STM32_Programmer_CLI -c port=SWD -w build/application/bsp/stm32h563/jerry_secure_app.elf -v -rst
 ```
 
 **Flash Non-Secure App (to 0x08100000):**
@@ -306,6 +306,6 @@ By default, the Secure SysTick remains active after jumping to the Non-Secure ap
 
 1. Currently, `MX_Device.h` file has to be generated using the following command:
 ```bash
-uv run tools/MX_Device_gen.py application/bsp/stm/stm32h563/stm32h563.ioc --logfile build/mx_device_gen.log.txt
+uv run tools/MX_Device_gen.py application/bsp/stm32h563/stm32h563.ioc --logfile build/mx_device_gen.log.txt
 ```
 This generation step is good to be automated.

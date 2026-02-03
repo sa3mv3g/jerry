@@ -415,7 +415,7 @@ ARP broadcasts worked because they're sent to `FF:FF:FF:FF:FF:FF` which passes t
 
 ### Fix Applied
 
-Changed `MACAddr[5]` from `0x00` to `0x01` in `application/bsp/stm/stm32h563/NonSecure/Core/Src/main.c`:
+Changed `MACAddr[5]` from `0x00` to `0x01` in `application/bsp/stm32h563/NonSecure/Core/Src/main.c`:
 
 ```c
 MACAddr[5] = 0x01;  /* Must match ETH_MAC_ADDR5 in ethernetif.c */

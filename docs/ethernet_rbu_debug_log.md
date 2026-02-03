@@ -906,7 +906,7 @@ The **actual root cause** was found in the TrustZone GTZC (Global TrustZone Cont
 
 Changed the GTZC MPCBB privilege configuration for SRAM3 from privileged to non-privileged:
 
-**File**: `application/bsp/stm/stm32h563/Secure/Core/Src/main.c`
+**File**: `application/bsp/stm32h563/Secure/Core/Src/main.c`
 
 ```c
 /* BEFORE (WRONG): All blocks privileged - ETH DMA cannot access! */
