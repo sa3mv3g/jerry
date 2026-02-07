@@ -42,6 +42,12 @@ target_compile_options(stm32h563_bsp PRIVATE
 target_compile_definitions(stm32h563_bsp PUBLIC
     STM32H563xx
     USE_HAL_DRIVER
+    # ETH DMA descriptor counts - increased from default 4 to prevent RBU/TBU errors
+    # RBU (Receive Buffer Unavailable) occurs when DMA runs out of descriptors
+    # Higher count provides more buffering for bursty traffic
+    # These definitions override values in stm32h5xx_hal_conf.h
+    ETH_RX_DESC_CNT=8U
+    ETH_TX_DESC_CNT=8U
 )
 
 # Define the Secure Application
