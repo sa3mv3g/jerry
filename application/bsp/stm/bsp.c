@@ -51,10 +51,10 @@ bsp_error_t BSP_Init()
     MX_GTZC_NS_Init();
 
     /* Initialize all configured peripherals */
+    MX_GPDMA1_Init();
     MX_GPIO_Init();
     MX_I2C3_Init();
     MX_LPUART1_UART_Init();
-    MX_SPI1_Init();
     MX_ADC1_Init();
 
     BSP_LED_Init(LED_GREEN);
