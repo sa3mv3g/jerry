@@ -40,7 +40,10 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+extern ADC_HandleTypeDef  hadc1;
+extern DMA_NodeTypeDef    Node_GPDMA1_Channel0;
+extern DMA_QListTypeDef   List_GPDMA1_Channel0;
+extern DMA_HandleTypeDef  handle_GPDMA1_Channel0;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -63,6 +66,7 @@ void MX_USB_HCD_Init(void);
 void MX_I2C3_Init(void);
 void MX_ADC1_Init(void);
 void MX_LPUART1_UART_Init(void);
+void MX_TIM1_Init(void);
 
 /* USER CODE BEGIN EFP */
 
