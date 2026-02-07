@@ -9,9 +9,9 @@
 #ifndef MX_DEVICE_H
 #define __MX_DEVICE_H
 
-#define MX_DEVICE_VERSION 0x01000000
-#define MX_I2C3_PERIPH_CLOCK_FREQ 10
-#define MX_SPI1_PERIPH_CLOCK_FREQ 976562
+#define MX_DEVICE_VERSION 0x01000000
+#define MX_I2C3_PERIPH_CLOCK_FREQ 10
+#define MX_SPI1_PERIPH_CLOCK_FREQ 976562
 
 /*------------------------------ SPI1              -----------------------------*/
 #define MX_SPI1                                1

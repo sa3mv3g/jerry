@@ -9,6 +9,6 @@
 #ifndef MX_DEVICE_H
 #define __MX_DEVICE_H
 
-#define MX_DEVICE_VERSION 0x01000000
+#define MX_DEVICE_VERSION 0x01000000
 
 #endif  /* __MX_DEVICE_H */
