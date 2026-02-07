@@ -9,11 +9,136 @@ This document describes the architecture for implementing digital filtering on A
 | Parameter | Value |
 |-----------|-------|
 | Sampling Rate | 10 kHz |
-| Number of ADC Channels | 4 |
+| Number of ADC Channels | 6 |
 | LPF Type | 4th order Butterworth |
 | LPF Cutoff Frequency | 500 Hz |
 | Notch Frequencies | 50, 100, 150, 200, 250, 300, 350, 400, 450, 500 Hz |
 | Total Biquad Sections | 12 per channel (2 LPF + 10 notch) |
+
+## Hardware Configuration (STM32H563)
+
+### System Clock Configuration
+
+From [`SystemClock_Config()`](application/bsp/stm/stm32h563/NonSecure/Core/Src/main.c:124):
+
+| Parameter | Value |
+|-----------|-------|
+| HSE | 8 MHz (bypass digital) |
+| PLL Configuration | M=4, N=250, P=2 |
+| SYSCLK | 250 MHz |
+| AHB/APB1/APB2/APB3 | 250 MHz (no division) |
+
+### ADC1 Configuration
+
+From [`MX_ADC1_Init()`](application/bsp/stm/stm32h563/NonSecure/Core/Src/main.c:186):
+
+| Parameter | Current Value | Timer-Triggered Value |
+|-----------|---------------|----------------------|
+| Clock Source | `ADC_CLOCK_ASYNC_DIV4` | `ADC_CLOCK_ASYNC_DIV4` |
+| ADC Clock | 16 MHz (64 MHz HSI / 4) | 16 MHz |
+| Resolution | 12-bit | 12-bit |
+| Sampling Time | 24.5 cycles | 24.5 cycles |
+| Continuous Mode | **ENABLE** | **DISABLE** |
+| External Trigger | Software Start | **Timer TRGO** |
+| DMA Requests | ENABLE | ENABLE |
+| Number of Channels | 6 | 6 |
+
+### ADC Channels Configured
+
+| Rank | Channel | Sampling Time |
+|------|---------|---------------|
+| 1 | ADC_CHANNEL_2 | 24.5 cycles |
+| 2 | ADC_CHANNEL_3 | 24.5 cycles |
+| 3 | ADC_CHANNEL_5 | 24.5 cycles |
+| 4 | ADC_CHANNEL_10 | 24.5 cycles |
+| 5 | ADC_CHANNEL_12 | 24.5 cycles |
+| 6 | ADC_CHANNEL_13 | 24.5 cycles |
+
+## Timing Analysis for 10 kHz Timer Trigger
+
+### ADC Conversion Time Calculation
+
+**Per-channel conversion time:**
+```
+T_conv = T_sampling + T_sar
+T_conv = 24.5 cycles + 12.5 cycles = 37 ADC clock cycles
+```
+
+**Time per channel at 16 MHz ADC clock:**
+```
+T_channel = 37 / 16,000,000 = 2.3125 µs
+```
+
+**Total sequence time for 6 channels:**
+```
+T_sequence = 6 × 2.3125 µs = 13.875 µs ≈ 14 µs
+```
+
+### Filter Processing Time Estimation
+
+**CMSIS-DSP `arm_biquad_cascade_df1_f32` Performance:**
+
+Each biquad stage requires approximately:
+- **10 multiply-accumulate (MAC) operations** per sample
+- On Cortex-M33 (STM32H5) at 250 MHz with FPU: ~**4 cycles per MAC**
+
+**Per-sample calculation:**
+```
+Cycles per stage = 10 MACs × 4 cycles = 40 cycles
+Total cycles per sample = 12 stages × 40 cycles = 480 cycles
+Time per sample = 480 / 250,000,000 = 1.92 µs
+```
+
+**For 6 ADC channels:**
+```
+Total filter time = 6 channels × 1.92 µs = 11.52 µs ≈ 12 µs
+```
+
+### Complete Timing Budget at 10 kHz
+
+| Operation | Time | Cumulative |
+|-----------|------|------------|
+| Timer trigger period | 100 µs | - |
+| ADC conversion (6 ch) | 14 µs | 14 µs |
+| DMA transfer | ~0.5 µs | 14.5 µs |
+| Filter processing (6 ch) | 12 µs | 26.5 µs |
+| **Remaining margin** | **73.5 µs** | 100 µs |
+
+### Overlap Analysis
+
+**Will there be overlap at 10 kHz?**
+
+**NO - There will NOT be overlap.**
+
+```
+ADC sequence time:  14 µs
+Timer period:      100 µs
+Margin:            86 µs (plenty of headroom)
+```
+
+```mermaid
+gantt
+    title ADC Timing at 10kHz Timer Trigger
+    dateFormat X
+    axisFormat %L µs
+
+    section Timer Period 1
+    ADC Conversion 6ch :0, 14
+    Idle Time          :14, 100
+
+    section Timer Period 2
+    ADC Conversion 6ch :100, 114
+    Idle Time          :114, 200
+```
+
+### Maximum Safe Trigger Frequencies
+
+| Trigger Rate | Sequence Time | Period | Overlap Risk | Verdict |
+|-------------|---------------|--------|--------------|---------|
+| 10 kHz | 14 µs | 100 µs | **No** (86 µs margin) | ✅ Safe |
+| 25 kHz | 14 µs | 40 µs | **No** (26 µs margin) | ✅ Safe |
+| 50 kHz | 14 µs | 20 µs | **No** (6 µs margin) | ⚠️ Marginal |
+| 71 kHz | 14 µs | 14 µs | **Yes** | ❌ Overlap |
 
 ## Computational Complexity
 
@@ -21,11 +146,11 @@ This document describes the architecture for implementing digital filtering on A
 |--------|-------|
 | Operations per sample | 12 sections × 5 MACs = 60 MACs |
 | Operations per second (1 channel) | 60 × 10,000 = 600,000 MACs/s |
-| Operations per second (4 channels) | 2.4 million MACs/s |
-| CPU Usage at 250MHz | ~1.7% |
+| Operations per second (6 channels) | 3.6 million MACs/s |
+| CPU Usage at 250MHz | ~2.5% |
 | Coefficient Memory | 12 × 5 × 4 bytes = 240 bytes (shared) |
 | State Memory per channel | 12 × 4 × 4 bytes = 192 bytes |
-| Total State Memory (4 channels) | 768 bytes |
+| Total State Memory (6 channels) | 1,152 bytes |
 
 ## Architecture
 
@@ -175,7 +300,7 @@ const float32_t adc_filter_coefficients[ADC_FILTER_NUM_STAGES * 5] = {
 #include <stdint.h>
 #include <stdbool.h>
 
-#define ADC_FILTER_NUM_CHANNELS     4
+#define ADC_FILTER_NUM_CHANNELS     6   // Must match BSP_ADC1_NUM_CHANNELS
 #define ADC_FILTER_NUM_STAGES       12
 #define ADC_FILTER_STATE_SIZE       (ADC_FILTER_NUM_STAGES * 4)
 
@@ -214,6 +339,8 @@ void adc_filter_reset_all(adc_filter_context_t *ctx);
 
 #endif
 ```
+
+> **⚠️ IMPORTANT**: The current [`adc_filter.h`](application/dependencies/adc_filter/inc/adc_filter.h:41) defines `ADC_FILTER_NUM_CHANNELS` as 4, but the ADC has 6 channels. This must be updated to 6 to match [`BSP_ADC1_NUM_CHANNELS`](application/bsp/bsp.h:23).
 
 ### Implementation: adc_filter.c
 
@@ -258,15 +385,237 @@ target_link_libraries(${PROJECT_NAME}
 )
 ```
 
-## ADC Task Integration
+## Timer-Triggered ADC Integration
 
-### Task Design
+### System Architecture
 
-The ADC task will:
-1. Initialize the filter context at startup
-2. Read ADC samples at 10kHz rate (using timer interrupt or DMA)
-3. Apply filtering to each sample
-4. Store filtered values in Modbus registers
+```mermaid
+flowchart TB
+    subgraph Hardware["Hardware Layer"]
+        TIM["Timer TIM1<br/>10kHz TRGO"]
+        ADC["ADC1<br/>6 Channels"]
+        DMA["GPDMA1<br/>Channel 0"]
+        BUF["adc1_dma_buffer<br/>[6 × uint32_t]"]
+    end
+
+    subgraph BSP["BSP Layer"]
+        ISR["DMA Complete ISR<br/>HAL_ADC_ConvCpltCallback"]
+        FLAG["adc1_conversion_complete<br/>flag"]
+    end
+
+    subgraph App["Application Layer"]
+        TASK["ADC Processing Task<br/>FreeRTOS"]
+        FILT["adc_filter_context_t<br/>12-stage biquad"]
+        OUT["Filtered Results<br/>[6 × float32_t]"]
+    end
+
+    TIM -->|"TRGO"| ADC
+    ADC -->|"DMA Request"| DMA
+    DMA -->|"Auto Transfer"| BUF
+    DMA -->|"TC Interrupt"| ISR
+    ISR -->|"Set"| FLAG
+    FLAG -->|"Poll/Notify"| TASK
+    BUF -->|"Read Raw"| TASK
+    TASK -->|"Process"| FILT
+    FILT -->|"Output"| OUT
+```
+
+### Required Code Changes
+
+#### 1. Timer Configuration for 10 kHz Trigger
+
+Add to [`main.c`](application/bsp/stm/stm32h563/NonSecure/Core/Src/main.c):
+
+```c
+TIM_HandleTypeDef htim1;
+
+void MX_TIM1_Init(void)
+{
+    TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+    htim1.Instance = TIM1;
+    htim1.Init.Prescaler = 249;           // 250 MHz / 250 = 1 MHz timer clock
+    htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim1.Init.Period = 99;               // 1 MHz / 100 = 10 kHz
+    htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    htim1.Init.RepetitionCounter = 0;
+    htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+
+    if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    /* Configure TRGO for ADC trigger */
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+
+    if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+```
+
+#### 2. ADC Configuration Changes
+
+Modify [`MX_ADC1_Init()`](application/bsp/stm/stm32h563/NonSecure/Core/Src/main.c:186):
+
+```c
+void MX_ADC1_Init(void)
+{
+    // ... existing code ...
+
+    hadc1.Init.ContinuousConvMode = DISABLE;  // Changed from ENABLE
+    hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T1_TRGO;  // Timer 1 trigger
+    hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+
+    // ... rest of configuration ...
+}
+```
+
+#### 3. BSP Start Function Update
+
+Modify [`BSP_ADC1_Start()`](application/bsp/stm/bsp.c:130) to start the timer:
+
+```c
+bsp_error_t BSP_ADC1_Start(void)
+{
+    // ... existing DMA setup code ...
+
+    /* Start ADC with DMA */
+    if (ret == BSP_OK)
+    {
+        if (HAL_ADC_Start_DMA(&hadc1, adc1_dma_buffer, BSP_ADC1_NUM_CHANNELS) !=
+            HAL_OK)
+        {
+            ret = BSP_ERROR;
+        }
+        else
+        {
+            adc1_running = true;
+
+            /* Start timer to trigger ADC conversions at 10 kHz */
+            HAL_TIM_Base_Start(&htim1);
+        }
+    }
+
+    return ret;
+}
+```
+
+### ADC Processing Task Implementation
+
+Create a new file `application/src/adc_task.c`:
+
+```c
+#include "FreeRTOS.h"
+#include "task.h"
+#include "bsp.h"
+#include "adc_filter.h"
+
+/* Filter context - static allocation */
+static adc_filter_context_t g_adc_filter_ctx;
+
+/* Filtered results buffer */
+static float32_t g_filtered_adc[BSP_ADC1_NUM_CHANNELS];
+
+/* Raw ADC buffer for snapshot */
+static uint32_t g_raw_adc[BSP_ADC1_NUM_CHANNELS];
+
+/**
+ * @brief Get filtered ADC value for a channel
+ * @param channel Channel index (0 to BSP_ADC1_NUM_CHANNELS-1)
+ * @return Filtered ADC value (0.0 to 1.0 normalized)
+ */
+float32_t adc_task_get_filtered(uint8_t channel)
+{
+    if (channel >= BSP_ADC1_NUM_CHANNELS)
+    {
+        return 0.0f;
+    }
+    return g_filtered_adc[channel];
+}
+
+/**
+ * @brief ADC processing task
+ * @param pvParameters Task parameters (unused)
+ */
+void adc_processing_task(void *pvParameters)
+{
+    (void)pvParameters;
+
+    /* Initialize filter */
+    adc_filter_init(&g_adc_filter_ctx);
+
+    /* Start ADC with timer trigger */
+    if (BSP_ADC1_Start() != BSP_OK)
+    {
+        /* Handle error - could suspend task or retry */
+        vTaskSuspend(NULL);
+    }
+
+    for (;;)
+    {
+        /* Wait for conversion complete */
+        if (BSP_ADC1_IsConversionComplete())
+        {
+            /* Get consistent copy of raw ADC data */
+            BSP_ADC1_GetResultsCopy(g_raw_adc);
+
+            /* Apply filter to each channel */
+            for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
+            {
+                /* Convert 12-bit ADC to float (0.0 to 1.0 range) */
+                float32_t input = (float32_t)g_raw_adc[ch] / 4095.0f;
+
+                /* Apply 12-stage biquad filter */
+                g_filtered_adc[ch] = adc_filter_process_sample(
+                    &g_adc_filter_ctx, ch, input);
+            }
+        }
+
+        /* Yield to other tasks - check every 1ms */
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+}
+```
+
+### Alternative: Block Processing for Better Efficiency
+
+For improved cache utilization and reduced function call overhead:
+
+```c
+#define FILTER_BLOCK_SIZE 10  // Process 10 samples at once (1ms worth at 10kHz)
+
+static float32_t input_buffer[BSP_ADC1_NUM_CHANNELS][FILTER_BLOCK_SIZE];
+static float32_t output_buffer[BSP_ADC1_NUM_CHANNELS][FILTER_BLOCK_SIZE];
+static uint32_t sample_index = 0;
+
+void process_adc_sample_block(uint32_t *raw_adc)
+{
+    /* Accumulate samples */
+    for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
+    {
+        input_buffer[ch][sample_index] = (float32_t)raw_adc[ch] / 4095.0f;
+    }
+    sample_index++;
+
+    /* Process block when full */
+    if (sample_index >= FILTER_BLOCK_SIZE)
+    {
+        for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
+        {
+            adc_filter_process_block(&g_adc_filter_ctx, ch,
+                input_buffer[ch], output_buffer[ch], FILTER_BLOCK_SIZE);
+
+            /* Use latest filtered value */
+            g_filtered_adc[ch] = output_buffer[ch][FILTER_BLOCK_SIZE - 1];
+        }
+        sample_index = 0;
+    }
+}
+```
 
 ### Integration with Existing Code
 
@@ -313,29 +662,33 @@ uint16_t peripheral_adc_read(uint8_t channel) {
 | State Ch1 | 192 bytes | |
 | State Ch2 | 192 bytes | |
 | State Ch3 | 192 bytes | |
-| Filter instances | 64 bytes | 4 × arm_biquad_casd_df1_inst_f32 |
-| **Total** | **~1 KB** | |
+| State Ch4 | 192 bytes | |
+| State Ch5 | 192 bytes | |
+| Filter instances | 96 bytes | 6 × arm_biquad_casd_df1_inst_f32 |
+| **Total** | **~1.5 KB** | |
 
 ## Implementation Checklist
 
-### Phase 1: Python Script
-- [ ] Create `config/adc_filter_design.py`
-- [ ] Implement Butterworth LPF design
-- [ ] Implement notch filter design for all harmonics
-- [ ] Generate C coefficient files
+### Phase 1: Python Script ✅ (Completed)
+- [x] Create `config/adc_filter_design.py`
+- [x] Implement Butterworth LPF design
+- [x] Implement notch filter design for all harmonics
+- [x] Generate C coefficient files
 - [ ] Add unit tests for coefficient generation
 
-### Phase 2: C Filter Library
-- [ ] Create directory structure
-- [ ] Implement `adc_filter.h` API
-- [ ] Implement `adc_filter.c`
-- [ ] Create CMakeLists.txt
+### Phase 2: C Filter Library ✅ (Completed)
+- [x] Create directory structure
+- [x] Implement `adc_filter.h` API
+- [x] Implement `adc_filter.c`
+- [x] Create CMakeLists.txt
 - [ ] Add unit tests for filter processing
 
-### Phase 3: Integration
-- [ ] Integrate with application CMakeLists.txt
-- [ ] Modify peripheral_adapters for filtering
-- [ ] Create ADC sampling task (if not exists)
+### Phase 3: Timer-Triggered ADC Integration (Pending)
+- [ ] Update `ADC_FILTER_NUM_CHANNELS` from 4 to 6 in [`adc_filter.h`](application/dependencies/adc_filter/inc/adc_filter.h:41)
+- [ ] Add `MX_TIM1_Init()` for 10 kHz TRGO output
+- [ ] Modify [`MX_ADC1_Init()`](application/bsp/stm/stm32h563/NonSecure/Core/Src/main.c:186) for timer trigger
+- [ ] Update [`BSP_ADC1_Start()`](application/bsp/stm/bsp.c:130) to start timer
+- [ ] Create ADC processing task with filter integration
 - [ ] Update Modbus register mapping for filtered values
 - [ ] Integration testing
 
@@ -344,6 +697,7 @@ uint16_t peripheral_adc_read(uint8_t channel) {
 - [ ] Measure actual CPU usage
 - [ ] Test 50Hz rejection performance
 - [ ] Validate with real ADC signals
+- [ ] Verify no ADC conversion overlap at 10 kHz
 
 ## Dependencies
 
@@ -496,7 +850,7 @@ application/dependencies/CMSIS_6/
 | libCMSISDSP.a (full library) | ~2.5 MB |
 | Linked functions (after LTO) | ~10-20 KB |
 | Filter coefficients | 240 bytes |
-| Filter state (4 channels) | 768 bytes |
+| Filter state (6 channels) | 1,152 bytes |
 
 Note: The linker only includes functions that are actually used, so the final binary size impact is minimal despite compiling the full library.
 

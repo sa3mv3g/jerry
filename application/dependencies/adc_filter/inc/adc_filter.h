@@ -38,7 +38,7 @@ extern "C" {
  ******************************************************************************/
 
 /** Number of ADC channels supported */
-#define ADC_FILTER_NUM_CHANNELS 4U
+#define ADC_FILTER_NUM_CHANNELS 6U
 
 /** Maximum block size for block processing */
 #define ADC_FILTER_MAX_BLOCK_SIZE 64U
