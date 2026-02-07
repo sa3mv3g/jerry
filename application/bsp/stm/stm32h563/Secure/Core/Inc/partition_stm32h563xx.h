@@ -406,13 +406,13 @@
 //   <o.24> EXTI13_IRQn           <1=> Non-Secure state
 //   <o.25> EXTI14_IRQn           <0=> Secure state
 //   <o.26> EXTI15_IRQn           <0=> Secure state
-//   <o.27> GPDMA1_Channel0_IRQn  <0=> Secure state
+//   <o.27> GPDMA1_Channel0_IRQn  <1=> Non-Secure state
 //   <o.28> GPDMA1_Channel1_IRQn  <0=> Secure state
 //   <o.29> GPDMA1_Channel2_IRQn  <0=> Secure state
 //   <o.30> GPDMA1_Channel3_IRQn  <0=> Secure state
 //   <o.31> GPDMA1_Channel4_IRQn  <0=> Secure state
 */
-#define NVIC_INIT_ITNS0_VAL      0x01000000
+#define NVIC_INIT_ITNS0_VAL      0x09000000
 
 /*
 //   </e>
@@ -480,7 +480,7 @@
 //   <o.7>  TIM15_IRQn            <0=> Secure state
 //   <o.8>  TIM16_IRQn            <0=> Secure state
 //   <o.9>  TIM17_IRQn            <0=> Secure state
-//   <o.10> USB_DRD_FS_IRQn       <1=> Non-Secure state
+//   <o.10> USB_DRD_FS_IRQn       <0=> Secure state
 //   <o.11> CRS_IRQn              <0=> Secure state
 //   <o.12> UCPD1_IRQn            <0=> Secure state
 //   <o.13> FMC_IRQn              <0=> Secure state
@@ -503,7 +503,7 @@
 //   <o.30> GPDMA2_Channel4_IRQn  <0=> Secure state
 //   <o.31> GPDMA2_Channel5_IRQn  <0=> Secure state
 */
-#define NVIC_INIT_ITNS2_VAL      0x00000400
+#define NVIC_INIT_ITNS2_VAL      0x00000000
 
 /*
 //   </e>
