@@ -1,68 +1,49 @@
 cmake_minimum_required(VERSION 3.22)
 
-#
-# This file is generated only once,
-# and is not re-generated if converter is called multiple times.
-#
-# User is free to modify the file as much as necessary
-#
+# Define the BSP library - this will be used by stm32cubemx/CMakeLists.txt
+add_library(stm32f429_bsp STATIC)
 
-# Setup compiler settings
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS ON)
+# Set CMAKE_PROJECT_NAME so stm32cubemx/CMakeLists.txt can add sources to our target
+set(CMAKE_PROJECT_NAME stm32f429_bsp)
 
+# Include the STM32CubeMX generated CMakeLists.txt
+# This adds sources, includes, and definitions to stm32f429_bsp
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/stm32cubemx/CMakeLists.txt)
 
-# Define the build type
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Debug")
-endif()
+# ==========================================================================
+# Additional configuration for FreeRTOS integration
+# ==========================================================================
 
-# Set the project name
-set(CMAKE_PROJECT_NAME stm32f429)
-
-# Enable compile command to ease indexing with e.g. clangd
-set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
-
-# Core project settings
-project(${CMAKE_PROJECT_NAME})
-message("Build type: " ${CMAKE_BUILD_TYPE})
-
-# Enable CMake support for ASM and C languages
-enable_language(C ASM)
-
-# Create an executable object type
-add_executable(${CMAKE_PROJECT_NAME})
-
-# Add STM32CubeMX generated sources
-add_subdirectory(cmake/stm32cubemx)
-
-# Link directories setup
-target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user defined library search paths
+# Additional sources not in stm32cubemx
+target_sources(stm32f429_bsp PRIVATE
+    Core/Src/bsp_init.c
+    # sys_arch.c from stm32h5 port (uses native FreeRTOS, not CMSIS-OS)
+    ${CMAKE_SOURCE_DIR}/application/dependencies/lwip/port/stm32h5/sys_arch.c
 )
 
-# Add sources to executable
-target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user sources here
+# Additional include directories for FreeRTOS and project integration
+target_include_directories(stm32f429_bsp PUBLIC
+    # Chip-specific bsp_chip.h location
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    # LwIP config (lwipopts.h)
+    ${CMAKE_SOURCE_DIR}/application/dependencies/lwip/config
+    # FreeRTOS includes
+    ${CMAKE_SOURCE_DIR}/application/dependencies/FreeRTOS-Kernel/include
+    ${CMAKE_SOURCE_DIR}/application/dependencies/FreeRTOS-Kernel/portable/GCC/ARM_CM4F
+    ${CMAKE_SOURCE_DIR}/application/inc
 )
 
-# Add include paths
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user defined include paths
+# Additional compile definitions for FreeRTOS LwIP integration
+target_compile_definitions(stm32f429_bsp PUBLIC
+    NO_SYS=0
+    USE_FREERTOS=1
 )
 
-# Add project symbols (macros)
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user defined symbols
+target_compile_options(stm32f429_bsp PRIVATE
+    -Wall -Wextra -Werror -g -gdwarf-4 -Wno-unused-parameter -Wno-old-style-declaration -Wno-pedantic
 )
 
-# Remove wrong libob.a library dependency when using cpp files
-list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
-
-# Add linked libraries
-target_link_libraries(${CMAKE_PROJECT_NAME}
-    stm32cubemx
-
-    # Add user defined libraries
+# Link to FreeRTOS (required for LwIP sys_arch.c)
+target_link_libraries(stm32f429_bsp PUBLIC
+    freertos_kernel
 )

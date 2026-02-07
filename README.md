@@ -41,19 +41,57 @@ Vendor specific tools:
 
 ### Build Instructions
 
-1.  **Configure the project**:
+This project uses **CMake Presets** for simplified multi-chip builds. Each chip configuration has its own preset with a dedicated build directory.
+
+#### Using CMake Presets (Recommended)
+
+1.  **List available presets**:
     ```bash
-    cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake -DVENDOR=stm32h563
+    cmake --list-presets
     ```
 
-2.  **Build the firmware**:
+2.  **Configure for a specific chip**:
     ```bash
-    cmake --build build
+    # For STM32H563 (TrustZone enabled)
+    cmake --preset stm32h563
+
+    # For STM32F429
+    cmake --preset stm32f429
     ```
 
-This will produce two binaries:
--   `build/application/bsp/stm32h563/jerry_secure_app.elf` (Secure Application)
--   `build/application/jerry_app.elf` (Non-Secure Application)
+3.  **Build the firmware**:
+    ```bash
+    # Build STM32H563
+    cmake --build --preset stm32h563
+
+    # Build STM32F429
+    cmake --build --preset stm32f429
+    ```
+
+#### Build Output
+
+Each chip builds to its own directory under `build/<chip>/`:
+
+**STM32H563** (TrustZone):
+-   `build/stm32h563/application/bsp/stm32h563/jerry_secure_app.elf` (Secure Application)
+-   `build/stm32h563/application/jerry_app.elf` (Non-Secure Application)
+
+**STM32F429**:
+-   `build/stm32f429/application/jerry_app.elf`
+
+#### Manual Configuration (Alternative)
+
+If you prefer not to use presets, you can configure manually:
+
+```bash
+cmake -S . -B build/<chip> -G Ninja \
+    -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake \
+    -DCHIPS_CFG=<chip>
+
+cmake --build build/<chip>
+```
+
+Replace `<chip>` with `stm32h563` or `stm32f429`.
 
 ### CMake Configuration Options
 
@@ -63,15 +101,12 @@ The following CMake options can be passed during configuration to customize the 
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `VENDOR` | `stm32h563` | Microcontroller vendor selection |
+| `CHIPS_CFG` | `stm32h563` | Target chip configuration (`stm32h563`, `stm32f429`) |
 | `CMAKE_BUILD_TYPE` | - | Build type: `Debug`, `Release`, `RelWithDebInfo`, `MinSizeRel` |
 
 **Example with custom options:**
 ```bash
-cmake -S . -B build -G Ninja \
-    -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake \
-    -DVENDOR=stm32h563 \
-    -DCMAKE_BUILD_TYPE=Debug
+cmake --preset stm32h563 -DCMAKE_BUILD_TYPE=Debug
 ```
 
 ## Available Commands
@@ -82,38 +117,35 @@ This project leverages CMake custom targets to integrate quality assurance tools
 
 Format C/C++ and Python code:
 ```bash
-cmake --build build --target format
+cmake --build build/stm32h563 --target format
 ```
 
 ### Static Analysis & Linting
 
 Run all quality checks (CppCheck, Lizard, Pylint, Ruff):
 ```bash
-cmake --build build --target lint
+cmake --build build/stm32h563 --target lint
 ```
 
 Run individual tools:
 
 -   **CppCheck** (Static Analysis):
     ```bash
-    cmake --build build --target cppcheck
+    cmake --build build/stm32h563 --target cppcheck
     ```
 -   **CppCheck with MISRA** (MISRA C:2012 Compliance):
     ```bash
     # Configure with MISRA addon enabled
-    cmake -S . -B build -G Ninja \
-        -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake \
-        -DVENDOR=stm32h563 \
-        -DCPPCHECK_USE_ADDONS=ON
+    cmake --preset stm32h563 -DCPPCHECK_USE_ADDONS=ON
 
     # Run cppcheck with MISRA checking
-    cmake --build build --target cppcheck
+    cmake --build build/stm32h563 --target cppcheck
 
     # View MISRA violations (Windows)
-    type build\cppcheck_report.txt | findstr /i "misra"
+    type build\stm32h563\cppcheck_report.txt | findstr /i "misra"
 
     # View MISRA violations (Linux/macOS)
-    grep -i "misra" build/cppcheck_report.txt
+    grep -i "misra" build/stm32h563/cppcheck_report.txt
     ```
     **Note:** MISRA checking requires:
     - cppcheck with MISRA addon installed (typically at `<cppcheck-install>/share/cppcheck/addons/misra.py`)
@@ -124,15 +156,15 @@ Run individual tools:
 
 -   **Lizard** (Complexity Metrics):
     ```bash
-    cmake --build build --target lizard
+    cmake --build build/stm32h563 --target lizard
     ```
 -   **Pylint** (Python Linting):
     ```bash
-    cmake --build build --target pylint
+    cmake --build build/stm32h563 --target pylint
     ```
 -   **Ruff** (Python Formatting/Linting):
     ```bash
-    cmake --build build --target ruff
+    cmake --build build/stm32h563 --target ruff
     ```
 
 ## Coding Standards
@@ -269,12 +301,12 @@ You must flash **both** the Secure and Non-Secure applications.
 
 **Flash Secure App (to 0x0C000000):**
 ```bash
-STM32_Programmer_CLI -c port=SWD -w build/application/bsp/stm32h563/jerry_secure_app.elf -v -rst
+STM32_Programmer_CLI -c port=SWD -w build/stm32h563/application/bsp/stm32h563/jerry_secure_app.elf -v -rst
 ```
 
 **Flash Non-Secure App (to 0x08100000):**
 ```bash
-STM32_Programmer_CLI -c port=SWD -w build/application/jerry_app.elf -v -rst
+STM32_Programmer_CLI -c port=SWD -w build/stm32h563/application/jerry_app.elf -v -rst
 ```
 
 #### 3. Debugging tips

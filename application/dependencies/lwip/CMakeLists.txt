@@ -1,6 +1,16 @@
 cmake_minimum_required(VERSION 3.16)
 project(lwip_stack C)
 
+# For stm32f429, LwIP is already included in the BSP folder
+# Skip building the lwip_stack library from the fetched dependency
+if(CHIPS_CFG STREQUAL "stm32f429")
+    message(STATUS "  -> Skipping lwip_stack build for stm32f429 (using BSP-provided LwIP)")
+    # Create an INTERFACE library so that targets can still link to lwip_stack
+    # The actual LwIP sources are compiled as part of stm32f429_bsp
+    add_library(lwip_stack INTERFACE)
+    return()
+endif()
+
 SET(LWIP_PORT_SRC "")
 SET(LWIP_PORT_INC "")
 
@@ -10,7 +20,7 @@ set(STM32_LWIP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/stm32-mw-lwip")
 # Create the Library
 add_library(lwip_stack STATIC)
 
-# include port subdir (custom STM32H5 port files)
+# include port subdir (custom port files based on vendor)
 add_subdirectory(port)
 
 # Include Directories
@@ -20,10 +30,18 @@ target_include_directories(lwip_stack PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/config/"
 )
 
-target_include_directories(lwip_stack PRIVATE
-    "${CMAKE_SOURCE_DIR}/application/inc"
-    "${CMAKE_SOURCE_DIR}/application/bsp/stm/stm32h563/NonSecure/Core/Inc"
-)
+# Chip-specific include directories
+if(CHIPS_CFG STREQUAL "stm32h563")
+    target_include_directories(lwip_stack PRIVATE
+        "${CMAKE_SOURCE_DIR}/application/inc"
+        "${CMAKE_SOURCE_DIR}/application/bsp/stm32h563/NonSecure/Core/Inc"
+    )
+elseif(CHIPS_CFG STREQUAL "stm32f429")
+    target_include_directories(lwip_stack PRIVATE
+        "${CMAKE_SOURCE_DIR}/application/inc"
+        "${CMAKE_SOURCE_DIR}/application/bsp/stm32f429/Core/Inc"
+    )
+endif()
 
 # STM32 LwIP Middleware Source Files
 # Core files
@@ -72,13 +90,22 @@ target_sources(lwip_stack PRIVATE
 
 target_compile_options(lwip_stack PRIVATE
     -Wall -Wextra -Werror -g -gdwarf-4
+    -Wno-unused-parameter  # CubeMX-generated code has unused parameters
+    -Wno-pedantic          # CubeMX-generated code has extra semicolons
 )
 
-# Link to your FreeRTOS target and the BSP (no CMSIS dependency)
-target_link_libraries(lwip_stack PRIVATE
-    freertos_kernel
-    stm32h563_bsp
-)
+# Link to your FreeRTOS target and the BSP (chip-specific)
+if(CHIPS_CFG STREQUAL "stm32h563")
+    target_link_libraries(lwip_stack PRIVATE
+        freertos_kernel
+        stm32h563_bsp
+    )
+elseif(CHIPS_CFG STREQUAL "stm32f429")
+    target_link_libraries(lwip_stack PRIVATE
+        freertos_kernel
+        stm32f429_bsp
+    )
+endif()
 
 # Necessary Definitions
 target_compile_definitions(lwip_stack PUBLIC

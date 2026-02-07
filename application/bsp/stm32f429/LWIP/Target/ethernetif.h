@@ -40,5 +40,16 @@ u32_t sys_now(void);
 
 /* USER CODE BEGIN 1 */
 
+/* Compatibility functions for application code */
+/* ethernetif_check_link is an alias for ethernet_link_check_state */
+static inline void ethernetif_check_link(struct netif *netif) {
+    ethernet_link_check_state(netif);
+}
+
+/* Stub for RX interrupt count - not tracked on F429 */
+static inline unsigned int ethernetif_get_rx_int_count(void) {
+    return 0;
+}
+
 /* USER CODE END 1 */
 #endif

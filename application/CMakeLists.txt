@@ -67,7 +67,12 @@ add_library(freertos_config INTERFACE)
 target_include_directories(freertos_config INTERFACE inc)
 target_compile_definitions(freertos_config INTERFACE projCOVERAGE_TEST=0)
 
-set(FREERTOS_PORT "GCC_ARM_CM33_NTZ_NONSECURE" CACHE STRING "FreeRTOS Port")
+# Set FreeRTOS port based on chip configuration
+if(CHIPS_CFG STREQUAL "stm32h563")
+    set(FREERTOS_PORT "GCC_ARM_CM33_NTZ_NONSECURE" CACHE STRING "FreeRTOS Port")
+elseif(CHIPS_CFG STREQUAL "stm32f429")
+    set(FREERTOS_PORT "GCC_ARM_CM4F" CACHE STRING "FreeRTOS Port")
+endif()
 
 message(STATUS "[1/4] Adding FreeRTOS-Kernel...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/FreeRTOS-Kernel)
@@ -99,9 +104,17 @@ add_executable(jerry_app
     ${APP_HEADERS}
 )
 
+# Chip-specific include path for bsp_chip.h
+if(CHIPS_CFG STREQUAL "stm32h563")
+    set(BSP_CHIP_INC "${CMAKE_CURRENT_SOURCE_DIR}/bsp/stm32h563")
+elseif(CHIPS_CFG STREQUAL "stm32f429")
+    set(BSP_CHIP_INC "${CMAKE_CURRENT_SOURCE_DIR}/bsp/stm32f429")
+endif()
+
 target_include_directories(jerry_app PRIVATE
     inc
     bsp
+    ${BSP_CHIP_INC}
     src/generated
 )
 
@@ -111,18 +124,44 @@ modbus_add_generated_sources(
     GENERATED_FILES ${MODBUS_GENERATED_SOURCES}
 )
 
-target_link_libraries(jerry_app
-    PRIVATE
-        "-Wl,--whole-archive"
-        lwip_stack
-        stm32h563_bsp
-        modbus_stack
-        "-Wl,--no-whole-archive"
-        freertos_kernel
-)
+# Chip-specific BSP library and linker configuration
+if(CHIPS_CFG STREQUAL "stm32h563")
+    set(BSP_LIBRARY stm32h563_bsp)
+    set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/application/bsp/${CHIPS_CFG}/NonSecure/STM32H563xx_FLASH_ns.ld")
+    set(HAS_SECURE_APP TRUE)
+elseif(CHIPS_CFG STREQUAL "stm32f429")
+    set(BSP_LIBRARY stm32f429_bsp)
+    set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/application/bsp/${CHIPS_CFG}/STM32F429XX_FLASH.ld")
+    set(HAS_SECURE_APP FALSE)
+endif()
 
-# Ensure jerry_secure_app is built first so import lib exists
-add_dependencies(jerry_app jerry_secure_app)
+# Link libraries - for stm32f429, lwip_stack is an INTERFACE library (LwIP is in BSP)
+if(CHIPS_CFG STREQUAL "stm32f429")
+    target_link_libraries(jerry_app
+        PRIVATE
+            "-Wl,--whole-archive"
+            ${BSP_LIBRARY}
+            modbus_stack
+            "-Wl,--no-whole-archive"
+            freertos_kernel
+            lwip_stack  # INTERFACE library, just for any transitive dependencies
+    )
+else()
+    target_link_libraries(jerry_app
+        PRIVATE
+            "-Wl,--whole-archive"
+            lwip_stack
+            ${BSP_LIBRARY}
+            modbus_stack
+            "-Wl,--no-whole-archive"
+            freertos_kernel
+    )
+endif()
+
+# Ensure jerry_secure_app is built first so import lib exists (only for TrustZone vendors)
+if(HAS_SECURE_APP)
+    add_dependencies(jerry_app jerry_secure_app)
+endif()
 
 # Compiler options are inherited from toolchain but we can add more specific ones
 target_compile_options(jerry_app PRIVATE
@@ -130,11 +169,18 @@ target_compile_options(jerry_app PRIVATE
 )
 
 # Linker options
-target_link_options(jerry_app PRIVATE
-    -T "${CMAKE_SOURCE_DIR}/application/bsp/stm32h563/NonSecure/STM32H563xx_FLASH_ns.ld"
-    -Wl,-Map=${CMAKE_BINARY_DIR}/jerry_app.map
-    "${CMAKE_BINARY_DIR}/libsecure_nsclib.a"
-)
+if(HAS_SECURE_APP)
+    target_link_options(jerry_app PRIVATE
+        -T "${LINKER_SCRIPT}"
+        -Wl,-Map=${CMAKE_BINARY_DIR}/jerry_app.map
+        "${CMAKE_BINARY_DIR}/libsecure_nsclib.a"
+    )
+else()
+    target_link_options(jerry_app PRIVATE
+        -T "${LINKER_SCRIPT}"
+        -Wl,-Map=${CMAKE_BINARY_DIR}/jerry_app.map
+    )
+endif()
 
 add_custom_command(TARGET jerry_app POST_BUILD
     COMMAND ${CMAKE_OBJDUMP} -d $<TARGET_FILE:jerry_app> > $<TARGET_FILE_DIR:jerry_app>/jerry_app.asm

@@ -429,6 +429,10 @@ void pbuf_free_custom(struct pbuf *p)
 
 /* USER CODE BEGIN 6 */
 
+/* Note: sys_now() is provided by sys_arch.c when using FreeRTOS (NO_SYS=0).
+ * The following implementation is only needed for bare-metal (NO_SYS=1).
+ */
+#if NO_SYS
 /**
 * @brief  Returns the current time in milliseconds
 *         when LWIP_TIMERS == 1 and NO_SYS == 1
@@ -439,6 +443,7 @@ u32_t sys_now(void)
 {
   return HAL_GetTick();
 }
+#endif /* NO_SYS */
 
 /* USER CODE END 6 */
 

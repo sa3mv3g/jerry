@@ -66,9 +66,10 @@ typedef uintptr_t mem_ptr_t;
         while (1);                                                        \
     } while (0)
 
-/* Error codes - use errno values */
-#define LWIP_ERRNO_INCLUDE    <errno.h>
-#define LWIP_ERRNO_STDINCLUDE 1
+/* Error codes - let LwIP provide its own errno definitions
+ * This is needed because embedded toolchain's errno.h doesn't have
+ * all POSIX socket error codes like ENOBUFS, EWOULDBLOCK, etc. */
+#define LWIP_PROVIDE_ERRNO
 
 /* Random number generation */
 #define LWIP_RAND() ((u32_t)rand())

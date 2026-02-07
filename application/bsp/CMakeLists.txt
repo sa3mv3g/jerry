@@ -1,9 +1,13 @@
-if(VENDOR STREQUAL "stm32h563" OR "$ENV{VENDOR}" STREQUAL "stm32h563")
-    set(APP_SOURCES ${APP_SOURCES} ${BSP_DIR}/stm32h563/bsp.c PARENT_SCOPE)
+if(CHIPS_CFG STREQUAL "stm32h563" OR "$ENV{CHIPS_CFG}" STREQUAL "stm32h563")
+    set(APP_SOURCES ${APP_SOURCES} ${BSP_DIR}/${CHIPS_CFG}/bsp.c PARENT_SCOPE)
     add_subdirectory(${BSP_DIR}/stm32h563)
     set(BSP_LIBRARY_NAME "stm32h563_bsp")
+elseif(CHIPS_CFG STREQUAL "stm32f429" OR "$ENV{CHIPS_CFG}" STREQUAL "stm32f429")
+    set(APP_SOURCES ${APP_SOURCES} ${BSP_DIR}/${CHIPS_CFG}/bsp.c PARENT_SCOPE)
+    add_subdirectory(${BSP_DIR}/${CHIPS_CFG})
+    set(BSP_LIBRARY_NAME "stm32f429_bsp")
 else()
-    message(FATAL_ERROR "Unsupported Vendor: ${VENDOR}")
+    message(FATAL_ERROR "Unsupported chip: ${CHIPS_CFG}. Supported chips: stm32h563, stm32f429")
 endif()
 
 # This allows all other libraries to just link to "bsp_interface"

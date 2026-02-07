@@ -1,0 +1,106 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 20,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "stm32h563",
+            "displayName": "STM32H563 (Cortex-M33)",
+            "description": "Build for STM32H563 Nucleo board",
+            "inherits": "base",
+            "binaryDir": "${sourceDir}/build/stm32h563",
+            "cacheVariables": {
+                "CHIPS_CFG": "stm32h563"
+            }
+        },
+        {
+            "name": "stm32f429",
+            "displayName": "STM32F429 (Cortex-M4)",
+            "description": "Build for STM32F429 board",
+            "inherits": "base",
+            "binaryDir": "${sourceDir}/build/stm32f429",
+            "cacheVariables": {
+                "CHIPS_CFG": "stm32f429"
+            }
+        },
+        {
+            "name": "stm32h563-debug",
+            "displayName": "STM32H563 Debug",
+            "description": "Debug build for STM32H563",
+            "inherits": "stm32h563",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "stm32h563-release",
+            "displayName": "STM32H563 Release",
+            "description": "Release build for STM32H563",
+            "inherits": "stm32h563",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "stm32f429-debug",
+            "displayName": "STM32F429 Debug",
+            "description": "Debug build for STM32F429",
+            "inherits": "stm32f429",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "stm32f429-release",
+            "displayName": "STM32F429 Release",
+            "description": "Release build for STM32F429",
+            "inherits": "stm32f429",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "stm32h563",
+            "displayName": "Build STM32H563",
+            "configurePreset": "stm32h563"
+        },
+        {
+            "name": "stm32f429",
+            "displayName": "Build STM32F429",
+            "configurePreset": "stm32f429"
+        },
+        {
+            "name": "stm32h563-debug",
+            "displayName": "Build STM32H563 Debug",
+            "configurePreset": "stm32h563-debug"
+        },
+        {
+            "name": "stm32h563-release",
+            "displayName": "Build STM32H563 Release",
+            "configurePreset": "stm32h563-release"
+        },
+        {
+            "name": "stm32f429-debug",
+            "displayName": "Build STM32F429 Debug",
+            "configurePreset": "stm32f429-debug"
+        },
+        {
+            "name": "stm32f429-release",
+            "displayName": "Build STM32F429 Release",
+            "configurePreset": "stm32f429-release"
+        }
+    ]
+}

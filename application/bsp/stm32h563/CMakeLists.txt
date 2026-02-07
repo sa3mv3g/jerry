@@ -27,6 +27,8 @@ target_sources(stm32h563_bsp PRIVATE
 
 # Include Directories
 target_include_directories(stm32h563_bsp PUBLIC
+    # Chip-specific bsp_chip.h location
+    ${CMAKE_CURRENT_SOURCE_DIR}
     Drivers/STM32H5xx_HAL_Driver/Inc
     Drivers/STM32H5xx_HAL_Driver/Inc/Legacy
     Drivers/CMSIS/Device/ST/STM32H5xx/Include

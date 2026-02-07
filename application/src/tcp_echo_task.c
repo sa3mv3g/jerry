@@ -41,8 +41,8 @@
 #endif /* !USE_DHCP */
 /*---------------------------------------------------------------------------*/
 
-/* Define the network interface */
-struct netif gnetif;
+/* Use the network interface defined in lwip.c (BSP) */
+extern struct netif gnetif;
 
 /* Ethernet Task resources */
 static StaticTask_t xEthernetTaskTCB;

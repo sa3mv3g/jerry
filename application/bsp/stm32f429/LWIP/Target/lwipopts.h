@@ -23,6 +23,7 @@
 #define __LWIPOPTS__H__
 
 #include "main.h"
+#include "FreeRTOS.h"
 
 /*-----------------------------------------------------------------------------*/
 /* Current version of LwIP supported by CubeMx: 2.1.2 -*/
@@ -39,8 +40,8 @@
 
 /* STM32CubeMX Specific Parameters (not defined in opt.h) ---------------------*/
 /* Parameters set in STM32CubeMX LwIP Configuration GUI -*/
-/*----- WITH_RTOS disabled (Since FREERTOS is not set) -----*/
-#define WITH_RTOS 0
+/*----- WITH_RTOS enabled (FreeRTOS is used) -----*/
+#define WITH_RTOS 1
 /*----- CHECKSUM_BY_HARDWARE enabled -----*/
 #define CHECKSUM_BY_HARDWARE 1
 /*-----------------------------------------------------------------------------*/
@@ -49,10 +50,12 @@
 /* Parameters set in STM32CubeMX LwIP Configuration GUI -*/
 /*----- Value in opt.h for LWIP_DHCP: 0 -----*/
 #define LWIP_DHCP 1
-/*----- Value in opt.h for NO_SYS: 0 -----*/
-#define NO_SYS 1
+/*----- Value in opt.h for NO_SYS: 0 - Using FreeRTOS -----*/
+#ifndef NO_SYS
+#define NO_SYS 0
+#endif
 /*----- Value in opt.h for SYS_LIGHTWEIGHT_PROT: 1 -----*/
-#define SYS_LIGHTWEIGHT_PROT 0
+#define SYS_LIGHTWEIGHT_PROT 1
 /*----- Value in opt.h for MEM_ALIGNMENT: 1 -----*/
 #define MEM_ALIGNMENT 4
 /*----- Value in opt.h for MEMP_NUM_SYS_TIMEOUT: (LWIP_TCP + IP_REASSEMBLY + LWIP_ARP + (2*LWIP_DHCP) + LWIP_AUTOIP + LWIP_IGMP + LWIP_DNS + (PPP_SUPPORT*6*MEMP_NUM_PPP_PCB) + (LWIP_IPV6 ? (1 + LWIP_IPV6_REASS + LWIP_IPV6_MLD) : 0)) -*/
@@ -71,14 +74,14 @@
 #define TCP_WND_UPDATE_THRESHOLD 536
 /*----- Value in opt.h for LWIP_NETIF_LINK_CALLBACK: 0 -----*/
 #define LWIP_NETIF_LINK_CALLBACK 1
-/*----- Value in opt.h for LWIP_NETCONN: 1 -----*/
-#define LWIP_NETCONN 0
-/*----- Value in opt.h for LWIP_SOCKET: 1 -----*/
-#define LWIP_SOCKET 0
+/*----- Value in opt.h for LWIP_NETCONN: 1 - Enabled for FreeRTOS -----*/
+#define LWIP_NETCONN 1
+/*----- Value in opt.h for LWIP_SOCKET: 1 - Enabled for FreeRTOS -----*/
+#define LWIP_SOCKET 1
 /*----- Value in opt.h for RECV_BUFSIZE_DEFAULT: INT_MAX -----*/
 #define RECV_BUFSIZE_DEFAULT 2000000000
-/*----- Value in opt.h for LWIP_STATS: 1 -----*/
-#define LWIP_STATS 0
+/*----- Value in opt.h for LWIP_STATS: 1 - Enabled for debugging -----*/
+#define LWIP_STATS 1
 /*----- Value in opt.h for CHECKSUM_GEN_IP: 1 -----*/
 #define CHECKSUM_GEN_IP 0
 /*----- Value in opt.h for CHECKSUM_GEN_UDP: 1 -----*/
@@ -101,6 +104,24 @@
 #define CHECKSUM_CHECK_ICMP6 0
 /*-----------------------------------------------------------------------------*/
 /* USER CODE BEGIN 1 */
+
+/* Prevent LwIP from defining struct timeval (we define it in cc.h) */
+#define LWIP_TIMEVAL_PRIVATE 0
+
+/* Enable socket options for receive timeout */
+#define LWIP_SO_RCVTIMEO 1
+#define LWIP_SO_SNDTIMEO 1
+
+/* FreeRTOS integration settings */
+#define TCPIP_THREAD_NAME              "TCP/IP"
+#define TCPIP_THREAD_STACKSIZE          1024
+#define TCPIP_THREAD_PRIO               (configMAX_PRIORITIES - 2)  /* High priority for TCP/IP thread */
+#define TCPIP_MBOX_SIZE                 6
+#define DEFAULT_UDP_RECVMBOX_SIZE       6
+#define DEFAULT_TCP_RECVMBOX_SIZE       6
+#define DEFAULT_ACCEPTMBOX_SIZE         6
+#define DEFAULT_THREAD_STACKSIZE        500
+#define MEMP_NUM_TCPIP_MSG_INPKT        16
 
 /* USER CODE END 1 */
 
