@@ -854,6 +854,329 @@ application/dependencies/CMSIS_6/
 
 Note: The linker only includes functions that are actually used, so the final binary size impact is minimal despite compiling the full library.
 
+## On-Demand Sampling Architecture
+
+### Overview
+
+The ADC filter system supports **on-demand sampling** where filtered ADC values are requested via Modbus or other interfaces. Rather than continuously filtering data, the system samples at 10kHz, processes through the filter, and returns the settled filtered value only when requested.
+
+### Key Requirements
+
+| Requirement | Value | Rationale |
+|-------------|-------|-----------|
+| Sampling Rate | 10 kHz | Filter designed for this rate |
+| Filter Settling Time | ~1024 samples | 50Hz notch filters need ~20 cycles to settle |
+| Settling Duration | 102.4 ms | 1024 samples ÷ 10kHz |
+| Processing per Sample | ~12 µs | 6 channels × 2 µs per channel |
+
+### Filter Settling Time Analysis
+
+The 50Hz notch filter has the longest settling time in the filter chain:
+
+```
+Notch filter Q factor: ~30 (typical for sharp notch)
+Settling time ≈ Q × (1 / notch_frequency) × cycles_to_settle
+Settling time ≈ 30 × (1/50) × 1.7 ≈ 1.02 seconds for 99% settling
+
+For 90% settling (acceptable for most applications):
+Settling time ≈ 0.5 × Q × (1/50) ≈ 0.3 seconds = 3000 samples
+
+Practical minimum (95% settling):
+~1024 samples = 102.4 ms
+```
+
+### Architecture Decision Tree
+
+```mermaid
+flowchart TD
+    START[On-Demand ADC Request<br/>via Modbus] --> Q1{Continuous filtering<br/>or on-demand?}
+
+    Q1 -->|Continuous| CONT[Continuous Mode<br/>Filter always running<br/>Immediate response]
+    Q1 -->|On-Demand| Q2{Processing location?}
+
+    Q2 -->|ISR| ISR_PATH[ISR-Based Processing]
+    Q2 -->|Task| TASK_PATH[Buffer-Based Processing]
+
+    ISR_PATH --> ISR_PROS[Pros:<br/>- Simple implementation<br/>- No buffer management<br/>- Real-time processing<br/>- Lower memory usage]
+    ISR_PATH --> ISR_CONS[Cons:<br/>- ~12µs ISR duration<br/>- Higher interrupt load<br/>- Less flexible]
+
+    TASK_PATH --> TASK_PROS[Pros:<br/>- Minimal ISR time<br/>- Batch processing efficient<br/>- More flexible timing]
+    TASK_PATH --> TASK_CONS[Cons:<br/>- 24KB buffer needed<br/>- Complex buffer management<br/>- Delayed processing]
+
+    ISR_PROS --> DECISION{Decision}
+    ISR_CONS --> DECISION
+    TASK_PROS --> DECISION
+    TASK_CONS --> DECISION
+
+    DECISION -->|CHOSEN| ISR_IMPL[ISR-Based Implementation<br/>Process in HAL_ADC_ConvCpltCallback]
+    DECISION -->|Alternative| TASK_IMPL[Buffer-Based Alternative<br/>Store samples, process later]
+
+    style ISR_IMPL fill:#90EE90
+    style TASK_IMPL fill:#FFE4B5
+```
+
+### Option A: ISR-Based Processing (CHOSEN)
+
+This is the **selected implementation** for on-demand ADC sampling.
+
+#### Architecture
+
+```mermaid
+sequenceDiagram
+    participant MB as Modbus Request
+    participant APP as Application
+    participant TIM as Timer TIM1
+    participant ADC as ADC1
+    participant ISR as DMA ISR
+    participant FILT as Filter
+
+    MB->>APP: Request filtered ADC value
+    APP->>APP: Reset filter state
+    APP->>APP: sample_count = 0
+    APP->>TIM: Start timer at 10kHz
+    TIM->>ADC: TRGO trigger
+
+    loop 1024 samples @ 10kHz
+        ADC->>ISR: DMA Complete
+        ISR->>FILT: Process 6 channels
+        FILT-->>ISR: Filtered values
+        ISR->>ISR: sample_count++
+    end
+
+    ISR->>APP: Notify: settling complete
+    APP->>TIM: Stop timer
+    APP->>MB: Return filtered value
+```
+
+#### Implementation Details
+
+**ISR Processing Time Budget:**
+
+| Operation | Time | Notes |
+|-----------|------|-------|
+| ISR entry overhead | ~0.5 µs | Context save |
+| Read DMA buffer | ~0.2 µs | 6 × uint32_t |
+| Convert to float | ~0.5 µs | 6 channels |
+| Filter processing | ~12 µs | 6 ch × 12 stages × ~170 cycles |
+| Update counters | ~0.1 µs | |
+| ISR exit overhead | ~0.5 µs | Context restore |
+| **Total** | **~14 µs** | Well within 100 µs period |
+
+**Code Structure:**
+
+```c
+// In bsp.c or adc_task.c
+
+static adc_filter_context_t g_filter_ctx;
+static volatile uint32_t g_sample_count = 0;
+static volatile bool g_sampling_active = false;
+static float32_t g_filtered_values[BSP_ADC1_NUM_CHANNELS];
+
+#define ADC_SETTLING_SAMPLES 1024
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
+    if (hadc->Instance == ADC1 && g_sampling_active)
+    {
+        // Process each channel through filter
+        for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
+        {
+            float32_t input = (float32_t)adc1_dma_buffer[ch] / 4095.0f;
+            g_filtered_values[ch] = adc_filter_process_sample(
+                &g_filter_ctx, ch, input);
+        }
+
+        g_sample_count++;
+
+        if (g_sample_count >= ADC_SETTLING_SAMPLES)
+        {
+            // Stop sampling, notify waiting task
+            HAL_TIM_Base_Stop(&htim1);
+            g_sampling_active = false;
+            // Signal completion via semaphore or event flag
+        }
+    }
+}
+
+// Called from Modbus handler or application task
+bsp_error_t adc_get_filtered_value(uint8_t channel, float32_t *value)
+{
+    if (channel >= BSP_ADC1_NUM_CHANNELS || value == NULL)
+    {
+        return BSP_ERROR;
+    }
+
+    // Reset filter state for clean measurement
+    adc_filter_reset_all(&g_filter_ctx);
+
+    // Start sampling
+    g_sample_count = 0;
+    g_sampling_active = true;
+    HAL_TIM_Base_Start(&htim1);
+
+    // Wait for settling (with timeout)
+    uint32_t timeout = 200; // 200ms timeout
+    while (g_sampling_active && timeout > 0)
+    {
+        vTaskDelay(pdMS_TO_TICKS(1));
+        timeout--;
+    }
+
+    if (g_sampling_active)
+    {
+        // Timeout - stop and return error
+        HAL_TIM_Base_Stop(&htim1);
+        g_sampling_active = false;
+        return BSP_ERROR;
+    }
+
+    *value = g_filtered_values[channel];
+    return BSP_OK;
+}
+```
+
+#### Advantages of ISR-Based Approach
+
+1. **Simple Implementation**: No complex buffer management
+2. **Low Memory**: Only filter state (~1.5KB) needed
+3. **Real-Time**: Each sample processed immediately
+4. **Deterministic**: Fixed processing time per sample
+
+#### Limitations
+
+1. **ISR Duration**: ~14µs per conversion (acceptable at 10kHz)
+2. **CPU Load**: ~14% during sampling (14µs / 100µs)
+3. **Blocking**: Request blocks for ~102ms during settling
+
+### Option B: Buffer-Based Processing (Alternative)
+
+This approach stores raw samples in a circular buffer and processes them in a FreeRTOS task.
+
+#### Architecture
+
+```mermaid
+sequenceDiagram
+    participant MB as Modbus Request
+    participant APP as Application
+    participant TIM as Timer TIM1
+    participant ADC as ADC1
+    participant ISR as DMA ISR
+    participant BUF as Ring Buffer
+    participant TASK as Filter Task
+
+    MB->>APP: Request filtered ADC value
+    APP->>BUF: Clear buffer
+    APP->>TIM: Start timer at 10kHz
+
+    loop 1024 samples @ 10kHz
+        TIM->>ADC: TRGO trigger
+        ADC->>ISR: DMA Complete
+        ISR->>BUF: Store 6 × uint32_t
+    end
+
+    ISR->>TASK: Notify: buffer full
+    APP->>TIM: Stop timer
+
+    TASK->>BUF: Read all samples
+    loop Process 1024 samples
+        TASK->>TASK: Filter each sample
+    end
+    TASK->>APP: Filtered values ready
+    APP->>MB: Return filtered value
+```
+
+#### Memory Requirements
+
+| Component | Size | Calculation |
+|-----------|------|-------------|
+| Ring buffer | 24,576 bytes | 1024 samples × 6 channels × 4 bytes |
+| Filter state | 1,152 bytes | 6 channels × 192 bytes |
+| Output buffer | 24 bytes | 6 channels × 4 bytes |
+| **Total** | **~25 KB** | |
+
+#### Implementation Sketch
+
+```c
+#define BUFFER_SAMPLES 1024
+#define NUM_CHANNELS 6
+
+static uint32_t g_sample_buffer[BUFFER_SAMPLES][NUM_CHANNELS];
+static volatile uint32_t g_write_index = 0;
+static volatile bool g_buffer_full = false;
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
+    if (hadc->Instance == ADC1 && !g_buffer_full)
+    {
+        // Just copy data - minimal ISR time (~0.5µs)
+        memcpy(g_sample_buffer[g_write_index],
+               adc1_dma_buffer,
+               sizeof(uint32_t) * NUM_CHANNELS);
+
+        g_write_index++;
+
+        if (g_write_index >= BUFFER_SAMPLES)
+        {
+            g_buffer_full = true;
+            HAL_TIM_Base_Stop(&htim1);
+            // Notify filter task
+        }
+    }
+}
+
+void filter_task(void *pvParameters)
+{
+    for (;;)
+    {
+        // Wait for buffer full notification
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+        // Process all samples through filter
+        for (uint32_t i = 0; i < BUFFER_SAMPLES; i++)
+        {
+            for (uint8_t ch = 0; ch < NUM_CHANNELS; ch++)
+            {
+                float32_t input = (float32_t)g_sample_buffer[i][ch] / 4095.0f;
+                g_filtered_values[ch] = adc_filter_process_sample(
+                    &g_filter_ctx, ch, input);
+            }
+        }
+
+        // Notify application that values are ready
+    }
+}
+```
+
+#### When to Use Buffer-Based Approach
+
+Consider this alternative if:
+- ISR duration becomes a concern (e.g., higher sample rates)
+- Need to process samples with different algorithms
+- Want to log raw samples for debugging
+- Memory is not constrained
+
+### Comparison Summary
+
+| Aspect | ISR-Based (Chosen) | Buffer-Based |
+|--------|-------------------|--------------|
+| ISR Duration | ~14 µs | ~0.5 µs |
+| Memory Usage | ~1.5 KB | ~25 KB |
+| Implementation | Simple | Complex |
+| Flexibility | Lower | Higher |
+| Latency | Real-time | Batch delay |
+| CPU Load (during sampling) | ~14% | ~0.5% ISR + task |
+
+### Decision Rationale
+
+**ISR-Based Processing was chosen because:**
+
+1. **Sufficient Timing Margin**: 14µs ISR fits easily in 100µs period (86µs margin)
+2. **Memory Efficiency**: 1.5KB vs 25KB is significant on embedded systems
+3. **Simpler Code**: No ring buffer management, no task synchronization
+4. **Proven Pattern**: Similar to existing DMA callback structure in [`bsp.c`](application/bsp/stm/bsp.c)
+
+The buffer-based approach remains documented as a viable alternative if requirements change (e.g., higher sample rates, need for raw data logging).
+
 ## Notes
 
 1. **Coefficient Ordering**: CMSIS-DSP expects coefficients in the order `{b0, b1, b2, -a1, -a2}`. The Python script must negate `a1` and `a2` when generating coefficients.

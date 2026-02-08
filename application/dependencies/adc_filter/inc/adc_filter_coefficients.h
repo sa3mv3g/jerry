@@ -10,7 +10,7 @@
  *   - LPF Type: 4th order Butterworth
  *   - LPF Cutoff: 500 Hz
  *   - Notch Frequencies: 50, 100, 150, 200, 250, 300, 350, 400, 450, 500 Hz
- *   - Notch Q Factor: 30
+ *   - Notch Q Factor: 10
  *   - Total Biquad Stages: 12
  */
 

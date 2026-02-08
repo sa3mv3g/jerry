@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#include "adc_filter.h"
 #include "main.h"
 #include "stm32h5xx_hal.h"
 
@@ -27,18 +28,60 @@ static volatile bool adc1_running = false;
 static volatile bool adc1_conversion_complete = false;
 
 /*============================================================================*/
+/*                     Filtered ADC Private Variables                         */
+/*============================================================================*/
+
+/** @brief Filter context for all ADC channels */
+static adc_filter_context_t g_adc_filter_ctx;
+
+/** @brief Filtered output values for all channels (continuously updated) */
+static volatile float32_t g_filtered_values[BSP_ADC1_NUM_CHANNELS];
+
+/** @brief Sample counter since filter initialization (for settling detection) */
+static volatile uint32_t g_filter_sample_count = 0;
+
+/** @brief Flag indicating filter subsystem is initialized and running */
+static volatile bool g_filter_initialized = false;
+
+/*============================================================================*/
 /*                          ADC1 DMA Callbacks                                */
 /*============================================================================*/
 
 /**
  * @brief ADC conversion complete callback (called by HAL from DMA IRQ)
  * @param hadc ADC handle
+ *
+ * This callback is invoked by the HAL when a DMA transfer completes.
+ * In continuous filtering mode, it always processes each sample through
+ * the 12-stage biquad filter chain in the ISR context (~12µs per call).
+ *
+ * The filtered values are continuously updated and can be read at any time
+ * via BSP_ADC1_GetFilteredValue() with instant response.
  */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
     if (hadc->Instance == ADC1)
     {
         adc1_conversion_complete = true;
+
+        /* Continuous filtering: always process samples when filter is initialized */
+        if (g_filter_initialized)
+        {
+            /* Convert and filter each channel */
+            for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
+            {
+                /* Convert 12-bit ADC value to normalized float (0.0 to 1.0) */
+                float32_t input =
+                    (float32_t)adc1_dma_buffer[ch] / 4095.0f;
+
+                /* Apply 12-stage biquad filter */
+                g_filtered_values[ch] =
+                    adc_filter_process_sample(&g_adc_filter_ctx, ch, input);
+            }
+
+            /* Increment sample counter (for settling detection) */
+            g_filter_sample_count++;
+        }
     }
 }
 
@@ -121,6 +164,10 @@ bsp_error_t BSP_Init(void)
 
     MX_ETH_Init();
     MX_USB_HCD_Init();
+
+    /* Initialize ADC filter subsystem */
+    BSP_ADC1_FilterInit();
+
     HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_1);
     BSP_ADC1_Start();
 
@@ -347,4 +394,92 @@ bsp_error_t BSP_ADC1_GetResultsCopy(uint32_t *buffer)
     }
 
     return ret;
+}
+
+/*============================================================================*/
+/*                     Filtered ADC1 Functions (Continuous Mode)              */
+/*============================================================================*/
+
+void BSP_ADC1_FilterInit(void)
+{
+    if (!g_filter_initialized)
+    {
+        /* Initialize the filter context for all channels */
+        adc_filter_init(&g_adc_filter_ctx);
+
+        /* Clear filtered values */
+        for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
+        {
+            g_filtered_values[ch] = 0.0f;
+        }
+
+        /* Reset sample counter */
+        g_filter_sample_count = 0;
+
+        /* Mark as initialized - ISR will start processing samples */
+        g_filter_initialized = true;
+    }
+}
+
+bsp_error_t BSP_ADC1_GetFilteredValue(uint8_t channel, float32_t *value)
+{
+    bsp_error_t ret = BSP_OK;
+
+    /* Validate parameters */
+    if (channel >= BSP_ADC1_NUM_CHANNELS || value == NULL)
+    {
+        ret = BSP_INVALID_ARG;
+    }
+    /* Check if filter is initialized */
+    else if (!g_filter_initialized)
+    {
+        ret = BSP_ERROR;
+    }
+    else
+    {
+        /* Instant response: just return the current filtered value */
+        *value = g_filtered_values[channel];
+    }
+
+    return ret;
+}
+
+bsp_error_t BSP_ADC1_GetFilteredValuesAll(float32_t *values)
+{
+    bsp_error_t ret = BSP_OK;
+
+    /* Validate parameters */
+    if (values == NULL)
+    {
+        ret = BSP_INVALID_ARG;
+    }
+    /* Check if filter is initialized */
+    else if (!g_filter_initialized)
+    {
+        ret = BSP_ERROR;
+    }
+    else
+    {
+        /* Instant response: copy all current filtered values */
+        /* Disable interrupts briefly to get consistent snapshot */
+        __disable_irq();
+        for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
+        {
+            values[ch] = g_filtered_values[ch];
+        }
+        __enable_irq();
+    }
+
+    return ret;
+}
+
+bool BSP_ADC1_IsFilterSettled(void)
+{
+    return g_filter_initialized &&
+           (g_filter_sample_count >= BSP_ADC1_FILTER_SETTLING_SAMPLES);
+}
+
+uint32_t BSP_ADC1_GetFilterSampleCount(void)
+{
+    return g_filter_sample_count;
 }

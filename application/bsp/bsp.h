@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "arm_math_types.h"
 #include "stm32h5xx_nucleo.h"
 
 /**
@@ -118,5 +119,98 @@ bsp_error_t BSP_ADC1_GetResults(const uint32_t **results);
 bsp_error_t BSP_ADC1_GetResultsCopy(uint32_t *buffer);
 
 /** @} */ /* End of BSP_ADC1 group */
+
+/**
+ * @defgroup BSP_ADC1_Filtered Filtered ADC1 Functions (Continuous Mode)
+ * @brief Continuously filtered ADC acquisition functions
+ *
+ * These functions provide filtered ADC readings using a 12-stage biquad
+ * cascade filter (4th order Butterworth LPF + 10 notch filters for 50Hz
+ * mains rejection). The filter runs continuously at 10kHz, processing
+ * every ADC sample in the DMA ISR.
+ *
+ * **Key characteristics:**
+ * - **Instant response**: GetFilteredValue() returns immediately
+ * - **Continuous operation**: Filter always running, values always current
+ * - **~2-5ms signal delay**: Actual group delay through filter chain
+ * - **~102ms initial settling**: One-time after power-on/reset
+ *
+ * @{
+ */
+
+/** Number of samples required for filter settling (95% settling) */
+#define BSP_ADC1_FILTER_SETTLING_SAMPLES 1024U
+
+/**
+ * @brief Initialize the ADC filter subsystem.
+ *
+ * This function initializes the digital filter for all ADC channels.
+ * After initialization, the filter runs continuously, processing every
+ * ADC sample in the DMA ISR.
+ *
+ * @note This is automatically called by BSP_Init().
+ * @note After calling this, wait ~102ms for filter to settle before
+ *       reading values (use BSP_ADC1_IsFilterSettled() to check).
+ */
+void BSP_ADC1_FilterInit(void);
+
+/**
+ * @brief Get a filtered ADC value for a single channel (instant response).
+ *
+ * Returns the current filtered value for the specified channel.
+ * The filter runs continuously in the background, so this function
+ * returns immediately with the latest filtered value.
+ *
+ * @param[in]  channel Channel index (0 to BSP_ADC1_NUM_CHANNELS-1).
+ * @param[out] value   Pointer to store the filtered value (0.0 to 1.0 normalized).
+ *
+ * @return bsp_error_t BSP_OK if successful, BSP_INVALID_ARG if parameters
+ *         are invalid, BSP_ERROR if filter is not initialized.
+ *
+ * @note This function returns instantly (no blocking).
+ * @note The returned value is normalized to 0.0-1.0 range (0 = 0V, 1.0 = VREF).
+ * @note Check BSP_ADC1_IsFilterSettled() to ensure filter has settled
+ *       after power-on before trusting the values.
+ */
+bsp_error_t BSP_ADC1_GetFilteredValue(uint8_t channel, float32_t *value);
+
+/**
+ * @brief Get filtered ADC values for all channels (instant response).
+ *
+ * Returns the current filtered values for all channels as an atomic snapshot.
+ *
+ * @param[out] values Array to store filtered values for all channels.
+ *                    Must have space for BSP_ADC1_NUM_CHANNELS float32_t values.
+ *
+ * @return bsp_error_t BSP_OK if successful, BSP_INVALID_ARG if values is NULL,
+ *         BSP_ERROR if filter is not initialized.
+ *
+ * @note This function returns instantly (no blocking).
+ * @note Interrupts are briefly disabled to ensure consistent snapshot.
+ */
+bsp_error_t BSP_ADC1_GetFilteredValuesAll(float32_t *values);
+
+/**
+ * @brief Check if filter has settled after initialization.
+ *
+ * After power-on or filter reset, the filter needs ~1024 samples (~102ms)
+ * to settle. This function returns true once enough samples have been
+ * processed for the filter output to be valid.
+ *
+ * @return true if filter has settled and values are valid, false otherwise.
+ */
+bool BSP_ADC1_IsFilterSettled(void);
+
+/**
+ * @brief Get the current filter sample count.
+ *
+ * Returns the number of samples processed since filter initialization.
+ * Useful for monitoring settling progress after power-on.
+ *
+ * @return Number of samples processed since initialization.
+ */
+uint32_t BSP_ADC1_GetFilterSampleCount(void);
+
+/** @} */ /* End of BSP_ADC1_Filtered group */
 
 #endif  // BSP_H

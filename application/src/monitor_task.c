@@ -8,6 +8,7 @@
 
 #include "FreeRTOS.h"
 #include "app_tasks.h"
+#include "bsp.h"
 #include "task.h"
 
 /* LwIP includes for memory stats */
@@ -103,6 +104,40 @@ static void check_task_stacks(void)
     }
 }
 
+/**
+ * @brief Print filtered ADC values for all channels
+ */
+static void print_adc_values(void)
+{
+    float32_t adc_values[BSP_ADC1_NUM_CHANNELS];
+
+    /* Check if filter has settled */
+    if (!BSP_ADC1_IsFilterSettled())
+    {
+        (void)printf("[ADC] Filter settling... (%u/%u samples)\n",
+                     (unsigned int)BSP_ADC1_GetFilterSampleCount(),
+                     (unsigned int)BSP_ADC1_FILTER_SETTLING_SAMPLES);
+        return;
+    }
+
+    /* Get all filtered ADC values */
+    if (BSP_ADC1_GetFilteredValuesAll(adc_values) == BSP_OK)
+    {
+        (void)printf("[ADC] ");
+        for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
+        {
+            /* Convert to millivolts (assuming 3.3V reference) */
+            uint32_t mv = (uint32_t)(adc_values[ch] * 3300.0f);
+            (void)printf("CH%u:%4umV ", (unsigned int)ch, (unsigned int)mv);
+        }
+        (void)printf("\n");
+    }
+    else
+    {
+        (void)printf("[ADC] Error reading filtered values\n");
+    }
+}
+
 /* Stack Monitor Task */
 void vMonitorTask(void* pvParameters)
 {
@@ -117,6 +152,9 @@ void vMonitorTask(void* pvParameters)
         /* Check for new errors (quick check every interval) */
         check_lwip_errors();
         check_task_stacks();
+
+        /* Print ADC values every interval */
+        print_adc_values();
 
         /* Print full statistics periodically */
         stats_counter++;

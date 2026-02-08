@@ -36,7 +36,10 @@ SAMPLE_RATE = 10000  # Hz
 LPF_CUTOFF = 500  # Hz
 LPF_ORDER = 4  # 4th order Butterworth
 MAINS_FREQ = 50  # Hz
-NOTCH_Q = 30  # Quality factor for notch filters
+# Q factor for notch filters - lower values give wider notches but better stability
+# Q=10 gives ~5Hz bandwidth at 50Hz for precise mains rejection
+# Pole radius at 50Hz: r = 1 - π*5/10000 = 0.9984 (stable)
+NOTCH_Q = 10  # Quality factor for notch filters
 NUM_HARMONICS = 10  # Number of harmonics to reject (50Hz to 500Hz)
 
 # Template and output paths (relative to this script's directory)
@@ -54,13 +57,16 @@ def design_butterworth_lpf(
     """
     Design a Butterworth low-pass filter and return second-order sections.
 
+    Each section is normalized to have unity DC gain to prevent numerical
+    instability when cascading multiple biquad stages.
+
     Args:
         cutoff: Cutoff frequency in Hz
         fs: Sampling frequency in Hz
         order: Filter order
 
     Returns:
-        Second-order sections array (n_sections x 6)
+        Second-order sections array (n_sections x 6), each with unity DC gain
     """
     nyquist = fs / 2.0
     normalized_cutoff = cutoff / nyquist
@@ -68,12 +74,32 @@ def design_butterworth_lpf(
     # Design Butterworth filter and get SOS representation
     sos = signal.butter(order, normalized_cutoff, btype="low", output="sos")
 
+    # Normalize each section to have unity DC gain
+    # DC gain of a biquad section: (b0 + b1 + b2) / (1 + a1 + a2)
+    # We scale b coefficients so DC gain = 1.0
+    for i in range(len(sos)):
+        b0, b1, b2, a0, a1, a2 = sos[i]
+        dc_gain_num = b0 + b1 + b2
+        dc_gain_den = a0 + a1 + a2
+        dc_gain = dc_gain_num / dc_gain_den if dc_gain_den != 0 else 1.0
+
+        if dc_gain != 0 and dc_gain != 1.0:
+            # Normalize b coefficients to achieve unity DC gain
+            sos[i, 0] = b0 / dc_gain
+            sos[i, 1] = b1 / dc_gain
+            sos[i, 2] = b2 / dc_gain
+
     return sos
 
 
 def design_notch_filter(freq: float, fs: float, q: float) -> np.ndarray:
     """
     Design an IIR notch filter and return second-order sections.
+
+    Uses the standard notch filter design formula for better numerical stability.
+    The transfer function is:
+        H(z) = (1 - 2*cos(w0)*z^-1 + z^-2) / (1 - 2*r*cos(w0)*z^-1 + r^2*z^-2)
+    where w0 = 2*pi*freq/fs and r = 1 - pi*BW/fs (BW = freq/Q)
 
     Args:
         freq: Notch frequency in Hz
@@ -83,15 +109,42 @@ def design_notch_filter(freq: float, fs: float, q: float) -> np.ndarray:
     Returns:
         Second-order sections array (1 x 6)
     """
-    nyquist = fs / 2.0
-    normalized_freq = freq / nyquist
+    # Calculate normalized angular frequency
+    w0 = 2.0 * np.pi * freq / fs
 
-    # Design notch filter
-    b, a = signal.iirnotch(normalized_freq, q, fs=fs)
+    # Calculate bandwidth and pole radius
+    bw = freq / q  # 3dB bandwidth
+    r = 1.0 - (np.pi * bw / fs)
 
-    # Convert to SOS format (single section)
-    # For a 2nd order filter, we have one biquad section
-    sos = np.array([[b[0], b[1], b[2], 1.0, a[1], a[2]]])
+    # Clamp r to prevent instability (must be < 1)
+    r = min(r, 0.999)
+
+    # Calculate coefficients using standard notch formula
+    cos_w0 = np.cos(w0)
+
+    # Numerator: zeros on unit circle at w0
+    b0 = 1.0
+    b1 = -2.0 * cos_w0
+    b2 = 1.0
+
+    # Denominator: poles inside unit circle at radius r
+    a0 = 1.0
+    a1 = -2.0 * r * cos_w0
+    a2 = r * r
+
+    # Normalize to have unity gain at DC
+    # DC gain = (b0 + b1 + b2) / (a0 + a1 + a2)
+    dc_gain_num = b0 + b1 + b2
+    dc_gain_den = a0 + a1 + a2
+    dc_gain = dc_gain_num / dc_gain_den if dc_gain_den != 0 else 1.0
+
+    if dc_gain != 0:
+        b0 /= dc_gain
+        b1 /= dc_gain
+        b2 /= dc_gain
+
+    # Return as SOS format
+    sos = np.array([[b0, b1, b2, a0, a1, a2]])
 
     return sos
 
