@@ -2,11 +2,11 @@
  * Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
  * All rights reserved.
  *
- * Peripheral Adapters - Stub implementation for testing
+ * Peripheral Adapters - Hardware abstraction layer
  *
- * This module provides stub implementations that return simulated values
- * for testing Modbus communication. In production, these functions should
- * be replaced with actual hardware driver calls.
+ * This module provides implementations that interface with actual hardware
+ * through the BSP layer. ADC functions use real filtered values from the
+ * BSP_ADC1 subsystem.
  */
 
 #include "peripheral_adapters.h"
@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "bsp.h"
 #include "FreeRTOS.h"
 #include "jerry_device_registers.h"
 #include "task.h"
@@ -28,8 +29,6 @@ static uint8_t s_digital_inputs = 0x00U;
 /** Simulated digital output state (16 bits) */
 static uint16_t s_digital_outputs = 0x0000U;
 
-/** Simulated ADC values (4 channels, 12-bit) */
-static uint16_t s_adc_values[4] = {0U, 0U, 0U, 0U};
 
 /** Simulated PWM enable state */
 static bool s_pwm_enabled[4] = {false, false, false, false};
@@ -131,40 +130,40 @@ uint16_t peripheral_digital_output_read_all(void) { return s_digital_outputs; }
 
 /* ==========================================================================
  * ADC Adapter Implementation
+ * Uses real filtered ADC values from BSP layer
  * ========================================================================== */
 
 void peripheral_adc_init(void)
 {
-    /* Initialize with mid-range values */
-    s_adc_values[0] = 2048U;
-    s_adc_values[1] = 1024U;
-    s_adc_values[2] = 3072U;
-    s_adc_values[3] = 512U;
+    /* ADC is initialized by BSP_Init() which calls BSP_ADC1_FilterInit()
+     * and BSP_ADC1_Start(). Nothing additional needed here. */
 }
 
 uint16_t peripheral_adc_read(uint8_t channel)
 {
-    uint16_t result = 0U;
+    uint16_t  result = 0U;
+    float32_t value  = 0.0f;
 
     if (channel < 4U)
     {
-        /* Simulate slight variation in ADC readings */
-        uint16_t variation = (uint16_t)(rand() % 32U);
-        int16_t  offset    = (int16_t)(variation - 16);
-        int32_t  new_value = (int32_t)s_adc_values[channel] + offset;
-
-        /* Clamp to 12-bit range */
-        if (new_value < 0)
+        /* Return 0 if filter has not settled yet */
+        if (!BSP_ADC1_IsFilterSettled())
         {
-            new_value = 0;
-        }
-        else if (new_value > 4095)
-        {
-            new_value = 4095;
+            return 0U;
         }
 
-        s_adc_values[channel] = (uint16_t)new_value;
-        result                = s_adc_values[channel];
+        /* Get filtered value from BSP (normalized 0.0-1.0) */
+        if (BSP_ADC1_GetFilteredValue(channel, &value) == BSP_OK)
+        {
+            /* Convert normalized float to 12-bit ADC value (0-4095) */
+            result = (uint16_t)(value * 4095.0f);
+
+            /* Clamp to 12-bit range (safety check) */
+            if (result > 4095U)
+            {
+                result = 4095U;
+            }
+        }
     }
 
     return result;
@@ -172,9 +171,44 @@ uint16_t peripheral_adc_read(uint8_t channel)
 
 void peripheral_adc_read_all(uint16_t values[4])
 {
-    for (uint8_t i = 0U; i < 4U; i++)
+    float32_t float_values[BSP_ADC1_NUM_CHANNELS];
+
+    /* Check for ADC errors and restart if needed */
+    (void)BSP_ADC1_CheckAndRestart();
+
+    /* Return zeros if filter has not settled yet */
+    if (!BSP_ADC1_IsFilterSettled())
     {
-        values[i] = peripheral_adc_read(i);
+        for (uint8_t i = 0U; i < 4U; i++)
+        {
+            values[i] = 0U;
+        }
+        return;
+    }
+
+    /* Get all filtered values from BSP */
+    if (BSP_ADC1_GetFilteredValuesAll(float_values) == BSP_OK)
+    {
+        /* Convert first 4 channels from normalized float to 12-bit ADC values */
+        for (uint8_t i = 0U; i < 4U; i++)
+        {
+            uint16_t adc_value = (uint16_t)(float_values[i] * 4095.0f);
+
+            /* Clamp to 12-bit range (safety check) */
+            if (adc_value > 4095U)
+            {
+                adc_value = 4095U;
+            }
+            values[i] = adc_value;
+        }
+    }
+    else
+    {
+        /* BSP call failed, return zeros */
+        for (uint8_t i = 0U; i < 4U; i++)
+        {
+            values[i] = 0U;
+        }
     }
 }
 
@@ -345,9 +379,6 @@ void peripheral_adapters_init(void)
     peripheral_adc_init();
     peripheral_pwm_init();
     peripheral_rtc_init();
-
-    /* Seed random number generator for ADC simulation */
-    srand((unsigned int)xTaskGetTickCount());
 }
 
 void peripheral_adapters_update_registers(void)

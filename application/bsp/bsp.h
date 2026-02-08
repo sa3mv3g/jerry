@@ -118,6 +118,40 @@ bsp_error_t BSP_ADC1_GetResults(const uint32_t **results);
  */
 bsp_error_t BSP_ADC1_GetResultsCopy(uint32_t *buffer);
 
+/**
+ * @brief Check if an ADC error has occurred.
+ *
+ * @return true if an error has occurred, false otherwise.
+ */
+bool BSP_ADC1_HasError(void);
+
+/**
+ * @brief Get the last ADC error code.
+ *
+ * @return HAL ADC error code from the last error.
+ */
+uint32_t BSP_ADC1_GetLastError(void);
+
+/**
+ * @brief Restart ADC1 after an error or stop.
+ *
+ * This function stops the ADC if running, clears error flags,
+ * and restarts the ADC with DMA.
+ *
+ * @return bsp_error_t BSP_OK if restart successful, BSP_ERROR otherwise.
+ */
+bsp_error_t BSP_ADC1_Restart(void);
+
+/**
+ * @brief Check for ADC errors and restart if needed.
+ *
+ * This function checks if an ADC error has occurred or if the ADC
+ * has stopped, and automatically restarts it.
+ *
+ * @return true if ADC was restarted, false if no restart was needed.
+ */
+bool BSP_ADC1_CheckAndRestart(void);
+
 /** @} */ /* End of BSP_ADC1 group */
 
 /**

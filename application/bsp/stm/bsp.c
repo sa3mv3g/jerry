@@ -27,6 +27,12 @@ static volatile bool adc1_running = false;
 /** @brief Flag indicating a complete conversion sequence is available */
 static volatile bool adc1_conversion_complete = false;
 
+/** @brief Flag indicating ADC1 error occurred (for restart) */
+static volatile bool adc1_error_occurred = false;
+
+/** @brief ADC1 error code for debugging */
+static volatile uint32_t adc1_last_error = 0;
+
 /*============================================================================*/
 /*                     Filtered ADC Private Variables                         */
 /*============================================================================*/
@@ -82,6 +88,23 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
             /* Increment sample counter (for settling detection) */
             g_filter_sample_count++;
         }
+    }
+}
+
+/**
+ * @brief ADC error callback (called by HAL when ADC error occurs)
+ * @param hadc ADC handle
+ *
+ * This callback is invoked when an ADC error occurs (overrun, DMA error, etc.)
+ * It sets a flag that can be checked to restart the ADC.
+ */
+void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
+{
+    if (hadc->Instance == ADC1)
+    {
+        adc1_error_occurred = true;
+        adc1_last_error     = hadc->ErrorCode;
+        adc1_running        = false;
     }
 }
 
@@ -394,6 +417,55 @@ bsp_error_t BSP_ADC1_GetResultsCopy(uint32_t *buffer)
     }
 
     return ret;
+}
+
+bool BSP_ADC1_HasError(void)
+{
+    return adc1_error_occurred;
+}
+
+uint32_t BSP_ADC1_GetLastError(void)
+{
+    return adc1_last_error;
+}
+
+bsp_error_t BSP_ADC1_Restart(void)
+{
+    bsp_error_t ret = BSP_OK;
+
+    /* Stop ADC if running */
+    if (adc1_running)
+    {
+        (void)HAL_ADC_Stop_DMA(&hadc1);
+        adc1_running = false;
+    }
+
+    /* Clear error flags */
+    adc1_error_occurred = false;
+    adc1_last_error     = 0;
+
+    /* De-initialize and re-initialize the DMA handle */
+    (void)HAL_DMAEx_List_DeInit(&handle_GPDMA1_Channel0);
+
+    /* Restart ADC */
+    ret = BSP_ADC1_Start();
+
+    return ret;
+}
+
+bool BSP_ADC1_CheckAndRestart(void)
+{
+    bool restarted = false;
+
+    if (adc1_error_occurred || !adc1_running)
+    {
+        if (BSP_ADC1_Restart() == BSP_OK)
+        {
+            restarted = true;
+        }
+    }
+
+    return restarted;
 }
 
 /*============================================================================*/
