@@ -316,6 +316,12 @@ void MX_ETH_Init(void)
 
   /* USER CODE BEGIN MACADDRESS */
 
+  MACAddr[0] = 0x00;
+  MACAddr[1] = 0x80;
+  MACAddr[2] = 0xE1;
+  MACAddr[3] = 0x00;
+  MACAddr[4] = 0x00;
+  MACAddr[5] = 0x01;  /* Must match ETH_MAC_ADDR5 in ethernetif.h */
   /* USER CODE END MACADDRESS */
 
   if (HAL_ETH_Init(&heth) != HAL_OK)
