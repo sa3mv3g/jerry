@@ -1,0 +1,7 @@
+{
+    "script": "@CPPCHECK_ADDONS_DIR@/misra.py",
+    "python": "python",
+    "args": [
+        "--rule-texts=@CMAKE_SOURCE_DIR@/refs/misra_c_2012__headlines_for_cppcheck.txt"
+    ]
+}
