@@ -7,8 +7,8 @@
 #include "stm32h5xx_hal.h"
 
 /* External declarations */
-void SystemClock_Config(void);
-extern uint32_t __eth_dma_start;
+void                     SystemClock_Config(void);
+extern uint32_t          __eth_dma_start;
 extern TIM_HandleTypeDef htim1;
 
 /* Note: hadc1, Node_GPDMA1_Channel0, List_GPDMA1_Channel0, and
@@ -43,7 +43,8 @@ static adc_filter_context_t g_adc_filter_ctx;
 /** @brief Filtered output values for all channels (continuously updated) */
 static volatile float32_t g_filtered_values[BSP_ADC1_NUM_CHANNELS];
 
-/** @brief Sample counter since filter initialization (for settling detection) */
+/** @brief Sample counter since filter initialization (for settling detection)
+ */
 static volatile uint32_t g_filter_sample_count = 0;
 
 /** @brief Flag indicating filter subsystem is initialized and running */
@@ -70,15 +71,15 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
     {
         adc1_conversion_complete = true;
 
-        /* Continuous filtering: always process samples when filter is initialized */
+        /* Continuous filtering: always process samples when filter is
+         * initialized */
         if (g_filter_initialized)
         {
             /* Convert and filter each channel */
             for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
             {
                 /* Convert 12-bit ADC value to normalized float (0.0 to 1.0) */
-                float32_t input =
-                    (float32_t)adc1_dma_buffer[ch] / 4095.0f;
+                float32_t input = (float32_t)adc1_dma_buffer[ch] / 4095.0f;
 
                 /* Apply 12-stage biquad filter */
                 g_filtered_values[ch] =
@@ -217,33 +218,34 @@ bsp_error_t BSP_ADC1_Start(void)
         adc1_conversion_complete = false;
 
         /* Configure DMA node for ADC1 */
-        node_config.NodeType                            = DMA_GPDMA_LINEAR_NODE;
-        node_config.Init.Request                        = GPDMA1_REQUEST_ADC1;
-        node_config.Init.BlkHWRequest                   = DMA_BREQ_SINGLE_BURST;
-        node_config.Init.Direction                      = DMA_PERIPH_TO_MEMORY;
-        node_config.Init.SrcInc                         = DMA_SINC_FIXED;
-        node_config.Init.DestInc                        = DMA_DINC_INCREMENTED;
-        node_config.Init.SrcDataWidth                   = DMA_SRC_DATAWIDTH_WORD;
-        node_config.Init.DestDataWidth                  = DMA_DEST_DATAWIDTH_WORD;
-        node_config.Init.SrcBurstLength                 = 1;
-        node_config.Init.DestBurstLength                = 1;
-        node_config.Init.TransferAllocatedPort          =
+        node_config.NodeType             = DMA_GPDMA_LINEAR_NODE;
+        node_config.Init.Request         = GPDMA1_REQUEST_ADC1;
+        node_config.Init.BlkHWRequest    = DMA_BREQ_SINGLE_BURST;
+        node_config.Init.Direction       = DMA_PERIPH_TO_MEMORY;
+        node_config.Init.SrcInc          = DMA_SINC_FIXED;
+        node_config.Init.DestInc         = DMA_DINC_INCREMENTED;
+        node_config.Init.SrcDataWidth    = DMA_SRC_DATAWIDTH_WORD;
+        node_config.Init.DestDataWidth   = DMA_DEST_DATAWIDTH_WORD;
+        node_config.Init.SrcBurstLength  = 1;
+        node_config.Init.DestBurstLength = 1;
+        node_config.Init.TransferAllocatedPort =
             DMA_SRC_ALLOCATED_PORT0 | DMA_DEST_ALLOCATED_PORT1;
-        node_config.Init.TransferEventMode              = DMA_TCEM_BLOCK_TRANSFER;
-        node_config.Init.Mode                           = DMA_NORMAL;
-        node_config.DataHandlingConfig.DataExchange     = DMA_EXCHANGE_NONE;
-        node_config.DataHandlingConfig.DataAlignment    = DMA_DATA_RIGHTALIGN_ZEROPADDED;
-        node_config.TriggerConfig.TriggerMode           = DMA_TRIGM_BLOCK_TRANSFER;
-        node_config.TriggerConfig.TriggerPolarity       = DMA_TRIG_POLARITY_MASKED;
-        node_config.TriggerConfig.TriggerSelection      = 0;
-        node_config.RepeatBlockConfig.RepeatCount       = 1;
-        node_config.RepeatBlockConfig.SrcAddrOffset     = 0;
-        node_config.RepeatBlockConfig.DestAddrOffset    = 0;
+        node_config.Init.TransferEventMode          = DMA_TCEM_BLOCK_TRANSFER;
+        node_config.Init.Mode                       = DMA_NORMAL;
+        node_config.DataHandlingConfig.DataExchange = DMA_EXCHANGE_NONE;
+        node_config.DataHandlingConfig.DataAlignment =
+            DMA_DATA_RIGHTALIGN_ZEROPADDED;
+        node_config.TriggerConfig.TriggerMode        = DMA_TRIGM_BLOCK_TRANSFER;
+        node_config.TriggerConfig.TriggerPolarity    = DMA_TRIG_POLARITY_MASKED;
+        node_config.TriggerConfig.TriggerSelection   = 0;
+        node_config.RepeatBlockConfig.RepeatCount    = 1;
+        node_config.RepeatBlockConfig.SrcAddrOffset  = 0;
+        node_config.RepeatBlockConfig.DestAddrOffset = 0;
         node_config.RepeatBlockConfig.BlkSrcAddrOffset  = 0;
         node_config.RepeatBlockConfig.BlkDestAddrOffset = 0;
         node_config.SrcAddress                          = (uint32_t)&ADC1->DR;
-        node_config.DstAddress                          = (uint32_t)adc1_dma_buffer;
-        node_config.DataSize = BSP_ADC1_NUM_CHANNELS * sizeof(uint32_t);
+        node_config.DstAddress = (uint32_t)adc1_dma_buffer;
+        node_config.DataSize   = BSP_ADC1_NUM_CHANNELS * sizeof(uint32_t);
 
         /* Build the DMA node from configuration */
         if (HAL_DMAEx_List_BuildNode(&node_config, &Node_GPDMA1_Channel0) !=
@@ -285,8 +287,10 @@ bsp_error_t BSP_ADC1_Start(void)
     if (ret == BSP_OK)
     {
         handle_GPDMA1_Channel0.Instance = GPDMA1_Channel0;
-        handle_GPDMA1_Channel0.InitLinkedList.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
-        handle_GPDMA1_Channel0.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
+        handle_GPDMA1_Channel0.InitLinkedList.Priority =
+            DMA_LOW_PRIORITY_LOW_WEIGHT;
+        handle_GPDMA1_Channel0.InitLinkedList.LinkStepMode =
+            DMA_LSM_FULL_EXECUTION;
         handle_GPDMA1_Channel0.InitLinkedList.LinkAllocatedPort =
             DMA_LINK_ALLOCATED_PORT0;
         handle_GPDMA1_Channel0.InitLinkedList.TransferEventMode =
@@ -419,15 +423,9 @@ bsp_error_t BSP_ADC1_GetResultsCopy(uint32_t *buffer)
     return ret;
 }
 
-bool BSP_ADC1_HasError(void)
-{
-    return adc1_error_occurred;
-}
+bool BSP_ADC1_HasError(void) { return adc1_error_occurred; }
 
-uint32_t BSP_ADC1_GetLastError(void)
-{
-    return adc1_last_error;
-}
+uint32_t BSP_ADC1_GetLastError(void) { return adc1_last_error; }
 
 bsp_error_t BSP_ADC1_Restart(void)
 {
@@ -551,7 +549,4 @@ bool BSP_ADC1_IsFilterSettled(void)
            (g_filter_sample_count >= BSP_ADC1_FILTER_SETTLING_SAMPLES);
 }
 
-uint32_t BSP_ADC1_GetFilterSampleCount(void)
-{
-    return g_filter_sample_count;
-}
+uint32_t BSP_ADC1_GetFilterSampleCount(void) { return g_filter_sample_count; }

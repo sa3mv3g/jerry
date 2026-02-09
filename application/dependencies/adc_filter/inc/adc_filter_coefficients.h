@@ -20,37 +20,40 @@
 #include "arm_math.h"
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 /** Number of biquad stages in the filter cascade */
-#define ADC_FILTER_NUM_STAGES       12U
+#define ADC_FILTER_NUM_STAGES 12U
 
 /** Number of coefficients per stage (b0, b1, b2, -a1, -a2) */
 #define ADC_FILTER_COEFFS_PER_STAGE 5U
 
 /** Total number of coefficients */
-#define ADC_FILTER_TOTAL_COEFFS     (ADC_FILTER_NUM_STAGES * ADC_FILTER_COEFFS_PER_STAGE)
+#define ADC_FILTER_TOTAL_COEFFS \
+    (ADC_FILTER_NUM_STAGES * ADC_FILTER_COEFFS_PER_STAGE)
 
 /** Number of state variables per stage */
-#define ADC_FILTER_STATE_PER_STAGE  4U
+#define ADC_FILTER_STATE_PER_STAGE 4U
 
 /** Total state variables needed per channel */
-#define ADC_FILTER_STATE_SIZE       (ADC_FILTER_NUM_STAGES * ADC_FILTER_STATE_PER_STAGE)
+#define ADC_FILTER_STATE_SIZE \
+    (ADC_FILTER_NUM_STAGES * ADC_FILTER_STATE_PER_STAGE)
 
 /** Sample rate used for filter design (Hz) */
-#define ADC_FILTER_SAMPLE_RATE      10000U
+#define ADC_FILTER_SAMPLE_RATE 10000U
 
 /** LPF cutoff frequency (Hz) */
-#define ADC_FILTER_LPF_CUTOFF       500U
+#define ADC_FILTER_LPF_CUTOFF 500U
 
-/**
- * @brief Filter coefficients array.
- *
- * Coefficients are in CMSIS-DSP format: {b0, b1, b2, -a1, -a2} for each stage.
- * The filter chain is: LPF stages followed by notch filter stages.
- */
-extern const float32_t adc_filter_coefficients[ADC_FILTER_TOTAL_COEFFS];
+    /**
+     * @brief Filter coefficients array.
+     *
+     * Coefficients are in CMSIS-DSP format: {b0, b1, b2, -a1, -a2} for each
+     * stage. The filter chain is: LPF stages followed by notch filter stages.
+     */
+    extern const float32_t adc_filter_coefficients[ADC_FILTER_TOTAL_COEFFS];
 
 #ifdef __cplusplus
 }

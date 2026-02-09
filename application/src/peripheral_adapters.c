@@ -14,8 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "bsp.h"
 #include "FreeRTOS.h"
+#include "bsp.h"
 #include "jerry_device_registers.h"
 #include "task.h"
 
@@ -28,7 +28,6 @@ static uint8_t s_digital_inputs = 0x00U;
 
 /** Simulated digital output state (16 bits) */
 static uint16_t s_digital_outputs = 0x0000U;
-
 
 /** Simulated PWM enable state */
 static bool s_pwm_enabled[4] = {false, false, false, false};
@@ -189,7 +188,8 @@ void peripheral_adc_read_all(uint16_t values[4])
     /* Get all filtered values from BSP */
     if (BSP_ADC1_GetFilteredValuesAll(float_values) == BSP_OK)
     {
-        /* Convert first 4 channels from normalized float to 12-bit ADC values */
+        /* Convert first 4 channels from normalized float to 12-bit ADC values
+         */
         for (uint8_t i = 0U; i < 4U; i++)
         {
             uint16_t adc_value = (uint16_t)(float_values[i] * 4095.0f);

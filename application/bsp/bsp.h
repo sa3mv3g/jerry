@@ -196,7 +196,8 @@ void BSP_ADC1_FilterInit(void);
  * returns immediately with the latest filtered value.
  *
  * @param[in]  channel Channel index (0 to BSP_ADC1_NUM_CHANNELS-1).
- * @param[out] value   Pointer to store the filtered value (0.0 to 1.0 normalized).
+ * @param[out] value   Pointer to store the filtered value (0.0 to 1.0
+ * normalized).
  *
  * @return bsp_error_t BSP_OK if successful, BSP_INVALID_ARG if parameters
  *         are invalid, BSP_ERROR if filter is not initialized.
@@ -214,7 +215,8 @@ bsp_error_t BSP_ADC1_GetFilteredValue(uint8_t channel, float32_t *value);
  * Returns the current filtered values for all channels as an atomic snapshot.
  *
  * @param[out] values Array to store filtered values for all channels.
- *                    Must have space for BSP_ADC1_NUM_CHANNELS float32_t values.
+ *                    Must have space for BSP_ADC1_NUM_CHANNELS float32_t
+ * values.
  *
  * @return bsp_error_t BSP_OK if successful, BSP_INVALID_ARG if values is NULL,
  *         BSP_ERROR if filter is not initialized.
