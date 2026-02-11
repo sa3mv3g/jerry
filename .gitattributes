@@ -1,0 +1,60 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Source code files - normalize to LF
+*.c text eol=lf
+*.h text eol=lf
+*.cpp text eol=lf
+*.hpp text eol=lf
+*.s text eol=lf
+*.S text eol=lf
+*.asm text eol=lf
+
+# Build/config files
+*.cmake text eol=lf
+*.cmake.in text eol=lf
+CMakeLists.txt text eol=lf
+Makefile text eol=lf
+*.mk text eol=lf
+
+# Script files
+*.sh text eol=lf
+*.py text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Documentation
+*.md text eol=lf
+*.txt text eol=lf
+*.rst text eol=lf
+
+# Config files
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.xml text eol=lf
+*.toml text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+*.ioc text eol=lf
+
+# Linker scripts
+*.ld text eol=lf
+*.lds text eol=lf
+
+# Binary files - do not normalize
+*.bin binary
+*.elf binary
+*.hex binary
+*.o binary
+*.a binary
+*.lib binary
+*.dll binary
+*.exe binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary

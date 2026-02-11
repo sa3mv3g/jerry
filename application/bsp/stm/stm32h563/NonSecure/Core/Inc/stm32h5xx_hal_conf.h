@@ -33,15 +33,6 @@
 /* Exported types ----------------------------------------------------------------------------------------------------*/
 /* Exported constants ------------------------------------------------------------------------------------------------*/
 
-/* ########################################### ETH DMA Descriptor Configuration ###################################### */
-/**
-  * @brief ETH DMA descriptor counts - increased from default 4 to prevent RBU/TBU errors
-  *        RBU (Receive Buffer Unavailable) occurs when DMA runs out of descriptors
-  *        Higher count provides more buffering for bursty traffic
-  */
-#define ETH_RX_DESC_CNT         8U   /* Increased from 4 to 8 for better RX buffering */
-#define ETH_TX_DESC_CNT         8U   /* Increased from 4 to 8 for better TX buffering */
-
 /* ########################################### Module Selection ##################################################### */
 
 /**
@@ -56,7 +47,7 @@
 /*#define HAL_CRC_MODULE_ENABLED */
 /*#define HAL_CRYP_MODULE_ENABLED */
 /*#define HAL_DAC_MODULE_ENABLED */
-/* #define HAL_DCACHE_MODULE_ENABLED */
+/*#define HAL_DCACHE_MODULE_ENABLED */
 /*#define HAL_DCMI_MODULE_ENABLED */
 /*#define HAL_DTS_MODULE_ENABLED */
 #define HAL_ETH_MODULE_ENABLED
@@ -76,7 +67,7 @@
 /*#define HAL_OPAMP_MODULE_ENABLED */
 /*#define HAL_XSPI_MODULE_ENABLED */
 /*#define HAL_OTFDEC_MODULE_ENABLED */
-/* #define HAL_PKA_MODULE_ENABLED */
+/*#define HAL_PKA_MODULE_ENABLED */
 /*#define HAL_RNG_MODULE_ENABLED */
 /*#define HAL_RTC_MODULE_ENABLED */
 /*#define HAL_SAI_MODULE_ENABLED */
@@ -85,7 +76,7 @@
 /*#define HAL_MMC_MODULE_ENABLED */
 /*#define HAL_SMARTCARD_MODULE_ENABLED */
 /*#define HAL_SMBUS_MODULE_ENABLED */
-#define HAL_SPI_MODULE_ENABLED
+/*#define HAL_SPI_MODULE_ENABLED */
 /*#define HAL_SRAM_MODULE_ENABLED */
 #define HAL_TIM_MODULE_ENABLED
 /*#define HAL_RAMCFG_MODULE_ENABLED */
@@ -93,7 +84,7 @@
 /*#define HAL_USART_MODULE_ENABLED */
 /*#define HAL_WWDG_MODULE_ENABLED */
 /*#define HAL_PSSI_MODULE_ENABLED */
-#define HAL_ICACHE_MODULE_ENABLED
+/*#define HAL_ICACHE_MODULE_ENABLED */
 /*#define HAL_PCD_MODULE_ENABLED */
 #define HAL_GPIO_MODULE_ENABLED
 #define HAL_EXTI_MODULE_ENABLED

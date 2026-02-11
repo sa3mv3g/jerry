@@ -36,6 +36,8 @@ def main():
         os.path.join(root_dir, "application", "dependencies", "modbus", "inc", "**", "*.[ch]"),
         os.path.join(root_dir, "application", "dependencies", "lwip", "port", "stm32h5", "**", "*.[ch]"),
         os.path.join(root_dir, "application", "dependencies", "lwip", "port", "stm32h5", "arch", "**", "*.[ch]"),
+        os.path.join(root_dir, "application", "dependencies", "adc_filter", "src", "**", "*.[ch]"),
+        os.path.join(root_dir, "application", "dependencies", "adc_filter", "inc", "**", "*.[ch]"),
     ]
 
     files = []

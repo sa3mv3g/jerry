@@ -80,13 +80,6 @@ void NMI_Handler(void)
 
 /**
   * @brief This function handles Hard fault interrupt.
-  *
-  * Blink pattern encodes fault information:
-  * - 1 blink  = Usage Fault
-  * - 2 blinks = Bus Fault
-  * - 3 blinks = Memory Management Fault
-  * - 4 blinks = Other/Unknown
-  * Then pause, then repeat
   */
 void HardFault_Handler(void)
 {
@@ -193,13 +186,6 @@ void UsageFault_Handler(void)
 
 /**
   * @brief This function handles Secure fault.
-  *
-  * SecureFault indicates a TrustZone security violation:
-  * - Non-secure code tried to access secure memory
-  * - Invalid transition between secure/non-secure
-  *
-  * Blink pattern: 5 blinks (to distinguish from HardFault)
-  * Yellow LED (PF4) ON = SecureFault
   */
 void SecureFault_Handler(void)
 {

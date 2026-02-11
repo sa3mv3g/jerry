@@ -24,9 +24,9 @@
 
 #if !USE_DHCP
 /* Static IP Configuration - modify these values as needed */
-#define STATIC_IP_ADDR0 192
-#define STATIC_IP_ADDR1 168
-#define STATIC_IP_ADDR2 2
+#define STATIC_IP_ADDR0 169
+#define STATIC_IP_ADDR1 254
+#define STATIC_IP_ADDR2 4
 #define STATIC_IP_ADDR3 100
 
 #define STATIC_NETMASK0 255
@@ -34,8 +34,8 @@
 #define STATIC_NETMASK2 255
 #define STATIC_NETMASK3 0
 
-#define STATIC_GW_ADDR0 192
-#define STATIC_GW_ADDR1 168
+#define STATIC_GW_ADDR0 169
+#define STATIC_GW_ADDR1 254
 #define STATIC_GW_ADDR2 4
 #define STATIC_GW_ADDR3 1
 #endif /* !USE_DHCP */

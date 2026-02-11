@@ -65,6 +65,7 @@ Lib/
 
 # Python files
 *.pyc
+.pytest_cache/
 
 # Ignore auto pulled dependencies
 application/dependencies/lwip/lwip-core
@@ -75,5 +76,8 @@ application/dependencies/lwip/port/cmsis_lwip_port/Open_CMSIS_Pack_Lwip
 application/dependencies/lwip/stm32-mw-lwip
 application/dependencies/libmodbus/libmodbus-src
 application/src/generated
-
+application/dependencies/CMSIS_6
+application/dependencies/CMSIS-DSP
+*.log
+*.log.txt
 !.vscode/launch.json
