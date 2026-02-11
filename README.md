@@ -34,6 +34,7 @@ Assumption is that all the tools listed below are on terminal path.
 -   **Python**: >= 3.10
 -   **uv**: Python project manager.
 -   **Ninja**: Ninja build system
+-   **CppCheck**: Cppcheck (https://cppcheck.sourceforge.io/) is used for static analysis. During installation, ensure you select the option to install Python addons (MISRA, etc.), or manually download them from the [cppcheck GitHub repository](https://github.com/danmar/cppcheck/tree/main/addons).
 
 Vendor specific tools:
 -   **STM32CubeCLT**: expects `STM32CLT_PATH` environment variable in shell.
@@ -43,12 +44,12 @@ Vendor specific tools:
 
 1.  **Configure the project**:
     ```bash
-    cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake -DVENDOR=stm
+    cmake -S . -B build -G Ninja -DCPPCHECK_USE_ADDONS=ON
     ```
 
 2.  **Build the firmware**:
     ```bash
-    cmake --build build
+    cmake --build build --target jerry_app
     ```
 
 This will produce two binaries:
@@ -65,6 +66,9 @@ The following CMake options can be passed during configuration to customize the 
 |--------|---------|-------------|
 | `VENDOR` | `stm` | Microcontroller vendor selection |
 | `CMAKE_BUILD_TYPE` | - | Build type: `Debug`, `Release`, `RelWithDebInfo`, `MinSizeRel` |
+| `CPPCHECK_USE_ADDONS` | `OFF` | Enable cppcheck MISRA and naming addons |
+| `PYTHON_EXECUTABLE` | Auto-detected | Python interpreter for cppcheck addons (`py` on Windows, `python3` on Unix) |
+| `UV_COMMAND` | `uv` | Command to invoke uv (e.g., `uv` or `py;-m;uv` for Windows) |
 
 **Example with custom options:**
 ```bash
@@ -102,8 +106,6 @@ Run individual tools:
     ```bash
     # Configure with MISRA addon enabled
     cmake -S . -B build -G Ninja \
-        -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake \
-        -DVENDOR=stm \
         -DCPPCHECK_USE_ADDONS=ON
 
     # Run cppcheck with MISRA checking
@@ -117,10 +119,8 @@ Run individual tools:
     ```
     **Note:** MISRA checking requires:
     - cppcheck with MISRA addon installed (typically at `<cppcheck-install>/share/cppcheck/addons/misra.py`)
-    - Python interpreter (`py` on Windows, `python3` on Linux/macOS)
+    - Python interpreter (auto-detected, or override with `-DPYTHON_EXECUTABLE=/path/to/python`)
     - MISRA rule texts file at `refs/misra_c_2012__headlines_for_cppcheck.txt`
-
-    The MISRA addon configuration is in `config/misra.json`. Update the `python` field if your Python interpreter path differs.
 
 -   **Lizard** (Complexity Metrics):
     ```bash

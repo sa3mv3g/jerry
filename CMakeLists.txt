@@ -52,7 +52,7 @@ if(UV_FOUND)
     )
 
     add_custom_target(cppcheck
-        COMMAND ${UV_RUN_CMD} cppcheck ${CPPCHECK_CLI_ARGS}
+        COMMAND cppcheck ${CPPCHECK_CLI_ARGS}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Running CppCheck..."
     )

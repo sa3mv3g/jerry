@@ -78,5 +78,6 @@ application/dependencies/libmodbus/libmodbus-src
 application/src/generated
 application/dependencies/CMSIS_6
 application/dependencies/CMSIS-DSP
-
+*.log
+*.log.txt
 !.vscode/launch.json

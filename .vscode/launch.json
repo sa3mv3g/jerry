@@ -30,7 +30,7 @@
         {
             "name": "STM32H563 Attach to Microcontroller - ST-Link",
             "cwd": "${workspaceFolder}",
-            "type": "cortex-debug",           
+            "type": "cortex-debug",
             "executable": "${workspaceFolder}/build/application/jerry_app.elf",
             "request": "attach",
             "servertype": "stlink",
@@ -57,13 +57,13 @@
             "executable": "${workspaceFolder}/build/application/jerry_app.elf",
             "request": "launch",
             "servertype": "openocd",
-            "serverpath": "${env:STM32CubeIDE_PATH}/plugins/com.st.stm32cube.ide.mcu.externaltools.openocd.win32_2.4.200.202505051030/tools/bin/openocd.exe",
+            "serverpath": "${env:STM32CubeIDE_PATH}/plugins/com.st.stm32cube.ide.mcu.externaltools.openocd.win32_2.4.300.202509300731/tools/bin/openocd.exe",
             "configFiles": [
                 "${workspaceFolder}/stm32h563_openocd.cfg"
             ],
             "serverArgs": [
                 "-s",
-                "${env:STM32CubeIDE_PATH}/plugins/com.st.stm32cube.ide.mcu.debug.openocd_2.3.100.202501240831/resources/openocd/st_scripts",
+                "${env:STM32CubeIDE_PATH}/plugins/com.st.stm32cube.ide.mcu.debug.openocd_2.3.200.202510310951/resources/openocd/st_scripts",
                 "-d3"
             ],
             "device": "STM32H563ZI",
