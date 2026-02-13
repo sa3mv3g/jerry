@@ -21,7 +21,6 @@
 #include <string.h>
 
 #include "FreeRTOS.h"
-#include "main.h"
 #include "ethernetif.h"
 #include "lan8742.h"
 #include "lwip/etharp.h"
@@ -31,6 +30,7 @@
 #include "lwip/stats.h"
 #include "lwip/tcpip.h"
 #include "lwip/timeouts.h"
+#include "main.h"
 #include "netif/ethernet.h"
 #include "semphr.h"
 #include "stm32h5xx_hal.h"

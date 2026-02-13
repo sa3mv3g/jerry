@@ -51,6 +51,10 @@ static volatile uint32_t g_filter_sample_count = 0;
 static volatile bool g_filter_initialized = false;
 
 /*============================================================================*/
+/*                     I2C based Digital output                               */
+/*============================================================================*/
+
+/*============================================================================*/
 /*                          ADC1 DMA Callbacks                                */
 /*============================================================================*/
 
@@ -163,7 +167,6 @@ bsp_error_t BSP_Init(void)
     /* Initialize all configured peripherals */
     MX_GPDMA1_Init();
     MX_GPIO_Init();
-    MX_I2C3_Init();
     MX_LPUART1_UART_Init();
     MX_TIM1_Init();
     MX_ADC1_Init();
@@ -550,3 +553,114 @@ bool BSP_ADC1_IsFilterSettled(void)
 }
 
 uint32_t BSP_ADC1_GetFilterSampleCount(void) { return g_filter_sample_count; }
+
+bsp_error_t BSP_I2CDO_init()
+{
+    bsp_error_t ret = BSP_OK;
+
+    MX_I2C3_Init();
+
+    // Set initial state to all low and write to expanders
+    ret = BSP_I2CDO_Write(0x0000U);
+
+    return ret;
+}
+
+bsp_error_t BSP_I2CDO_Write(uint16_t value)
+{
+    HAL_StatusTypeDef status;
+    uint8_t           output_byte;
+    bsp_error_t       ret = BSP_OK;
+
+    // Write lower 8 bits to PCF8574
+    output_byte = (uint8_t)(value & 0xFFU);
+    status      = HAL_I2C_Master_Transmit(&hi2c3, BSP_I2CDO_PCF8574_ADDR,
+                                          &output_byte, 1, BSP_I2CDO_TIMEOUT);
+    if (status != HAL_OK)
+    {
+        if (status == HAL_TIMEOUT)
+        {
+            ret = BSP_TIMEOUT;
+        }
+        else
+        {
+            ret = BSP_ERROR;
+        }
+    }
+
+    // Write upper 8 bits to PCF8574A
+    if (ret == BSP_OK)
+    {
+        output_byte = (uint8_t)((value >> 8U) & 0xFFU);
+        status      = HAL_I2C_Master_Transmit(&hi2c3, BSP_I2CDO_PCF8574A_ADDR,
+                                              &output_byte, 1, BSP_I2CDO_TIMEOUT);
+        if (status != HAL_OK)
+        {
+            if (status == HAL_TIMEOUT)
+            {
+                ret = BSP_TIMEOUT;
+            }
+            else
+            {
+                ret = BSP_ERROR;
+            }
+        }
+    }
+
+    return ret;
+}
+
+bsp_error_t BSP_I2CDO_Read(uint16_t *value)
+{
+    HAL_StatusTypeDef status;
+    uint8_t           read_byte_pcf8574;
+    uint8_t           read_byte_pcf8574a;
+    bsp_error_t       ret = BSP_OK;
+
+    if (value == NULL)
+    {
+        return BSP_INVALID_ARG;
+    }
+
+    // Read from PCF8574
+    status = HAL_I2C_Master_Receive(&hi2c3, BSP_I2CDO_PCF8574_ADDR,
+                                    &read_byte_pcf8574, 1, BSP_I2CDO_TIMEOUT);
+    if (status != HAL_OK)
+    {
+        if (status == HAL_TIMEOUT)
+        {
+            ret = BSP_TIMEOUT;
+        }
+        else
+        {
+            ret = BSP_ERROR;
+        }
+    }
+
+    // Read from PCF8574A
+    if (ret == BSP_OK)
+    {
+        status =
+            HAL_I2C_Master_Receive(&hi2c3, BSP_I2CDO_PCF8574A_ADDR,
+                                   &read_byte_pcf8574a, 1, BSP_I2CDO_TIMEOUT);
+        if (status != HAL_OK)
+        {
+            if (status == HAL_TIMEOUT)
+            {
+                ret = BSP_TIMEOUT;
+            }
+            else
+            {
+                ret = BSP_ERROR;
+            }
+        }
+    }
+
+    if (ret == BSP_OK)
+    {
+        *value =
+            (uint116_t)read_byte_pcf8574 | ((uint16_t)read_byte_pcf8574a << 8U);
+    }
+
+    return ret;
+}

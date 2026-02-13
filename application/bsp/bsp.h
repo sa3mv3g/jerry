@@ -19,6 +19,46 @@ typedef int bsp_error_t;
 #define BSP_INVALID_ARG ((bsp_error_t)4) /*!< Invalid argument provided */
 
 /**
+ * @defgroup BSP_I2C_Digital_Output_Masks I2C Digital Output Masks
+ * @brief Bit masks for individual digital output channels controlled via I2C.
+ * @{
+ */
+#define BSP_I2CDO_MASK_D0           (1U << 0U) /**< Mask for Digital Output 0 */
+#define BSP_I2CDO_MASK_D1           (1U << 1U) /**< Mask for Digital Output 1 */
+#define BSP_I2CDO_MASK_D2           (1U << 2U) /**< Mask for Digital Output 2 */
+#define BSP_I2CDO_MASK_D3           (1U << 3U) /**< Mask for Digital Output 3 */
+#define BSP_I2CDO_MASK_D4           (1U << 4U) /**< Mask for Digital Output 4 */
+#define BSP_I2CDO_MASK_D5           (1U << 5U) /**< Mask for Digital Output 5 */
+#define BSP_I2CDO_MASK_D6           (1U << 6U) /**< Mask for Digital Output 6 */
+#define BSP_I2CDO_MASK_D7           (1U << 7U) /**< Mask for Digital Output 7 */
+#define BSP_I2CDO_MASK_D8           (1U << 8U) /**< Mask for Digital Output 8 */
+#define BSP_I2CDO_MASK_D9           (1U << 9U) /**< Mask for Digital Output 9 */
+#define BSP_I2CDO_MASK_D10          (1U << 10U) /**< Mask for Digital Output 10 */
+#define BSP_I2CDO_MASK_D11          (1U << 11U) /**< Mask for Digital Output 11 */
+#define BSP_I2CDO_MASK_D12          (1U << 12U) /**< Mask for Digital Output 12 */
+#define BSP_I2CDO_MASK_D13          (1U << 13U) /**< Mask for Digital Output 13 */
+#define BSP_I2CDO_MASK_D14          (1U << 14U) /**< Mask for Digital Output 14 */
+#define BSP_I2CDO_MASK_D15          (1U << 15U) /**< Mask for Digital Output 15 */
+#define BSP_I2CDO_CONSTRUCT_MASK(x) (1U << x)
+/** @} */
+
+/**
+ * @defgroup BSP_I2C_Digital_Output_Addresses I2C Digital Output Addresses
+ * @brief I2C addresses and timeout for PCF8574 and PCF8574A expanders.
+ * @{
+ */
+#define BSP_I2CDO_PCF8574_ADDR                                              \
+    (0x20 << 1) /**< 7-bit I2C address of PCF8574 (0x20), shifted left by 1 \
+                   for HAL functions. */
+#define BSP_I2CDO_PCF8574A_ADDR                                              \
+    (0x21 << 1) /**< 7-bit I2C address of PCF8574A (0x21), shifted left by 1 \
+                   for HAL functions. */
+#define BSP_I2CDO_TIMEOUT                               \
+    100 /**< I2C communication timeout in milliseconds. \
+         */
+/** @} */
+
+/**
  * @brief Number of ADC1 channels configured
  */
 #define BSP_ADC1_NUM_CHANNELS 6U
@@ -248,5 +288,41 @@ bool BSP_ADC1_IsFilterSettled(void);
 uint32_t BSP_ADC1_GetFilterSampleCount(void);
 
 /** @} */ /* End of BSP_ADC1_Filtered group */
+
+/**
+ * @brief Initializes the I2C Digital Output (PCF8574/PCF8574A) subsystem.
+ *
+ * This function initializes the I2C expanders to a known state, typically all
+ * outputs set to low.
+ *
+ * @return bsp_error_t BSP_OK if initialization is successful, otherwise an
+ * error code.
+ */
+bsp_error_t BSP_I2CDO_init();
+
+/**
+ * @brief Writes a 16-bit value to the I2C Digital Output expanders.
+ *
+ * The lower 8 bits of the value are sent to PCF8574, and the upper 8 bits
+ * are sent to PCF8574A. This function includes checks for device readiness.
+ *
+ * @param value A 16-bit mask of ::BSP_I2C_Digital_Output_Masks indicating the
+ * desired state of the digital outputs.
+ * @return bsp_error_t BSP_OK if the write is successful, otherwise an error
+ * code.
+ */
+bsp_error_t BSP_I2CDO_Write(uint16_t value);
+
+/**
+ * @brief Reads the current 16-bit state of the I2C Digital Output expanders.
+ *
+ * This function reads the state from both PCF8574 and PCF8574A and combines
+ * them into a single 16-bit value. It includes checks for device readiness.
+ *
+ * @param value Pointer to a uint16_t where the read value will be stored.
+ * @return bsp_error_t BSP_OK if the read is successful, otherwise an error
+ * code.
+ */
+bsp_error_t BSP_I2CDO_Read(uint16_t *value);
 
 #endif  // BSP_H

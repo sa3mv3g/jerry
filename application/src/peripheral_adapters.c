@@ -17,6 +17,8 @@
 #include "FreeRTOS.h"
 #include "bsp.h"
 #include "jerry_device_registers.h"
+#include "main.h"               // Required for hi2c3 handle and Error_Handler()
+#include "stm32h5xx_hal_i2c.h"  // Required for I2C HAL functions
 #include "task.h"
 
 /* ==========================================================================
@@ -91,7 +93,19 @@ uint8_t peripheral_digital_input_read_all(void)
  * Digital Output Adapter Implementation
  * ========================================================================== */
 
-void peripheral_digital_output_init(void) { s_digital_outputs = 0x0000U; }
+void peripheral_digital_output_init(void)
+{
+    /*
+        all the digital outputs are controlled via
+        PCF8574 and PCF8574A, over i2c. I2C has been
+        init in BSP_Init(). I2C3 has been used.
+        Initialize the I2C Digital Output subsystem.
+    */
+    if (BSP_I2CDO_init() != BSP_OK)
+    {
+        Error_Handler();
+    }
+}
 
 void peripheral_digital_output_write(uint8_t channel, bool value)
 {
@@ -99,22 +113,36 @@ void peripheral_digital_output_write(uint8_t channel, bool value)
     {
         if (value)
         {
-            s_digital_outputs |= (uint16_t)(1U << channel);
+            s_digital_outputs |= (uint16_t)(BSP_I2CDO_CONSTRUCT_MASK(channel));
         }
         else
         {
-            s_digital_outputs &= (uint16_t)(~(1U << channel));
+            s_digital_outputs &= (uint16_t)(~BSP_I2CDO_CONSTRUCT_MASK(channel));
+        }
+
+        if (BSP_I2CDO_Write(s_digital_outputs) != BSP_OK)
+        {
+            Error_Handler();
         }
     }
 }
 
 bool peripheral_digital_output_read(uint8_t channel)
 {
-    bool result = false;
+    bool     result = false;
+    uint16_t current_outputs;
 
     if (channel < 16U)
     {
-        result = ((s_digital_outputs >> channel) & 0x01U) != 0U;
+        if (BSP_I2CDO_Read(&current_outputs) == BSP_OK)
+        {
+            s_digital_outputs = current_outputs;
+            result            = ((s_digital_outputs >> channel) & 0x01U) != 0U;
+        }
+        else
+        {
+            Error_Handler();
+        }
     }
 
     return result;

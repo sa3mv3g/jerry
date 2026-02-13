@@ -16,12 +16,13 @@ extern "C"
 {
 #endif
 
-/*******************************************************************************
- * MAC Address Configuration
- *
- * The MAC address is dynamically generated from the MCU's Unique Device ID (UID).
- * The generated MAC address will be in the locally administered range.
- ******************************************************************************/
+    /*******************************************************************************
+     * MAC Address Configuration
+     *
+     * The MAC address is dynamically generated from the MCU's Unique Device ID
+     * (UID). The generated MAC address will be in the locally administered
+     * range.
+     ******************************************************************************/
 
     /**
      * @brief Get the MAC address derived from the MCU's Unique ID.
