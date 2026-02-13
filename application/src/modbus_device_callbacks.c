@@ -16,11 +16,10 @@
 #include <stdint.h>
 
 #include "FreeRTOS.h"
-#include "task.h"
-
-#include "modbus_callbacks.h"
-#include "jerry_device_registers.h"
 #include "bsp.h"
+#include "jerry_device_registers.h"
+#include "modbus_callbacks.h"
+#include "task.h"
 
 /* ==========================================================================
  * Helper Macros
@@ -32,7 +31,8 @@
  * to avoid "comparison is always true" warnings.
  */
 #define ADDR_IN_RANGE_FROM_ZERO(addr, max) ((addr) <= (max))
-#define ADDR_IN_RANGE_NONZERO(addr, min, max) (((addr) >= (min)) && ((addr) <= (max)))
+#define ADDR_IN_RANGE_NONZERO(addr, min, max) \
+    (((addr) >= (min)) && ((addr) <= (max)))
 
 /**
  * @brief Update a Modbus register with a filtered ADC value in millivolts
@@ -43,30 +43,34 @@
  * settled (reached steady state).
  *
  * @param[in]  channel      ADC1 channel index (e.g., BSP_ADC1_CHANNEL_A0)
- * @param[out] pStructField Pointer to the holding register structure field to update
- * @param[out] pArr         Pointer to the Modbus response array element to update
+ * @param[out] pStructField Pointer to the holding register structure field to
+ * update
+ * @param[out] pArr         Pointer to the Modbus response array element to
+ * update
  *
- * @note If the filter has not settled or the ADC read fails, no update is performed
+ * @note If the filter has not settled or the ADC read fails, no update is
+ * performed
  * @note The ADC value is converted from volts (float) to millivolts (uint16_t)
  *
  * @see BSP_ADC1_IsFilterSettled()
  * @see BSP_ADC1_GetFilteredValue()
  */
-static inline void update_reg_with_adcval(uint16_t channel, uint16_t *pStructField, uint16_t *pArr)
+static void update_reg_with_adcval(uint16_t channel, uint16_t *pStructField,
+                                   uint16_t *pArr)
 {
     // by default we get values in volts and hence float
     float32_t adcValv = 0;
     // then we convert it to mv and save it in an integer
     uint16_t adcValmv = 0;
-    if(BSP_ADC1_IsFilterSettled())
+    if (BSP_ADC1_IsFilterSettled())
     {
-        if(BSP_OK != BSP_ADC1_GetFilteredValue(channel, &adcValv))
+        if (BSP_OK != BSP_ADC1_GetFilteredValue(channel, &adcValv))
         {
             adcValv = 0.0f;
         }
 
-    adcValmv = (uint16_t)(adcValv * 1000.0);
-    *pArr = *pStructField = adcValmv;
+        adcValmv = (uint16_t)(adcValv * 1000.0);
+        *pArr = *pStructField = adcValmv;
     }
 }
 
@@ -79,11 +83,54 @@ static inline void update_reg_with_adcval(uint16_t channel, uint16_t *pStructFie
  *
  * @param regs Pointer to holding registers structure
  */
-static inline void update_system_tick_registers(jerry_device_holding_registers_t *regs)
+static void update_system_tick_registers(jerry_device_holding_registers_t *regs)
 {
-    TickType_t ticks = xTaskGetTickCount();
-    regs->system_tick_low = (uint16_t)(ticks & 0xFFFFU);
+    TickType_t ticks       = xTaskGetTickCount();
+    regs->system_tick_low  = (uint16_t)(ticks & 0xFFFFU);
     regs->system_tick_high = (uint16_t)((ticks >> 16U) & 0xFFFFU);
+}
+
+/**
+ * @brief Update a digital output via I2C and sync the coil register
+ *
+ * Reads the current I2C expander state, modifies the specified channel bit,
+ * writes the new state back, and updates the coil register field on success.
+ *
+ * @param[in]  channel Channel index (BSP_I2CDO_INDEX_D0 to BSP_I2CDO_INDEX_D15)
+ * @param[in]  val     New output value (true = ON, false = OFF)
+ * @param[out] pCoil   Pointer to coil register field to update (can be NULL)
+ *
+ * @note The coil register is only updated if the I2C write succeeds
+ */
+static void update_digital_output(uint16_t channel, bool val, bool *pCoil)
+{
+    if (channel < 16U)
+    {
+        uint16_t    initVal = 0U;
+        bsp_error_t err     = BSP_I2CDO_Read(&initVal);
+
+        if (BSP_OK == err)
+        {
+            uint16_t mask     = BSP_I2CDO_CONSTRUCT_MASK(channel);
+            uint16_t finalVal = 0;
+
+            if (val == true)
+            {
+                finalVal = initVal | mask;
+            }
+            else
+            {
+                finalVal = initVal & (~mask);
+            }
+
+            err = BSP_I2CDO_Write(finalVal);
+
+            if ((BSP_OK == err) && (NULL != pCoil))
+            {
+                *pCoil = val;
+            }
+        }
+    }
 }
 
 /* ==========================================================================
@@ -94,10 +141,9 @@ static inline void update_system_tick_registers(jerry_device_holding_registers_t
  * @brief Read coils callback (FC01)
  */
 modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
-                                        uint16_t quantity,
-                                        uint8_t *coil_values)
+                                        uint16_t quantity, uint8_t *coil_values)
 {
-    jerry_device_coils_t *coils = jerry_device_get_coils();
+    jerry_device_coils_t *coils       = jerry_device_get_coils();
     uint16_t              end_address = start_address + quantity - 1U;
     uint16_t              byte_index;
     uint16_t              bit_index;
@@ -235,52 +281,68 @@ modbus_exception_t modbus_cb_write_single_coil(uint16_t address, bool value)
     switch (address)
     {
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_0:
-            coils->digital_output_0 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D0, value,
+                                  &(coils->digital_output_0));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_1:
-            coils->digital_output_1 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D1, value,
+                                  &(coils->digital_output_1));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_2:
-            coils->digital_output_2 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D2, value,
+                                  &(coils->digital_output_2));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_3:
-            coils->digital_output_3 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D3, value,
+                                  &(coils->digital_output_3));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_4:
-            coils->digital_output_4 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D4, value,
+                                  &(coils->digital_output_4));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_5:
-            coils->digital_output_5 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D5, value,
+                                  &(coils->digital_output_5));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_6:
-            coils->digital_output_6 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D6, value,
+                                  &(coils->digital_output_6));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_7:
-            coils->digital_output_7 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D7, value,
+                                  &(coils->digital_output_7));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_8:
-            coils->digital_output_8 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D8, value,
+                                  &(coils->digital_output_8));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_9:
-            coils->digital_output_9 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D9, value,
+                                  &(coils->digital_output_9));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_10:
-            coils->digital_output_10 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D10, value,
+                                  &(coils->digital_output_10));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_11:
-            coils->digital_output_11 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D11, value,
+                                  &(coils->digital_output_11));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_12:
-            coils->digital_output_12 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D12, value,
+                                  &(coils->digital_output_12));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_13:
-            coils->digital_output_13 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D13, value,
+                                  &(coils->digital_output_13));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_14:
-            coils->digital_output_14 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D14, value,
+                                  &(coils->digital_output_14));
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_15:
-            coils->digital_output_15 = value;
+            update_digital_output(BSP_I2CDO_INDEX_D15, value,
+                                  &(coils->digital_output_15));
             break;
         case JERRY_DEVICE_COIL_PWM_0_ENABLE:
             coils->pwm_0_enable = value;
@@ -341,10 +403,10 @@ modbus_exception_t modbus_cb_read_discrete_inputs(uint16_t start_address,
                                                   uint8_t *input_values)
 {
     jerry_device_discrete_inputs_t *inputs = jerry_device_get_discrete_inputs();
-    uint16_t end_address = start_address + quantity - 1U;
-    uint16_t byte_index;
-    uint16_t bit_index;
-    bool     value;
+    uint16_t                        end_address = start_address + quantity - 1U;
+    uint16_t                        byte_index;
+    uint16_t                        bit_index;
+    bool                            value;
 
     /* Validate address range */
     if (!ADDR_IN_RANGE_FROM_ZERO(start_address, JERRY_DEVICE_DI_MAX_ADDR) ||
@@ -489,16 +551,24 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t  start_address,
                     (uint16_t)((uint32_t)regs->pwm_3_frequency & 0xFFFFU);
                 break;
             case JERRY_DEVICE_HR_ADC_0_VALUE:
-                update_reg_with_adcval(BSP_ADC1_CHANNEL_A0, &(regs->adc_0_value), &register_values[i]);
+                update_reg_with_adcval(BSP_ADC1_CHANNEL_A0,
+                                       &(regs->adc_0_value),
+                                       &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_1_VALUE:
-                update_reg_with_adcval(BSP_ADC1_CHANNEL_A1, &(regs->adc_1_value), &register_values[i]);
+                update_reg_with_adcval(BSP_ADC1_CHANNEL_A1,
+                                       &(regs->adc_1_value),
+                                       &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_2_VALUE:
-                update_reg_with_adcval(BSP_ADC1_CHANNEL_A2, &(regs->adc_2_value), &register_values[i]);
+                update_reg_with_adcval(BSP_ADC1_CHANNEL_A2,
+                                       &(regs->adc_2_value),
+                                       &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_3_VALUE:
-                update_reg_with_adcval(BSP_ADC1_CHANNEL_A3, &(regs->adc_3_value), &register_values[i]);
+                update_reg_with_adcval(BSP_ADC1_CHANNEL_A3,
+                                       &(regs->adc_3_value),
+                                       &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_SYSTEM_TICK_LOW:
                 /* Update both tick registers before returning either one */
@@ -675,8 +745,8 @@ modbus_exception_t modbus_cb_write_multiple_registers(
 
     for (uint16_t i = 0U; i < quantity; i++)
     {
-        result =
-            modbus_cb_write_single_register(start_address + i, register_values[i]);
+        result = modbus_cb_write_single_register(start_address + i,
+                                                 register_values[i]);
         if (result != MODBUS_EXCEPTION_NONE)
         {
             return result;
@@ -698,7 +768,7 @@ modbus_exception_t modbus_cb_read_input_registers(uint16_t  start_address,
                                                   uint16_t *register_values)
 {
     jerry_device_input_registers_t *regs = jerry_device_get_input_registers();
-    uint16_t end_address = start_address + quantity - 1U;
+    uint16_t                        end_address = start_address + quantity - 1U;
 
     /* Validate address range */
     if (!ADDR_IN_RANGE_FROM_ZERO(start_address, JERRY_DEVICE_IR_MAX_ADDR) ||

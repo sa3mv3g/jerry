@@ -36,27 +36,70 @@ typedef int bsp_error_t;
 /** @} */
 
 /**
+ * @defgroup BSP_I2C_Digital_Output_Channels I2C Digital Output Channel Indices
+ * @brief Channel indices for I2C digital outputs (PCF8574/PCF8574A).
+ *
+ * These macros define the channel indices for the 16 digital outputs
+ * controlled via I2C expanders.
+ *
+ * @{
+ */
+#define BSP_I2CDO_INDEX_D0  0U  /**< I2C Digital Output channel 0 */
+#define BSP_I2CDO_INDEX_D1  1U  /**< I2C Digital Output channel 1 */
+#define BSP_I2CDO_INDEX_D2  2U  /**< I2C Digital Output channel 2 */
+#define BSP_I2CDO_INDEX_D3  3U  /**< I2C Digital Output channel 3 */
+#define BSP_I2CDO_INDEX_D4  4U  /**< I2C Digital Output channel 4 */
+#define BSP_I2CDO_INDEX_D5  5U  /**< I2C Digital Output channel 5 */
+#define BSP_I2CDO_INDEX_D6  6U  /**< I2C Digital Output channel 6 */
+#define BSP_I2CDO_INDEX_D7  7U  /**< I2C Digital Output channel 7 */
+#define BSP_I2CDO_INDEX_D8  8U  /**< I2C Digital Output channel 8 */
+#define BSP_I2CDO_INDEX_D9  9U  /**< I2C Digital Output channel 9 */
+#define BSP_I2CDO_INDEX_D10 10U /**< I2C Digital Output channel 10 */
+#define BSP_I2CDO_INDEX_D11 11U /**< I2C Digital Output channel 11 */
+#define BSP_I2CDO_INDEX_D12 12U /**< I2C Digital Output channel 12 */
+#define BSP_I2CDO_INDEX_D13 13U /**< I2C Digital Output channel 13 */
+#define BSP_I2CDO_INDEX_D14 14U /**< I2C Digital Output channel 14 */
+#define BSP_I2CDO_INDEX_D15 15U /**< I2C Digital Output channel 15 */
+/** @} */
+
+/**
  * @defgroup BSP_I2C_Digital_Output_Masks I2C Digital Output Masks
  * @brief Bit masks for individual digital output channels controlled via I2C.
  * @{
  */
-#define BSP_I2CDO_MASK_D0           (1U << 0U) /**< Mask for Digital Output 0 */
-#define BSP_I2CDO_MASK_D1           (1U << 1U) /**< Mask for Digital Output 1 */
-#define BSP_I2CDO_MASK_D2           (1U << 2U) /**< Mask for Digital Output 2 */
-#define BSP_I2CDO_MASK_D3           (1U << 3U) /**< Mask for Digital Output 3 */
-#define BSP_I2CDO_MASK_D4           (1U << 4U) /**< Mask for Digital Output 4 */
-#define BSP_I2CDO_MASK_D5           (1U << 5U) /**< Mask for Digital Output 5 */
-#define BSP_I2CDO_MASK_D6           (1U << 6U) /**< Mask for Digital Output 6 */
-#define BSP_I2CDO_MASK_D7           (1U << 7U) /**< Mask for Digital Output 7 */
-#define BSP_I2CDO_MASK_D8           (1U << 8U) /**< Mask for Digital Output 8 */
-#define BSP_I2CDO_MASK_D9           (1U << 9U) /**< Mask for Digital Output 9 */
-#define BSP_I2CDO_MASK_D10          (1U << 10U) /**< Mask for Digital Output 10 */
-#define BSP_I2CDO_MASK_D11          (1U << 11U) /**< Mask for Digital Output 11 */
-#define BSP_I2CDO_MASK_D12          (1U << 12U) /**< Mask for Digital Output 12 */
-#define BSP_I2CDO_MASK_D13          (1U << 13U) /**< Mask for Digital Output 13 */
-#define BSP_I2CDO_MASK_D14          (1U << 14U) /**< Mask for Digital Output 14 */
-#define BSP_I2CDO_MASK_D15          (1U << 15U) /**< Mask for Digital Output 15 */
-#define BSP_I2CDO_CONSTRUCT_MASK(x) (1U << x)
+#define BSP_I2CDO_MASK_D0 \
+    (1U << BSP_I2CDO_INDEX_D0) /**< Mask for Digital Output 0 */
+#define BSP_I2CDO_MASK_D1 \
+    (1U << BSP_I2CDO_INDEX_D1) /**< Mask for Digital Output 1 */
+#define BSP_I2CDO_MASK_D2 \
+    (1U << BSP_I2CDO_INDEX_D2) /**< Mask for Digital Output 2 */
+#define BSP_I2CDO_MASK_D3 \
+    (1U << BSP_I2CDO_INDEX_D3) /**< Mask for Digital Output 3 */
+#define BSP_I2CDO_MASK_D4 \
+    (1U << BSP_I2CDO_INDEX_D4) /**< Mask for Digital Output 4 */
+#define BSP_I2CDO_MASK_D5 \
+    (1U << BSP_I2CDO_INDEX_D5) /**< Mask for Digital Output 5 */
+#define BSP_I2CDO_MASK_D6 \
+    (1U << BSP_I2CDO_INDEX_D6) /**< Mask for Digital Output 6 */
+#define BSP_I2CDO_MASK_D7 \
+    (1U << BSP_I2CDO_INDEX_D7) /**< Mask for Digital Output 7 */
+#define BSP_I2CDO_MASK_D8 \
+    (1U << BSP_I2CDO_INDEX_D8) /**< Mask for Digital Output 8 */
+#define BSP_I2CDO_MASK_D9 \
+    (1U << BSP_I2CDO_INDEX_D9) /**< Mask for Digital Output 9 */
+#define BSP_I2CDO_MASK_D10 \
+    (1U << BSP_I2CDO_INDEX_D10) /**< Mask for Digital Output 10 */
+#define BSP_I2CDO_MASK_D11 \
+    (1U << BSP_I2CDO_INDEX_D11) /**< Mask for Digital Output 11 */
+#define BSP_I2CDO_MASK_D12 \
+    (1U << BSP_I2CDO_INDEX_D12) /**< Mask for Digital Output 12 */
+#define BSP_I2CDO_MASK_D13 \
+    (1U << BSP_I2CDO_INDEX_D13) /**< Mask for Digital Output 13 */
+#define BSP_I2CDO_MASK_D14 \
+    (1U << BSP_I2CDO_INDEX_D14) /**< Mask for Digital Output 14 */
+#define BSP_I2CDO_MASK_D15 \
+    (1U << BSP_I2CDO_INDEX_D15) /**< Mask for Digital Output 15 */
+#define BSP_I2CDO_CONSTRUCT_MASK(x) (1U << (x))
 /** @} */
 
 /**
