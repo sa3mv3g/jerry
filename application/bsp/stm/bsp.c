@@ -10,6 +10,7 @@
 void                     SystemClock_Config(void);
 extern uint32_t          __eth_dma_start;
 extern TIM_HandleTypeDef htim1;
+extern I2C_HandleTypeDef hi2c3;
 
 /* Note: hadc1, Node_GPDMA1_Channel0, List_GPDMA1_Channel0, and
  * handle_GPDMA1_Channel0 are declared extern in main.h */
@@ -659,7 +660,7 @@ bsp_error_t BSP_I2CDO_Read(uint16_t *value)
     if (ret == BSP_OK)
     {
         *value =
-            (uint116_t)read_byte_pcf8574 | ((uint16_t)read_byte_pcf8574a << 8U);
+            (uint16_t)read_byte_pcf8574 | ((uint16_t)read_byte_pcf8574a << 8U);
     }
 
     return ret;

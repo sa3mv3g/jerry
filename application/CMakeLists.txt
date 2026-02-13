@@ -187,6 +187,8 @@ message(STATUS "")
 # Modbus Code Generation
 # ==========================================================================
 # Generate Modbus register code from JSON configuration
+# Note: Callbacks are maintained manually in application/src/jerry_device_callbacks.c
+# to allow custom hardware logic (e.g., I2C relay control)
 modbus_generate_code(
     CONFIG_FILE "${CMAKE_SOURCE_DIR}/config/jerry_registers.json"
     OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/generated"

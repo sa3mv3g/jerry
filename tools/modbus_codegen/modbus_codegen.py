@@ -5,6 +5,9 @@ Modbus Register Code Generator
 This tool generates C header and source files from a JSON register definition file.
 It uses Jinja2 templates for flexible code generation.
 
+Note: Callback implementations are maintained manually in the application source
+directory to allow custom hardware logic.
+
 Usage:
     python modbus_codegen.py <config.json> [--output-dir <dir>]
 
@@ -170,6 +173,9 @@ class ModbusCodeGenerator:
     ) -> list[Path]:
         """Generate C code files from configuration.
 
+        Generates only register header and source files. Callback implementations
+        are maintained manually in the application source directory.
+
         Args:
             config: Configuration dictionary.
             output_dir: Directory to write generated files.
@@ -199,14 +205,6 @@ class ModbusCodeGenerator:
         source_path.write_text(source_content, encoding="utf-8")
         generated_files.append(source_path)
         logger.info("Generated: %s", source_path)
-
-        # Generate callbacks implementation template
-        callbacks_template = self.env.get_template("modbus_callbacks_impl.c.j2")
-        callbacks_content = callbacks_template.render(config=config)
-        callbacks_path = output_dir / f"{device_name}_callbacks.c"
-        callbacks_path.write_text(callbacks_content, encoding="utf-8")
-        generated_files.append(callbacks_path)
-        logger.info("Generated: %s", callbacks_path)
 
         return generated_files
 
@@ -263,9 +261,6 @@ def main() -> int:
             logger.error("Configuration validation failed: %s", e.message)
             return 1
         raise
-    except Exception as e:
-        logger.exception("Unexpected error: %s", e)
-        return 1
 
 
 if __name__ == "__main__":

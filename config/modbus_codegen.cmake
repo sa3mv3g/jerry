@@ -5,6 +5,9 @@
 #
 # This module provides functions to generate Modbus register C code from JSON configuration.
 #
+# Note: Callback implementations are maintained manually in the application source
+# directory (application/src/jerry_device_callbacks.c) to allow custom hardware logic.
+#
 
 # Find Python interpreter
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
@@ -72,12 +75,10 @@ function(modbus_generate_code)
     # Define expected output files
     set(GENERATED_HEADER "${MODBUS_GEN_OUTPUT_DIR}/${DEVICE_NAME_LOWER}_registers.h")
     set(GENERATED_SOURCE "${MODBUS_GEN_OUTPUT_DIR}/${DEVICE_NAME_LOWER}_registers.c")
-    set(GENERATED_CALLBACKS "${MODBUS_GEN_OUTPUT_DIR}/${DEVICE_NAME_LOWER}_callbacks.c")
 
     set(ALL_GENERATED_FILES
         ${GENERATED_HEADER}
         ${GENERATED_SOURCE}
-        ${GENERATED_CALLBACKS}
     )
 
     # Get template files for dependency tracking
@@ -95,7 +96,6 @@ function(modbus_generate_code)
     message(STATUS "  Generated files:")
     message(STATUS "    - ${DEVICE_NAME_LOWER}_registers.h")
     message(STATUS "    - ${DEVICE_NAME_LOWER}_registers.c")
-    message(STATUS "    - ${DEVICE_NAME_LOWER}_callbacks.c")
     message(STATUS "========================================")
     message(STATUS "")
 

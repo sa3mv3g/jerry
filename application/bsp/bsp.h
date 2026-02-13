@@ -19,6 +19,23 @@ typedef int bsp_error_t;
 #define BSP_INVALID_ARG ((bsp_error_t)4) /*!< Invalid argument provided */
 
 /**
+ * @defgroup BSP_ADC1_Channels ADC1 Channel Indices
+ * @brief Channel indices for ADC1 analog inputs.
+ *
+ * These macros define the channel indices for the ADC1 analog inputs
+ * corresponding to the Arduino-compatible A0-A3 pins on the Nucleo board.
+ * Use these indices with BSP_ADC1_GetFilteredValue() and related functions.
+ *
+ * @note The physical pin mapping depends on the STM32 variant and board layout.
+ * @{
+ */
+#define BSP_ADC1_CHANNEL_A0 0U /**< ADC1 channel index for analog input A0 */
+#define BSP_ADC1_CHANNEL_A1 1U /**< ADC1 channel index for analog input A1 */
+#define BSP_ADC1_CHANNEL_A2 2U /**< ADC1 channel index for analog input A2 */
+#define BSP_ADC1_CHANNEL_A3 3U /**< ADC1 channel index for analog input A3 */
+/** @} */
+
+/**
  * @defgroup BSP_I2C_Digital_Output_Masks I2C Digital Output Masks
  * @brief Bit masks for individual digital output channels controlled via I2C.
  * @{

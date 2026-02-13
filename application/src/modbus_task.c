@@ -22,7 +22,6 @@
 #include "lwip/sys.h"
 #include "modbus_callbacks.h"
 #include "modbus_internal.h"
-#include "peripheral_adapters.h"
 #include "task.h"
 
 /* ==========================================================================
@@ -40,9 +39,6 @@
 
 /** Receive timeout in milliseconds */
 #define MODBUS_RECV_TIMEOUT_MS 5000U
-
-/** Register update interval in milliseconds */
-#define MODBUS_UPDATE_INTERVAL_MS 50U
 
 /* ==========================================================================
  * Private Types
@@ -102,10 +98,6 @@ void vModbusTask(void *pvParameters)
     /* Initialize register data structures */
     jerry_device_registers_init();
     printf("Modbus registers initialized\n");
-
-    /* Initialize peripheral adapters */
-    peripheral_adapters_init();
-    printf("Peripheral adapters initialized\n");
 
     /* Initialize connection tracking */
     for (uint8_t i = 0U; i < MODBUS_MAX_CONNECTIONS; i++)
@@ -206,18 +198,9 @@ static void modbus_handle_connection(struct netconn *conn)
     u16_t          len;
     uint16_t       response_len;
     modbus_error_t modbus_err;
-    TickType_t     last_update = xTaskGetTickCount();
 
     while (1)
     {
-        /* Update registers periodically */
-        TickType_t now = xTaskGetTickCount();
-        if ((now - last_update) >= pdMS_TO_TICKS(MODBUS_UPDATE_INTERVAL_MS))
-        {
-            peripheral_adapters_update_registers();
-            last_update = now;
-        }
-
         /* Receive data */
         err = netconn_recv(conn, &buf);
         if (err == ERR_OK)
@@ -251,18 +234,13 @@ static void modbus_handle_connection(struct netconn *conn)
                 {
                     printf("Modbus: Process error: %d\n", (int)modbus_err);
                 }
-
-                /* Apply any output changes */
-                peripheral_adapters_apply_outputs();
             }
 
             netbuf_delete(buf);
         }
         else if (err == ERR_TIMEOUT)
         {
-            /* Timeout - update registers and continue */
-            peripheral_adapters_update_registers();
-            last_update = xTaskGetTickCount();
+            /* Timeout - continue waiting */
         }
         else
         {
