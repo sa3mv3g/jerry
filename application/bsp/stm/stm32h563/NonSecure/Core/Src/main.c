@@ -74,6 +74,33 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+/**
+  * @brief  Generates a MAC address from the STM32H5 Unique Device ID.
+  * @param  mac_addr: Pointer to a 6-byte array to store the MAC address.
+  * @retval None
+  */
+void ethernetif_get_mac_addr(uint8_t *mac_addr)
+{
+  uint32_t uid[3];
+
+  // Read the 96-bit Unique Device ID
+  uid[0] = HAL_GetUIDw0();
+  uid[1] = HAL_GetUIDw1();
+  uid[2] = HAL_GetUIDw2();
+
+  // Use the last 6 bytes of the UID for the MAC address
+  // Note: The MAC address is locally administered (bit 1 of first octet is 1)
+  // and unicast (bit 0 of first octet is 0).
+  mac_addr[0] = ((uid[2] >> 8) & 0xFE) | 0x02; // Set locally administered bit, clear unicast/multicast bit
+  mac_addr[1] = (uid[2] >> 0) & 0xFF;
+  mac_addr[2] = (uid[1] >> 24) & 0xFF;
+  mac_addr[3] = (uid[1] >> 16) & 0xFF;
+  mac_addr[4] = (uid[1] >> 8) & 0xFF;
+  mac_addr[5] = (uid[1] >> 0) & 0xFF;
+
+}
+
 void MPU_Config(void)
 {
   MPU_Region_InitTypeDef MPU_InitStruct = {0};
@@ -302,12 +329,7 @@ void MX_ETH_Init(void)
 
   /* USER CODE END ETH_Init 1 */
   heth.Instance = ETH;
-  MACAddr[0] = 0x00;
-  MACAddr[1] = 0x80;
-  MACAddr[2] = 0xE1;
-  MACAddr[3] = 0x00;
-  MACAddr[4] = 0x00;
-  MACAddr[5] = 0x00;
+  ethernetif_get_mac_addr(MACAddr);
   heth.Init.MACAddr = &MACAddr[0];
   heth.Init.MediaInterface = HAL_ETH_RMII_MODE;
   heth.Init.TxDesc = DMATxDscrTab;
@@ -316,12 +338,6 @@ void MX_ETH_Init(void)
 
   /* USER CODE BEGIN MACADDRESS */
 
-  MACAddr[0] = 0x00;
-  MACAddr[1] = 0x80;
-  MACAddr[2] = 0xE1;
-  MACAddr[3] = 0x00;
-  MACAddr[4] = 0x00;
-  MACAddr[5] = 0x01;  /* Must match ETH_MAC_ADDR5 in ethernetif.h */
   /* USER CODE END MACADDRESS */
 
   if (HAL_ETH_Init(&heth) != HAL_OK)

@@ -19,18 +19,15 @@ extern "C"
 /*******************************************************************************
  * MAC Address Configuration
  *
- * IMPORTANT: This is the SINGLE SOURCE OF TRUTH for the MAC address.
- * Both ethernetif.c and main.c (MX_ETH_Init) must use these values.
- * If they don't match, unicast packets will be filtered by hardware!
- *
- * The MAC address 00:80:E1:xx:xx:xx is in the locally administered range.
+ * The MAC address is dynamically generated from the MCU's Unique Device ID (UID).
+ * The generated MAC address will be in the locally administered range.
  ******************************************************************************/
-#define ETH_MAC_ADDR0 0x00U
-#define ETH_MAC_ADDR1 0x80U
-#define ETH_MAC_ADDR2 0xE1U
-#define ETH_MAC_ADDR3 0x00U
-#define ETH_MAC_ADDR4 0x00U
-#define ETH_MAC_ADDR5 0x01U
+
+    /**
+     * @brief Get the MAC address derived from the MCU's Unique ID.
+     * @param mac_addr Pointer to a 6-byte array to store the MAC address.
+     */
+    void ethernetif_get_mac_addr(uint8_t *mac_addr);
 
     /**
      * @brief Initialize the ethernetif and add it to a netif

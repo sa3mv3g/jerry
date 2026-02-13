@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "FreeRTOS.h"
+#include "main.h"
 #include "ethernetif.h"
 #include "lan8742.h"
 #include "lwip/etharp.h"
@@ -234,14 +235,9 @@ static void low_level_init(struct netif *netif)
     RxBuffAssigned   = 0;
     CurrentRxBuffIdx = 0;
 
-    /* Set MAC address from centralized definition in ethernetif.h */
+    /* Get MAC address from Unique Device ID */
+    ethernetif_get_mac_addr(netif->hwaddr);
     netif->hwaddr_len = ETH_HWADDR_LEN;
-    netif->hwaddr[0]  = ETH_MAC_ADDR0;
-    netif->hwaddr[1]  = ETH_MAC_ADDR1;
-    netif->hwaddr[2]  = ETH_MAC_ADDR2;
-    netif->hwaddr[3]  = ETH_MAC_ADDR3;
-    netif->hwaddr[4]  = ETH_MAC_ADDR4;
-    netif->hwaddr[5]  = ETH_MAC_ADDR5;
     netif->mtu        = ETH_MAX_PAYLOAD;
     netif->flags |= NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
 

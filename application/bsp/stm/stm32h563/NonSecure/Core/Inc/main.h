@@ -69,6 +69,7 @@ void MX_LPUART1_UART_Init(void);
 void MX_TIM1_Init(void);
 
 /* USER CODE BEGIN EFP */
+void ethernetif_get_mac_addr(uint8_t *mac_addr);
 
 /* USER CODE END EFP */
 
