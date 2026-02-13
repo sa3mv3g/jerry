@@ -103,6 +103,21 @@ typedef int bsp_error_t;
 /** @} */
 
 /**
+ * @defgroup BSP_GPIODI_INDEX GPIO Digital Input Channel Indices
+ * @brief Channel index definitions for GPIO-based digital inputs (DI0-DI7)
+ * @{
+ */
+#define BSP_GPIODI_INDEX_0 0U /**< GPIO Digital Input channel 0 index */
+#define BSP_GPIODI_INDEX_1 1U /**< GPIO Digital Input channel 1 index */
+#define BSP_GPIODI_INDEX_2 2U /**< GPIO Digital Input channel 2 index */
+#define BSP_GPIODI_INDEX_3 3U /**< GPIO Digital Input channel 3 index */
+#define BSP_GPIODI_INDEX_4 4U /**< GPIO Digital Input channel 4 index */
+#define BSP_GPIODI_INDEX_5 5U /**< GPIO Digital Input channel 5 index */
+#define BSP_GPIODI_INDEX_6 6U /**< GPIO Digital Input channel 6 index */
+#define BSP_GPIODI_INDEX_7 7U /**< GPIO Digital Input channel 7 index */
+/** @} */
+
+/**
  * @defgroup BSP_I2C_Digital_Output_Addresses I2C Digital Output Addresses
  * @brief I2C addresses and timeout for PCF8574 and PCF8574A expanders.
  * @{
@@ -384,5 +399,23 @@ bsp_error_t BSP_I2CDO_Write(uint16_t value);
  * code.
  */
 bsp_error_t BSP_I2CDO_Read(uint16_t *value);
+
+/**
+ * @brief Read the state of a GPIO digital input channel
+ *
+ * Reads the current logic level of the specified GPIO digital input pin
+ * and stores the result in the provided output parameter.
+ *
+ * @param[in]  channel The digital input channel index to read.
+ *                     @see BSP_GPIODI_INDEX for valid channel values
+ *                     (BSP_GPIODI_INDEX_0 through BSP_GPIODI_INDEX_7)
+ * @param[out] pVal    Pointer to store the pin state (GPIO_PIN_SET or
+ * GPIO_PIN_RESET)
+ *
+ * @return bsp_error_t
+ * @retval BSP_OK    Read operation successful
+ * @retval BSP_ERROR Invalid channel or NULL pointer
+ */
+bsp_error_t BSP_GPIODI_Read(uint32_t channel, uint32_t *pVal);
 
 #endif  // BSP_H

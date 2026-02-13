@@ -665,3 +665,51 @@ bsp_error_t BSP_I2CDO_Read(uint16_t *value)
 
     return ret;
 }
+
+bsp_error_t BSP_GPIODI_Read(uint32_t channel, uint32_t *pVal)
+{
+    bsp_error_t retval;
+
+    if ((channel <= BSP_GPIODI_INDEX_7) && (NULL != pVal))
+    {
+        GPIO_PinState pinValue;
+
+        retval = BSP_OK;
+        switch (channel)
+        {
+            case BSP_GPIODI_INDEX_0:
+                pinValue = HAL_GPIO_ReadPin(DI0_GPIO_Port, DI0_Pin);
+                break;
+            case BSP_GPIODI_INDEX_1:
+                pinValue = HAL_GPIO_ReadPin(DI1_GPIO_Port, DI1_Pin);
+                break;
+            case BSP_GPIODI_INDEX_2:
+                pinValue = HAL_GPIO_ReadPin(DI2_GPIO_Port, DI2_Pin);
+                break;
+            case BSP_GPIODI_INDEX_3:
+                pinValue = HAL_GPIO_ReadPin(DI3_GPIO_Port, DI3_Pin);
+                break;
+            case BSP_GPIODI_INDEX_4:
+                pinValue = HAL_GPIO_ReadPin(DI4_GPIO_Port, DI4_Pin);
+                break;
+            case BSP_GPIODI_INDEX_5:
+                pinValue = HAL_GPIO_ReadPin(DI5_GPIO_Port, DI5_Pin);
+                break;
+            case BSP_GPIODI_INDEX_6:
+                pinValue = HAL_GPIO_ReadPin(DI6_GPIO_Port, DI6_Pin);
+                break;
+            case BSP_GPIODI_INDEX_7:
+                pinValue = HAL_GPIO_ReadPin(DI7_GPIO_Port, DI7_Pin);
+                break;
+            default:
+                pinValue = GPIO_PIN_RESET;
+        }
+        *pVal = pinValue;
+    }
+    else
+    {
+        retval = BSP_ERROR;
+    }
+
+    return retval;
+}

@@ -133,6 +133,45 @@ static void update_digital_output(uint16_t channel, bool val, bool *pCoil)
     }
 }
 
+/**
+ * @brief Read a GPIO digital input and update coil/discrete input registers
+ *
+ * Reads the current state of the specified GPIO digital input channel using
+ * the BSP layer and optionally updates the coil and/or discrete input register
+ * fields with the result.
+ *
+ * @param[in]  channel GPIO digital input channel index
+ *                     (BSP_GPIODI_INDEX_0 through BSP_GPIODI_INDEX_7)
+ * @param[out] pCoil   Pointer to coil register field to update (can be NULL)
+ * @param[out] pDi     Pointer to discrete input register field to update (can
+ *                     be NULL)
+ *
+ * @return bsp_error_t
+ * @retval BSP_OK    Read operation successful, output pointers updated
+ * @retval BSP_ERROR Invalid channel or BSP read failure
+ */
+static bsp_error_t update_digital_input(unsigned int channel, bool *pCoil,
+                                        bool *pDi)
+{
+    bsp_error_t apiStatus;
+    uint32_t    inVal = 0;
+
+    apiStatus = BSP_GPIODI_Read(channel, &inVal);
+    if (BSP_OK == apiStatus)
+    {
+        if (NULL != pCoil)
+        {
+            *pCoil = inVal != 0;
+        }
+        if (NULL != pDi)
+        {
+            *pDi = inVal != 0;
+        }
+    }
+
+    return apiStatus;
+}
+
 /* ==========================================================================
  * Coil Callbacks (FC01, FC05, FC15)
  * ========================================================================== */
@@ -172,7 +211,6 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
         {
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_0:
                 value = coils->digital_output_0;
-
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_1:
                 value = coils->digital_output_1;
@@ -220,28 +258,100 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 value = coils->digital_output_15;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_INPUT_0:
-                value = coils->digital_input_0;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_0,
+                                                   &(coils->digital_input_0),
+                                                   NULL))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = coils->digital_input_0;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_INPUT_1:
-                value = coils->digital_input_1;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_1,
+                                                   &(coils->digital_input_1),
+                                                   NULL))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = coils->digital_input_1;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_INPUT_2:
-                value = coils->digital_input_2;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_2,
+                                                   &(coils->digital_input_2),
+                                                   NULL))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = coils->digital_input_2;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_INPUT_3:
-                value = coils->digital_input_3;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_3,
+                                                   &(coils->digital_input_3),
+                                                   NULL))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = coils->digital_input_3;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_INPUT_4:
-                value = coils->digital_input_4;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_4,
+                                                   &(coils->digital_input_4),
+                                                   NULL))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = coils->digital_input_4;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_INPUT_5:
-                value = coils->digital_input_5;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_5,
+                                                   &(coils->digital_input_5),
+                                                   NULL))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = coils->digital_input_5;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_INPUT_6:
-                value = coils->digital_input_6;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_6,
+                                                   &(coils->digital_input_6),
+                                                   NULL))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = coils->digital_input_6;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_INPUT_7:
-                value = coils->digital_input_7;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_7,
+                                                   &(coils->digital_input_7),
+                                                   NULL))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = coils->digital_input_7;
+                }
                 break;
             case JERRY_DEVICE_COIL_PWM_0_ENABLE:
                 value = coils->pwm_0_enable;
