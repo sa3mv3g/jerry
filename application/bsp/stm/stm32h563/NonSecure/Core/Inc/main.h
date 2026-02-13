@@ -76,6 +76,12 @@ void ethernetif_get_mac_addr(uint8_t *mac_addr);
 /* Private defines -----------------------------------------------------------*/
 #define MX_I2C3_PERIPH_CLOCK_FREQ 10
 #define MX_SPI1_PERIPH_CLOCK_FREQ 976562
+#define DI4_Pin GPIO_PIN_0
+#define DI4_GPIO_Port GPIOF
+#define DI3_Pin GPIO_PIN_1
+#define DI3_GPIO_Port GPIOF
+#define DI2_Pin GPIO_PIN_2
+#define DI2_GPIO_Port GPIOF
 #define STLK_MCO_Pin GPIO_PIN_0
 #define STLK_MCO_GPIO_Port GPIOH
 #define RMII_MDC_Pin GPIO_PIN_1
@@ -92,12 +98,24 @@ void ethernetif_get_mac_addr(uint8_t *mac_addr);
 #define RMII_RXD0_GPIO_Port GPIOC
 #define RMII_RXD1_Pin GPIO_PIN_5
 #define RMII_RXD1_GPIO_Port GPIOC
+#define DI0_Pin GPIO_PIN_2
+#define DI0_GPIO_Port GPIOB
+#define DI7_Pin GPIO_PIN_0
+#define DI7_GPIO_Port GPIOG
+#define EN_AMPLIFIER_Pin GPIO_PIN_1
+#define EN_AMPLIFIER_GPIO_Port GPIOG
+#define DI1_Pin GPIO_PIN_9
+#define DI1_GPIO_Port GPIOE
 #define RMII_TXD1_Pin GPIO_PIN_15
 #define RMII_TXD1_GPIO_Port GPIOB
 #define USB_FS_N_Pin GPIO_PIN_11
 #define USB_FS_N_GPIO_Port GPIOA
 #define USB_FS_P_Pin GPIO_PIN_12
 #define USB_FS_P_GPIO_Port GPIOA
+#define DI5_Pin GPIO_PIN_0
+#define DI5_GPIO_Port GPIOD
+#define DI6_Pin GPIO_PIN_1
+#define DI6_GPIO_Port GPIOD
 #define RMII_TXT_EN_Pin GPIO_PIN_11
 #define RMII_TXT_EN_GPIO_Port GPIOG
 #define RMI_TXD0_Pin GPIO_PIN_13

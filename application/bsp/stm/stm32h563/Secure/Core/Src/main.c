@@ -238,11 +238,15 @@ void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+
+  /*IO attributes management functions */
+  HAL_GPIO_ConfigPinAttributes(GPIOF, DI4_Pin|DI3_Pin|DI2_Pin|GPIO_PIN_11, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOC, GPIO_PIN_0|RMII_MDC_Pin|GPIO_PIN_2|GPIO_PIN_3
@@ -253,19 +257,17 @@ void MX_GPIO_Init(void)
                           |RMII_CRS_DV_Pin|GPIO_PIN_8|USB_FS_N_Pin|USB_FS_P_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
-  HAL_GPIO_ConfigPinAttributes(GPIOB, GPIO_PIN_1|RMII_TXD1_Pin|ARD_D1_TX_Pin|ARD_D0_RX_Pin, GPIO_PIN_NSEC);
+  HAL_GPIO_ConfigPinAttributes(GPIOB, GPIO_PIN_1|DI0_Pin|RMII_TXD1_Pin|ARD_D1_TX_Pin
+                          |ARD_D0_RX_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
-  HAL_GPIO_ConfigPinAttributes(GPIOF, GPIO_PIN_11, GPIO_PIN_NSEC);
+  HAL_GPIO_ConfigPinAttributes(GPIOG, DI7_Pin|EN_AMPLIFIER_Pin|RMII_TXT_EN_Pin|RMI_TXD0_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
-  HAL_GPIO_ConfigPinAttributes(GPIOE, GPIO_PIN_9, GPIO_PIN_NSEC);
+  HAL_GPIO_ConfigPinAttributes(DI1_GPIO_Port, DI1_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
-  HAL_GPIO_ConfigPinAttributes(GPIOG, RMII_TXT_EN_Pin|RMI_TXD0_Pin, GPIO_PIN_NSEC);
-
-  /* GPIO Ports Clock Enable Needed For BSP */
-  __HAL_RCC_GPIOD_CLK_ENABLE();
+  HAL_GPIO_ConfigPinAttributes(GPIOD, DI5_Pin|DI6_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions needed for BSP*/
   HAL_GPIO_ConfigPinAttributes(GPIOG, GPIO_PIN_4, GPIO_PIN_NSEC);
