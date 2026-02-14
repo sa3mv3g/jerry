@@ -75,10 +75,12 @@ function(modbus_generate_code)
     # Define expected output files
     set(GENERATED_HEADER "${MODBUS_GEN_OUTPUT_DIR}/${DEVICE_NAME_LOWER}_registers.h")
     set(GENERATED_SOURCE "${MODBUS_GEN_OUTPUT_DIR}/${DEVICE_NAME_LOWER}_registers.c")
+    set(GENERATED_DOC "${CMAKE_BINARY_DIR}/${DEVICE_NAME_LOWER}_register_map.txt")
 
     set(ALL_GENERATED_FILES
         ${GENERATED_HEADER}
         ${GENERATED_SOURCE}
+        ${GENERATED_DOC}
     )
 
     # Get template files for dependency tracking
@@ -90,12 +92,14 @@ function(modbus_generate_code)
     message(STATUS "========================================")
     message(STATUS "  Config file:  ${MODBUS_GEN_CONFIG_FILE}")
     message(STATUS "  Output dir:   ${MODBUS_GEN_OUTPUT_DIR}")
+    message(STATUS "  Doc output:   ${CMAKE_BINARY_DIR}")
     message(STATUS "  Device name:  ${DEVICE_NAME}")
     message(STATUS "  Python:       ${Python3_EXECUTABLE}")
     message(STATUS "")
     message(STATUS "  Generated files:")
     message(STATUS "    - ${DEVICE_NAME_LOWER}_registers.h")
     message(STATUS "    - ${DEVICE_NAME_LOWER}_registers.c")
+    message(STATUS "    - ${DEVICE_NAME_LOWER}_register_map.txt")
     message(STATUS "========================================")
     message(STATUS "")
 
@@ -108,6 +112,7 @@ function(modbus_generate_code)
         COMMAND ${Python3_EXECUTABLE} "${MODBUS_CODEGEN_SCRIPT}"
                 "${MODBUS_GEN_CONFIG_FILE}"
                 --output-dir "${MODBUS_GEN_OUTPUT_DIR}"
+                --doc-output-dir "${CMAKE_BINARY_DIR}"
         DEPENDS
             ${MODBUS_GEN_CONFIG_FILE}
             ${MODBUS_CODEGEN_SCRIPT}

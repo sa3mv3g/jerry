@@ -166,10 +166,149 @@ class ModbusCodeGenerator:
         config["stats"] = stats
         return config
 
+    def generate_register_documentation(
+        self,
+        config: dict[str, Any],
+        output_path: Path,
+    ) -> Path:
+        """Generate human-readable documentation of all Modbus registers.
+
+        Creates a text file containing all register information including
+        addresses, names, descriptions, data types, and access permissions.
+
+        Args:
+            config: Configuration dictionary (preprocessed).
+            output_path: Path to write the documentation file.
+
+        Returns:
+            Path to the generated documentation file.
+        """
+        lines = []
+        device = config.get("device", {})
+        registers = config.get("registers", {})
+        groups = {g["name"]: g["description"] for g in config.get("groups", [])}
+
+        # Header (excludes device description to avoid exposing internal info)
+        lines.append("=" * 80)
+        lines.append(f"MODBUS REGISTER MAP - {device.get('name', 'Unknown Device').upper()}")
+        lines.append("=" * 80)
+        lines.append("")
+        lines.append(f"Slave ID:    {device.get('slave_id', 'N/A')}")
+        lines.append(f"Version:     {device.get('version', 'N/A')}")
+        lines.append("")
+        lines.append("-" * 80)
+        lines.append("")
+
+        # Coils (Function Code 01/05/15)
+        coils = registers.get("coils", [])
+        if coils:
+            lines.append("COILS (FC 01 Read / FC 05 Write Single / FC 15 Write Multiple)")
+            lines.append("-" * 80)
+            lines.append(f"{'Address':<10} {'Name':<30} {'Access':<12} Description")
+            lines.append("-" * 80)
+            for reg in sorted(coils, key=lambda x: x["address"]):
+                addr = reg["address"]
+                name = reg["name"]
+                access = reg.get("access", "read_write")
+                desc = reg.get("description", "")
+                lines.append(f"{addr:<10} {name:<30} {access:<12} {desc}")
+            lines.append("")
+
+        # Discrete Inputs (Function Code 02)
+        discrete_inputs = registers.get("discrete_inputs", [])
+        if discrete_inputs:
+            lines.append("DISCRETE INPUTS (FC 02 Read Only)")
+            lines.append("-" * 80)
+            lines.append(f"{'Address':<10} {'Name':<30} {'Group':<15} Description")
+            lines.append("-" * 80)
+            for reg in sorted(discrete_inputs, key=lambda x: x["address"]):
+                addr = reg["address"]
+                name = reg["name"]
+                group = reg.get("group", "")
+                desc = reg.get("description", "")
+                lines.append(f"{addr:<10} {name:<30} {group:<15} {desc}")
+            lines.append("")
+
+        # Holding Registers (Function Code 03/06/16)
+        holding_registers = registers.get("holding_registers", [])
+        if holding_registers:
+            lines.append("HOLDING REGISTERS (FC 03 Read / FC 06 Write Single / FC 16 Write Multiple)")
+            lines.append("-" * 80)
+            lines.append(
+                f"{'Address':<10} {'Name':<25} {'Type':<10} {'Size':<6} "
+                f"{'Access':<12} Description"
+            )
+            lines.append("-" * 80)
+            for reg in sorted(holding_registers, key=lambda x: x["address"]):
+                addr = reg["address"]
+                name = reg["name"]
+                data_type = reg.get("data_type", "uint16")
+                size = reg.get("size", 1)
+                access = reg.get("access", "read_write")
+                desc = reg.get("description", "")
+                # Add range info if available
+                range_info = ""
+                if "min_value" in reg and "max_value" in reg:
+                    range_info = f" [Range: {reg['min_value']}-{reg['max_value']}]"
+                if "unit" in reg:
+                    range_info += f" [{reg['unit']}]"
+                lines.append(
+                    f"{addr:<10} {name:<25} {data_type:<10} {size:<6} "
+                    f"{access:<12} {desc}{range_info}"
+                )
+            lines.append("")
+
+        # Input Registers (Function Code 04)
+        input_registers = registers.get("input_registers", [])
+        if input_registers:
+            lines.append("INPUT REGISTERS (FC 04 Read Only)")
+            lines.append("-" * 80)
+            lines.append(
+                f"{'Address':<10} {'Name':<25} {'Type':<10} {'Size':<6} Description"
+            )
+            lines.append("-" * 80)
+            for reg in sorted(input_registers, key=lambda x: x["address"]):
+                addr = reg["address"]
+                name = reg["name"]
+                data_type = reg.get("data_type", "uint16")
+                size = reg.get("size", 1)
+                desc = reg.get("description", "")
+                lines.append(
+                    f"{addr:<10} {name:<25} {data_type:<10} {size:<6} {desc}"
+                )
+            lines.append("")
+
+        # Groups summary
+        if groups:
+            lines.append("REGISTER GROUPS")
+            lines.append("-" * 80)
+            for group_name, group_desc in groups.items():
+                lines.append(f"  {group_name:<20} - {group_desc}")
+            lines.append("")
+
+        # Statistics
+        stats = config.get("stats", {})
+        lines.append("STATISTICS")
+        lines.append("-" * 80)
+        lines.append(f"  Total Coils:             {stats.get('num_coils', 0)}")
+        lines.append(f"  Total Discrete Inputs:   {stats.get('num_discrete_inputs', 0)}")
+        lines.append(f"  Total Holding Registers: {stats.get('num_holding_registers', 0)}")
+        lines.append(f"  Total Input Registers:   {stats.get('num_input_registers', 0)}")
+        lines.append("")
+        lines.append("=" * 80)
+
+        # Write to file
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text("\n".join(lines), encoding="utf-8")
+        logger.info("Generated: %s", output_path)
+
+        return output_path
+
     def generate(
         self,
         config: dict[str, Any],
         output_dir: Path,
+        doc_output_dir: Path | None = None,
     ) -> list[Path]:
         """Generate C code files from configuration.
 
@@ -179,6 +318,7 @@ class ModbusCodeGenerator:
         Args:
             config: Configuration dictionary.
             output_dir: Directory to write generated files.
+            doc_output_dir: Directory to write documentation files (default: same as output_dir).
 
         Returns:
             List of generated file paths.
@@ -206,6 +346,13 @@ class ModbusCodeGenerator:
         generated_files.append(source_path)
         logger.info("Generated: %s", source_path)
 
+        # Generate human-readable documentation
+        if doc_output_dir is None:
+            doc_output_dir = output_dir
+        doc_path = doc_output_dir / f"{device_name}_register_map.txt"
+        self.generate_register_documentation(config, doc_path)
+        generated_files.append(doc_path)
+
         return generated_files
 
 
@@ -226,6 +373,12 @@ def main() -> int:
         help="Output directory for generated files (default: generated)"
     )
     parser.add_argument(
+        "--doc-output-dir", "-d",
+        type=Path,
+        default=None,
+        help="Output directory for documentation files (default: build)"
+    )
+    parser.add_argument(
         "--template-dir", "-t",
         type=Path,
         default=None,
@@ -242,10 +395,15 @@ def main() -> int:
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
+    # Default doc output to build folder
+    doc_output_dir = args.doc_output_dir
+    if doc_output_dir is None:
+        doc_output_dir = Path("build")
+
     try:
         generator = ModbusCodeGenerator(template_dir=args.template_dir)
         config = generator.load_config(args.config)
-        generated = generator.generate(config, args.output_dir)
+        generated = generator.generate(config, args.output_dir, doc_output_dir)
 
         logger.info("Successfully generated %d files", len(generated))
         return 0
