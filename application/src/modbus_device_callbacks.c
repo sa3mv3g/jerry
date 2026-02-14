@@ -540,28 +540,92 @@ modbus_exception_t modbus_cb_read_discrete_inputs(uint16_t start_address,
         switch (addr)
         {
             case JERRY_DEVICE_DI_DIGITAL_INPUT_0:
-                value = inputs->digital_input_0;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_0, NULL,
+                                                   &(inputs->digital_input_0)))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = inputs->digital_input_0;
+                }
                 break;
             case JERRY_DEVICE_DI_DIGITAL_INPUT_1:
-                value = inputs->digital_input_1;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_1, NULL,
+                                                   &(inputs->digital_input_1)))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = inputs->digital_input_1;
+                }
                 break;
             case JERRY_DEVICE_DI_DIGITAL_INPUT_2:
-                value = inputs->digital_input_2;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_2, NULL,
+                                                   &(inputs->digital_input_2)))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = inputs->digital_input_2;
+                }
                 break;
             case JERRY_DEVICE_DI_DIGITAL_INPUT_3:
-                value = inputs->digital_input_3;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_3, NULL,
+                                                   &(inputs->digital_input_3)))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = inputs->digital_input_3;
+                }
                 break;
             case JERRY_DEVICE_DI_DIGITAL_INPUT_4:
-                value = inputs->digital_input_4;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_4, NULL,
+                                                   &(inputs->digital_input_4)))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = inputs->digital_input_4;
+                }
                 break;
             case JERRY_DEVICE_DI_DIGITAL_INPUT_5:
-                value = inputs->digital_input_5;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_5, NULL,
+                                                   &(inputs->digital_input_5)))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = inputs->digital_input_5;
+                }
                 break;
             case JERRY_DEVICE_DI_DIGITAL_INPUT_6:
-                value = inputs->digital_input_6;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_6, NULL,
+                                                   &(inputs->digital_input_6)))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = inputs->digital_input_6;
+                }
                 break;
             case JERRY_DEVICE_DI_DIGITAL_INPUT_7:
-                value = inputs->digital_input_7;
+                if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_7, NULL,
+                                                   &(inputs->digital_input_7)))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
+                else
+                {
+                    value = inputs->digital_input_7;
+                }
                 break;
             default:
                 return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;

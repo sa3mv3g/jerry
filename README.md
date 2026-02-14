@@ -234,7 +234,64 @@ if (send_response) {
 
 ## Vendor Specific Notes
 
-### STM32H563
+### STM32H563 (NUCLEO-H563ZI)
+
+#### Pin Mapping
+
+The following tables show the pin assignments for the NUCLEO-H563ZI board.
+
+##### Digital Inputs (DI0-DI7)
+
+| Channel | MCU Pin | GPIO Port | Nucleo Connector | Pin Number | Modbus Address (FC02) |
+|---------|---------|-----------|------------------|------------|----------------------|
+| DI0 | PB2 | GPIOB | CN10 | 22 | 0 |
+| DI1 | PE9 | GPIOE | CN10 | 4 | 1 |
+| DI2 | PF2 | GPIOF | CN9 | 28 | 2 |
+| DI3 | PF1 | GPIOF | CN9 | 26 | 3 |
+| DI4 | PF0 | GPIOF | CN9 | 24 | 4 |
+| DI5 | PD0 | GPIOD | CN9 | 25 | 5 |
+| DI6 | PD1 | GPIOD | CN9 | 27 | 6 |
+| DI7 | PG0 | GPIOG | CN10 | 30 | 7 |
+
+**Note:** All digital inputs are configured as GPIO inputs with no internal pull-up/pull-down resistors (`GPIO_NOPULL`). External pull resistors may be required depending on your signal source.
+
+##### Digital Outputs (DO0-DO15)
+
+Digital outputs are controlled via I2C GPIO expanders (PCF8574 and PCF8574A).
+
+| Channel | I2C Device | I2C Address | Bit | Modbus Address (FC05/FC15) |
+|---------|------------|-------------|-----|---------------------------|
+| DO0 | PCF8574 | 0x20 | 0 | 0 |
+| DO1 | PCF8574 | 0x20 | 1 | 1 |
+| DO2 | PCF8574 | 0x20 | 2 | 2 |
+| DO3 | PCF8574 | 0x20 | 3 | 3 |
+| DO4 | PCF8574 | 0x20 | 4 | 4 |
+| DO5 | PCF8574 | 0x20 | 5 | 5 |
+| DO6 | PCF8574 | 0x20 | 6 | 6 |
+| DO7 | PCF8574 | 0x20 | 7 | 7 |
+| DO8 | PCF8574A | 0x21 | 0 | 8 |
+| DO9 | PCF8574A | 0x21 | 1 | 9 |
+| DO10 | PCF8574A | 0x21 | 2 | 10 |
+| DO11 | PCF8574A | 0x21 | 3 | 11 |
+| DO12 | PCF8574A | 0x21 | 4 | 12 |
+| DO13 | PCF8574A | 0x21 | 5 | 13 |
+| DO14 | PCF8574A | 0x21 | 6 | 14 |
+| DO15 | PCF8574A | 0x21 | 7 | 15 |
+
+**Note:** I2C3 is used for communication with the GPIO expanders (SDA: PB4, SCL: PA8).
+
+##### Analog Inputs (ADC1)
+
+| Channel | MCU Pin | ADC Channel | Nucleo Connector | Pin Number | Modbus Address (FC03) |
+|---------|---------|-------------|------------------|------------|----------------------|
+| A0 | PF11 | ADC1_IN2 | CN9 | 9 | 12 |
+| A1 | PA6 | ADC1_IN3 | CN12 | 12 | 13 |
+| A2 | PC0 | ADC1_IN10 | CN9 | 3 | 14 |
+| A3 | PC2 | ADC1_IN12 | CN9 | 5 | 15 |
+| A4 | PC3 | ADC1_IN13 | CN9 | 7 | - |
+| A5 | PB1 | ADC1_IN5 | CN10 | 24 | - |
+
+**Note:** ADC values are filtered using a 12-stage biquad cascade filter (4th order Butterworth LPF + 10 notch filters for 50Hz mains rejection). The filter runs continuously at 10kHz.
 
 #### Device Configuration & Flashing (First Time Setup)
 
