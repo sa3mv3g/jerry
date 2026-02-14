@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 
+#include "bsp.h"
 #include "ethernetif.h"
 #include "lwip/api.h"
 #include "lwip/dhcp.h"
@@ -23,20 +24,24 @@
 #define USE_DHCP 0
 
 #if !USE_DHCP
-/* Static IP Configuration - modify these values as needed */
-#define STATIC_IP_ADDR0 192
-#define STATIC_IP_ADDR1 168
-#define STATIC_IP_ADDR2 2
-#define STATIC_IP_ADDR3 100
+/* Static IP Configuration - modify these values as needed
+ * Note: The last octet (STATIC_IP_ADDR3_BASE) is added to the DEVADDR value
+ * read from GPIO pins to allow multiple devices on the same network.
+ * Example: With base 100 and DEVADDR=5, IP will be 169.254.4.105
+ */
+#define STATIC_IP_ADDR0      169
+#define STATIC_IP_ADDR1      254
+#define STATIC_IP_ADDR2      4
+#define STATIC_IP_ADDR3_BASE 100 /* Base value, DEVADDR (0-15) is added */
 
 #define STATIC_NETMASK0 255
 #define STATIC_NETMASK1 255
 #define STATIC_NETMASK2 255
 #define STATIC_NETMASK3 0
 
-#define STATIC_GW_ADDR0 192
-#define STATIC_GW_ADDR1 168
-#define STATIC_GW_ADDR2 1
+#define STATIC_GW_ADDR0 169
+#define STATIC_GW_ADDR1 254
+#define STATIC_GW_ADDR2 4
 #define STATIC_GW_ADDR3 1
 #endif /* !USE_DHCP */
 /*---------------------------------------------------------------------------*/
@@ -183,9 +188,17 @@ void vTcpEchoTask(void *pvParameters)
     IP4_ADDR(&netmask, 0, 0, 0, 0);
     IP4_ADDR(&gw, 0, 0, 0, 0);
 #else
-    /* Use static IP configuration */
+    /* Read device address from DEVADDR pins */
+    uint8_t dev_addr     = BSP_GetDeviceAddress();
+    uint8_t ip_last_byte = STATIC_IP_ADDR3_BASE + dev_addr;
+
+    printf("Network: Device address from DEVADDR pins: %u\n", dev_addr);
+    printf("Network: IP last octet: %u (base %u + DEVADDR %u)\n", ip_last_byte,
+           STATIC_IP_ADDR3_BASE, dev_addr);
+
+    /* Use static IP configuration with DEVADDR-based last octet */
     IP4_ADDR(&ipaddr, STATIC_IP_ADDR0, STATIC_IP_ADDR1, STATIC_IP_ADDR2,
-             STATIC_IP_ADDR3);
+             ip_last_byte);
     IP4_ADDR(&netmask, STATIC_NETMASK0, STATIC_NETMASK1, STATIC_NETMASK2,
              STATIC_NETMASK3);
     IP4_ADDR(&gw, STATIC_GW_ADDR0, STATIC_GW_ADDR1, STATIC_GW_ADDR2,

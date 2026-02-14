@@ -261,10 +261,11 @@ void MX_GPIO_Init(void)
                           |ARD_D0_RX_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
-  HAL_GPIO_ConfigPinAttributes(GPIOG, DI7_Pin|EN_AMPLIFIER_Pin|RMII_TXT_EN_Pin|RMI_TXD0_Pin, GPIO_PIN_NSEC);
+  HAL_GPIO_ConfigPinAttributes(GPIOG, DI7_Pin|EN_AMPLIFIER_Pin|RMII_TXT_EN_Pin|RMI_TXD0_Pin
+                          |DEVADDR0_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
-  HAL_GPIO_ConfigPinAttributes(DI1_GPIO_Port, DI1_Pin, GPIO_PIN_NSEC);
+  HAL_GPIO_ConfigPinAttributes(GPIOE, DI1_Pin|DEVADDR1_Pin|DEVADDR2_Pin|DEVADDR3_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOD, DI5_Pin|DI6_Pin, GPIO_PIN_NSEC);

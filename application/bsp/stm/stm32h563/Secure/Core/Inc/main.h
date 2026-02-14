@@ -118,6 +118,12 @@ void MX_ICACHE_Init(void);
 #define EN_AMPLIFIER_GPIO_Port GPIOG
 #define DI1_Pin GPIO_PIN_9
 #define DI1_GPIO_Port GPIOE
+#define DEVADDR1_Pin GPIO_PIN_11
+#define DEVADDR1_GPIO_Port GPIOE
+#define DEVADDR2_Pin GPIO_PIN_13
+#define DEVADDR2_GPIO_Port GPIOE
+#define DEVADDR3_Pin GPIO_PIN_14
+#define DEVADDR3_GPIO_Port GPIOE
 #define RMII_TXD1_Pin GPIO_PIN_15
 #define RMII_TXD1_GPIO_Port GPIOB
 #define USB_FS_N_Pin GPIO_PIN_11
@@ -138,6 +144,8 @@ void MX_ICACHE_Init(void);
 #define RMII_TXT_EN_GPIO_Port GPIOG
 #define RMI_TXD0_Pin GPIO_PIN_13
 #define RMI_TXD0_GPIO_Port GPIOG
+#define DEVADDR0_Pin GPIO_PIN_14
+#define DEVADDR0_GPIO_Port GPIOG
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
 #define ARD_D1_TX_Pin GPIO_PIN_6

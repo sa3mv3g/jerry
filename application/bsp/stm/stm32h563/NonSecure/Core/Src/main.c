@@ -677,11 +677,23 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(DI1_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : DEVADDR1_Pin DEVADDR2_Pin DEVADDR3_Pin */
+  GPIO_InitStruct.Pin = DEVADDR1_Pin|DEVADDR2_Pin|DEVADDR3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
   /*Configure GPIO pins : DI5_Pin DI6_Pin */
   GPIO_InitStruct.Pin = DI5_Pin|DI6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : DEVADDR0_Pin */
+  GPIO_InitStruct.Pin = DEVADDR0_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(DEVADDR0_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

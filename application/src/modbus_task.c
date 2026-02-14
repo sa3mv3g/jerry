@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "bsp.h"
 #include "FreeRTOS.h"
 #include "app_tasks.h"
 #include "jerry_device_registers.h"
@@ -31,8 +32,8 @@
 /** Modbus TCP port number */
 #define MODBUS_TCP_PORT 502U
 
-/** Modbus slave/unit ID */
-#define MODBUS_UNIT_ID 1U
+/** Base Modbus slave/unit ID (added to DEVADDR value) */
+#define MODBUS_UNIT_ID_BASE 1U
 
 /** Maximum number of simultaneous connections */
 #define MODBUS_MAX_CONNECTIONS 4U
@@ -66,6 +67,9 @@ static uint8_t s_rx_buffer[MODBUS_TCP_MAX_ADU_SIZE];
 /** Transmit buffer */
 static uint8_t s_tx_buffer[MODBUS_TCP_MAX_ADU_SIZE];
 
+/** Modbus unit ID (initialized from DEVADDR pins) */
+static uint8_t s_modbus_unit_id = MODBUS_UNIT_ID_BASE;
+
 /* ==========================================================================
  * Private Function Prototypes
  * ========================================================================== */
@@ -86,6 +90,12 @@ void vModbusTask(void *pvParameters)
     (void)pvParameters;
 
     printf("Modbus Task Started\n");
+
+    /* Read device address from DEVADDR pins and set Modbus unit ID */
+    uint8_t dev_addr = BSP_GetDeviceAddress();
+    s_modbus_unit_id = MODBUS_UNIT_ID_BASE + dev_addr;
+    printf("Modbus: Device address from DEVADDR pins: %u, Unit ID: %u\n",
+           dev_addr, s_modbus_unit_id);
 
     /* Wait for LwIP to be fully initialized
      * The tcpip_init() is called from main and takes some time to complete.
@@ -274,7 +284,7 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
     }
 
     /* Check unit ID (0 = broadcast, or match our ID) */
-    if ((request_adu.unit_id != 0U) && (request_adu.unit_id != MODBUS_UNIT_ID))
+    if ((request_adu.unit_id != 0U) && (request_adu.unit_id != s_modbus_unit_id))
     {
         /* Not for us - ignore */
         return MODBUS_ERROR_INVALID_PARAM;
@@ -479,7 +489,7 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
     /* Build response ADU */
     response_adu.transaction_id = request_adu.transaction_id;
     response_adu.protocol_id    = 0U;
-    response_adu.unit_id        = MODBUS_UNIT_ID;
+    response_adu.unit_id        = s_modbus_unit_id;
     response_adu.pdu            = response_pdu;
 
     /* Build TCP frame */

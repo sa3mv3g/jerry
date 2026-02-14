@@ -713,3 +713,42 @@ bsp_error_t BSP_GPIODI_Read(uint32_t channel, uint32_t *pVal)
 
     return retval;
 }
+
+uint8_t BSP_GetDeviceAddress(void)
+{
+    uint8_t address = 0U;
+
+    /*
+     * Read DEVADDR pins - they have internal pull-ups, so:
+     * - Open/floating pin reads HIGH (GPIO_PIN_SET) -> bit = 0
+     * - Grounded pin reads LOW (GPIO_PIN_RESET) -> bit = 1
+     *
+     * This allows setting address by grounding pins (active-low logic).
+     */
+
+    /* DEVADDR0 - Bit 0 */
+    if (HAL_GPIO_ReadPin(DEVADDR0_GPIO_Port, DEVADDR0_Pin) == GPIO_PIN_RESET)
+    {
+        address |= (1U << 0U);
+    }
+
+    /* DEVADDR1 - Bit 1 */
+    if (HAL_GPIO_ReadPin(DEVADDR1_GPIO_Port, DEVADDR1_Pin) == GPIO_PIN_RESET)
+    {
+        address |= (1U << 1U);
+    }
+
+    /* DEVADDR2 - Bit 2 */
+    if (HAL_GPIO_ReadPin(DEVADDR2_GPIO_Port, DEVADDR2_Pin) == GPIO_PIN_RESET)
+    {
+        address |= (1U << 2U);
+    }
+
+    /* DEVADDR3 - Bit 3 */
+    if (HAL_GPIO_ReadPin(DEVADDR3_GPIO_Port, DEVADDR3_Pin) == GPIO_PIN_RESET)
+    {
+        address |= (1U << 3U);
+    }
+
+    return address;
+}

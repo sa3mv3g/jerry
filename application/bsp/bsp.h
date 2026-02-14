@@ -418,4 +418,24 @@ bsp_error_t BSP_I2CDO_Read(uint16_t *value);
  */
 bsp_error_t BSP_GPIODI_Read(uint32_t channel, uint32_t *pVal);
 
+/**
+ * @brief Read the device address from DEVADDR0-3 GPIO pins
+ *
+ * Reads the 4-bit device address from the DEVADDR GPIO pins.
+ * The pins are active-low with internal pull-ups, so a grounded pin
+ * reads as 1 in the returned value.
+ *
+ * The address is composed as:
+ * - Bit 0: DEVADDR0 (PG14)
+ * - Bit 1: DEVADDR1 (PE11)
+ * - Bit 2: DEVADDR2 (PE13)
+ * - Bit 3: DEVADDR3 (PE14)
+ *
+ * @return uint8_t Device address value (0-15)
+ *
+ * @note The pins have internal pull-ups, so open pins read as 0 (high = 0).
+ *       Grounding a pin sets the corresponding bit to 1.
+ */
+uint8_t BSP_GetDeviceAddress(void);
+
 #endif  // BSP_H
