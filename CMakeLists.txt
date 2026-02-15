@@ -81,3 +81,8 @@ if(UV_FOUND)
 else()
     message(WARNING "uv not found! 'format' and lint targets will not be available. Set UV_COMMAND to configure (e.g., -DUV_COMMAND=\"py;-m;uv\")")
 endif()
+
+# =============================================================================
+# CPack Packaging Configuration
+# =============================================================================
+include(config/cpack_config.cmake)

@@ -120,19 +120,6 @@ if(TARGET lwip_stack AND MODBUS_ENABLE_TCP)
 endif()
 
 # -----------------------------------------------------------------------------
-# Installation
-# -----------------------------------------------------------------------------
-install(TARGETS modbus_stack
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
-)
-
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/inc/
-    DESTINATION include/modbus
-    FILES_MATCHING PATTERN "*.h"
-)
-
-# -----------------------------------------------------------------------------
 # Unit Tests (optional)
 # -----------------------------------------------------------------------------
 if(MODBUS_BUILD_TESTS)
