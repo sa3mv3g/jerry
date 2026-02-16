@@ -138,6 +138,29 @@ static void print_adc_values(void)
     }
 }
 
+/**
+ * @brief Print digital input values for all DI channels (DI0-DI7)
+ */
+static void print_digital_inputs(void)
+{
+    uint32_t di_values[8];
+
+    /* Read all digital inputs */
+    for (uint8_t i = 0; i < 8U; i++)
+    {
+        if (BSP_GPIODI_Read(i, &di_values[i]) != BSP_OK)
+        {
+            di_values[i] = 0xFFU; /* Mark as error */
+        }
+    }
+
+    (void)printf("[DI] DI0=%u DI1=%u DI2=%u DI3=%u DI4=%u DI5=%u DI6=%u DI7=%u\n",
+                 (unsigned int)di_values[0], (unsigned int)di_values[1],
+                 (unsigned int)di_values[2], (unsigned int)di_values[3],
+                 (unsigned int)di_values[4], (unsigned int)di_values[5],
+                 (unsigned int)di_values[6], (unsigned int)di_values[7]);
+}
+
 /* Stack Monitor Task */
 void vMonitorTask(void* pvParameters)
 {
@@ -152,6 +175,9 @@ void vMonitorTask(void* pvParameters)
         /* Check for new errors (quick check every interval) */
         check_lwip_errors();
         check_task_stacks();
+
+        /* Print digital input values every interval */
+        print_digital_inputs();
 
         /* Print ADC values every interval */
         print_adc_values();

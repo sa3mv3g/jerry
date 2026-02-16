@@ -171,6 +171,7 @@ bsp_error_t BSP_Init(void)
     MX_LPUART1_UART_Init();
     MX_TIM1_Init();
     MX_ADC1_Init();
+    MX_I2C3_Init();
 
     BSP_LED_Init(LED_GREEN);
     BSP_LED_Init(LED_YELLOW);

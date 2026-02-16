@@ -14,6 +14,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "FreeRTOS.h"
 #include "bsp.h"
@@ -125,9 +126,18 @@ static void update_digital_output(uint16_t channel, bool val, bool *pCoil)
 
             err = BSP_I2CDO_Write(finalVal);
 
-            if ((BSP_OK == err) && (NULL != pCoil))
+            printf("[DO] Channel %d value %d; ", channel, (unsigned int)val);
+            if ((BSP_OK == err))
             {
-                *pCoil = val;
+                if((NULL != pCoil))
+                {
+                    *pCoil = val;
+                }
+                printf(" ok\r\n");
+            }
+            else
+            {
+                printf(" fail\r\n");
             }
         }
     }

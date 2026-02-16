@@ -232,12 +232,16 @@ static void modbus_handle_connection(struct netconn *conn)
 
                 if (modbus_err == MODBUS_OK)
                 {
-                    /* Send response */
-                    err = netconn_write(conn, s_tx_buffer, response_len,
-                                        NETCONN_COPY);
-                    if (err != ERR_OK)
+                    /* Send response only if there is data to send */
+                    /* (response_len=0 means request was for different unit ID) */
+                    if (response_len > 0U)
                     {
-                        printf("Modbus: Write error: %d\n", err);
+                        err = netconn_write(conn, s_tx_buffer, response_len,
+                                            NETCONN_COPY);
+                        if (err != ERR_OK)
+                        {
+                            printf("Modbus: Write error: %d\n", err);
+                        }
                     }
                 }
                 else
@@ -286,8 +290,9 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
     /* Check unit ID (0 = broadcast, or match our ID) */
     if ((request_adu.unit_id != 0U) && (request_adu.unit_id != s_modbus_unit_id))
     {
-        /* Not for us - ignore */
-        return MODBUS_ERROR_INVALID_PARAM;
+        /* Not for us - silently ignore (no response per Modbus spec) */
+        *response_len = 0U;
+        return MODBUS_OK;
     }
 
     /* Initialize response PDU */
