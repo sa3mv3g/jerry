@@ -646,17 +646,13 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(EN_AMPLIFIER_GPIO_Port, EN_AMPLIFIER_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : DI4_Pin DI3_Pin DI2_Pin */
-  GPIO_InitStruct.Pin = DI4_Pin|DI3_Pin|DI2_Pin;
+  /*Configure GPIO pins : DI4_Pin DI3_Pin DI2_Pin DI0_Pin
+                           DI1_Pin */
+  GPIO_InitStruct.Pin = DI4_Pin|DI3_Pin|DI2_Pin|DI0_Pin
+                          |DI1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : DI0_Pin */
-  GPIO_InitStruct.Pin = DI0_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(DI0_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : DI7_Pin */
   GPIO_InitStruct.Pin = DI7_Pin;
@@ -671,14 +667,8 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(EN_AMPLIFIER_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : DI1_Pin */
-  GPIO_InitStruct.Pin = DI1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(DI1_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : DEVADDR1_Pin DEVADDR2_Pin DEVADDR3_Pin */
-  GPIO_InitStruct.Pin = DEVADDR1_Pin|DEVADDR2_Pin|DEVADDR3_Pin;
+  /*Configure GPIO pins : DEVADDR3_Pin DEVADDR1_Pin DEVADDR2_Pin */
+  GPIO_InitStruct.Pin = DEVADDR3_Pin|DEVADDR1_Pin|DEVADDR2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);

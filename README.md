@@ -293,6 +293,19 @@ Digital outputs are controlled via I2C GPIO expanders (PCF8574 and PCF8574A).
 
 **Note:** ADC values are filtered using a 12-stage biquad cascade filter (4th order Butterworth LPF + 10 notch filters for 50Hz mains rejection). The filter runs continuously at 10kHz.
 
+##### Device Address Selection Pins (DEVADDR0-DEVADDR3)
+
+The device address is configured via 4 GPIO input pins with internal pull-up resistors. These pins allow setting a unique Modbus unit ID for each device in a multi-device setup.
+
+| Pin Name | MCU Pin | GPIO Port | Nucleo Connector | Pin Number | Pull Configuration |
+|----------|---------|-----------|------------------|------------|-------------------|
+| DEVADDR0 | PG14 | GPIOG | CN10 | 32 | Internal Pull-Up |
+| DEVADDR1 | PE13 | GPIOE | CN10 | 10 | Internal Pull-Up |
+| DEVADDR2 | PE14 | GPIOE | CN10 | 28 | Internal Pull-Up |
+| DEVADDR3 | PE11 | GPIOE | CN10 | 6 | Internal Pull-Up |
+
+**Note:** The device address is read as a 4-bit value (0-15) where DEVADDR0 is the LSB and DEVADDR3 is the MSB. Pins are active-low (connect to GND to set bit to 1). With all pins floating (pulled high), the device address is 0.
+
 #### Device Configuration & Flashing (First Time Setup)
 
 Since this project uses **TrustZone**, the STM32H563 device option bytes **MUST** be configured correctly before flashing. If the device is in a default state (TZEN=0), the application will not boot.

@@ -246,7 +246,8 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*IO attributes management functions */
-  HAL_GPIO_ConfigPinAttributes(GPIOF, DI4_Pin|DI3_Pin|DI2_Pin|GPIO_PIN_11, GPIO_PIN_NSEC);
+  HAL_GPIO_ConfigPinAttributes(GPIOF, DI4_Pin|DI3_Pin|DI2_Pin|DI0_Pin
+                          |DI1_Pin|GPIO_PIN_11, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOC, GPIO_PIN_0|RMII_MDC_Pin|GPIO_PIN_2|GPIO_PIN_3
@@ -257,15 +258,14 @@ void MX_GPIO_Init(void)
                           |RMII_CRS_DV_Pin|GPIO_PIN_8|USB_FS_N_Pin|USB_FS_P_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
-  HAL_GPIO_ConfigPinAttributes(GPIOB, GPIO_PIN_1|DI0_Pin|RMII_TXD1_Pin|ARD_D1_TX_Pin
-                          |ARD_D0_RX_Pin, GPIO_PIN_NSEC);
+  HAL_GPIO_ConfigPinAttributes(GPIOB, GPIO_PIN_1|RMII_TXD1_Pin|ARD_D1_TX_Pin|ARD_D0_RX_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOG, DI7_Pin|EN_AMPLIFIER_Pin|RMII_TXT_EN_Pin|RMI_TXD0_Pin
                           |DEVADDR0_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
-  HAL_GPIO_ConfigPinAttributes(GPIOE, DI1_Pin|DEVADDR1_Pin|DEVADDR2_Pin|DEVADDR3_Pin, GPIO_PIN_NSEC);
+  HAL_GPIO_ConfigPinAttributes(GPIOE, DEVADDR3_Pin|DEVADDR1_Pin|DEVADDR2_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOD, DI5_Pin|DI6_Pin, GPIO_PIN_NSEC);
