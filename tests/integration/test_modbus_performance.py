@@ -187,10 +187,14 @@ def run_performance_test(
     )
 
 
+# Global unit_id for test functions to use
+_g_unit_id: int = DEFAULT_UNIT_ID
+
+
 def test_read_single_register(client: ModbusTcpClient, num_requests: int) -> PerformanceResult:
     """Test reading a single holding register."""
     def operation() -> bool:
-        result = client.read_holding_registers(address=0, count=1)
+        result = client.read_holding_registers(address=0, count=1, device_id=_g_unit_id)
         return not result.isError()
 
     return run_performance_test(
@@ -210,7 +214,7 @@ def test_read_multiple_registers(client: ModbusTcpClient, num_requests: int, cou
     safe_count = min(count, 12)
 
     def operation() -> bool:
-        result = client.read_holding_registers(address=0, count=safe_count)
+        result = client.read_holding_registers(address=0, count=safe_count, device_id=_g_unit_id)
         return not result.isError()
 
     return run_performance_test(
@@ -229,7 +233,7 @@ def test_write_single_register(client: ModbusTcpClient, num_requests: int) -> Pe
         nonlocal value
         # PWM duty cycle range is 0-10000
         value = (value + 100) % 10001
-        result = client.write_register(address=0, value=value)
+        result = client.write_register(address=0, value=value, device_id=_g_unit_id)
         return not result.isError()
 
     return run_performance_test(
@@ -251,7 +255,7 @@ def test_write_multiple_registers(client: ModbusTcpClient, num_requests: int, co
     values = [1000 + i * 100 for i in range(safe_count)]
 
     def operation() -> bool:
-        result = client.write_registers(address=0, values=values)
+        result = client.write_registers(address=0, values=values, device_id=_g_unit_id)
         return not result.isError()
 
     return run_performance_test(
@@ -268,7 +272,7 @@ def test_read_coils(client: ModbusTcpClient, num_requests: int, count: int = 16)
     safe_count = min(count, 28)
 
     def operation() -> bool:
-        result = client.read_coils(address=0, count=safe_count)
+        result = client.read_coils(address=0, count=safe_count, device_id=_g_unit_id)
         return not result.isError()
 
     return run_performance_test(
@@ -286,7 +290,7 @@ def test_write_single_coil(client: ModbusTcpClient, num_requests: int) -> Perfor
     def operation() -> bool:
         nonlocal value
         value = not value
-        result = client.write_coil(address=0, value=value)
+        result = client.write_coil(address=0, value=value, device_id=_g_unit_id)
         return not result.isError()
 
     return run_performance_test(
@@ -303,7 +307,7 @@ def test_read_input_registers(client: ModbusTcpClient, num_requests: int, count:
     safe_count = min(count, 4)
 
     def operation() -> bool:
-        result = client.read_input_registers(address=0, count=safe_count)
+        result = client.read_input_registers(address=0, count=safe_count, device_id=_g_unit_id)
         return not result.isError()
 
     return run_performance_test(
@@ -320,7 +324,7 @@ def test_read_discrete_inputs(client: ModbusTcpClient, num_requests: int, count:
     safe_count = min(count, 8)
 
     def operation() -> bool:
-        result = client.read_discrete_inputs(address=0, count=safe_count)
+        result = client.read_discrete_inputs(address=0, count=safe_count, device_id=_g_unit_id)
         return not result.isError()
 
     return run_performance_test(
@@ -342,16 +346,16 @@ def test_mixed_operations(client: ModbusTcpClient, num_requests: int) -> Perform
 
         if op_type == 0:
             # Read PWM registers (addresses 0-5)
-            result = client.read_holding_registers(address=0, count=6)
+            result = client.read_holding_registers(address=0, count=6, device_id=_g_unit_id)
         elif op_type == 1:
             # Write PWM duty cycle (address 0, range 0-10000)
-            result = client.write_register(address=0, value=(counter * 100) % 10001)
+            result = client.write_register(address=0, value=(counter * 100) % 10001, device_id=_g_unit_id)
         elif op_type == 2:
             # Read digital output coils (addresses 0-7)
-            result = client.read_coils(address=0, count=8)
+            result = client.read_coils(address=0, count=8, device_id=_g_unit_id)
         else:
             # Read ADC input registers (addresses 0-3)
-            result = client.read_input_registers(address=0, count=4)
+            result = client.read_input_registers(address=0, count=4, device_id=_g_unit_id)
 
         return not result.isError()
 
@@ -379,7 +383,7 @@ def test_sustained_load(client: ModbusTcpClient, duration_sec: int = 30) -> Perf
         req_start = time.perf_counter()
         try:
             # Read PWM registers (addresses 0-5, contiguous)
-            result = client.read_holding_registers(address=0, count=6)
+            result = client.read_holding_registers(address=0, count=6, device_id=_g_unit_id)
             if not result.isError():
                 successful += 1
                 req_end = time.perf_counter()
@@ -425,7 +429,7 @@ def test_burst(client: ModbusTcpClient, burst_size: int = 100, num_bursts: int =
             req_start = time.perf_counter()
             try:
                 # Read PWM registers (addresses 0-5, contiguous)
-                result = client.read_holding_registers(address=0, count=6)
+                result = client.read_holding_registers(address=0, count=6, device_id=_g_unit_id)
                 if not result.isError():
                     successful += 1
                     req_end = time.perf_counter()
@@ -466,6 +470,9 @@ def run_all_performance_tests(
         quick: If True, run fewer iterations
         source_ip: Optional source IP to bind to (for multi-interface systems)
     """
+    global _g_unit_id
+    _g_unit_id = unit_id
+
     print(f"Connecting to Modbus TCP server at {host}:{port} (unit_id={unit_id})...")
     if source_ip:
         print(f"Using source IP: {source_ip}")
@@ -481,6 +488,7 @@ def run_all_performance_tests(
     else:
         client = ModbusTcpClient(host=host, port=port, timeout=5)
 
+    # Set the unit/slave ID for all requests
     client.slave = unit_id
 
     if not client.connect():
