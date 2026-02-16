@@ -159,6 +159,8 @@ bsp_error_t BSP_Init(void)
      * Systick. */
     HAL_Init();
 
+    MX_IWDG_Init();
+
     /* Configure MPU for Ethernet DMA */
     MPU_Config();
 

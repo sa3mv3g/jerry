@@ -16,8 +16,8 @@ Based *strictly* on the output captured in Phase 1, generate a commit message fo
 2.  **Body:** A bulleted list summarizing the changes.
 3.  **Footer:** You MUST append this exact signature:
     ```
-    Signed-off-by: 
-    Sanmveg Saini 
+    Signed-off-by:
+    Sanmveg Saini
     <sanmveg.saini.in@gmail.com>
     ```
 
@@ -25,3 +25,5 @@ Based *strictly* on the output captured in Phase 1, generate a commit message fo
 Provide **only** the final commit message text in UTF-8 format.
 
 Do not stage any file under any circumstances.
+
+summarize the commit body
