@@ -129,7 +129,7 @@ static void update_digital_output(uint16_t channel, bool val, bool *pCoil)
             printf("[DO] Channel %d value %d; ", channel, (unsigned int)val);
             if ((BSP_OK == err))
             {
-                if((NULL != pCoil))
+                if ((NULL != pCoil))
                 {
                     *pCoil = val;
                 }

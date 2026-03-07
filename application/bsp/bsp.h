@@ -438,4 +438,12 @@ bsp_error_t BSP_GPIODI_Read(uint32_t channel, uint32_t *pVal);
  */
 uint8_t BSP_GetDeviceAddress(void);
 
+bsp_error_t BSP_I2C_Master_Read(uint8_t address, uint8_t *buff, uint16_t len,
+                                uint32_t timeout);
+
+bsp_error_t BSP_I2C_Master_Write(uint8_t address, uint8_t *buff, uint16_t len,
+                                 uint32_t timeout);
+
+void BSP_Delay_Us(uint32_t us);
+
 #endif  // BSP_H

@@ -9,6 +9,7 @@
 
 #include "bsp.h"
 #include "ethernetif.h"
+#include "lcd_manager.h"
 #include "lwip/api.h"
 #include "lwip/dhcp.h"
 #include "lwip/netif.h"
@@ -280,6 +281,8 @@ void vTcpEchoTask(void *pvParameters)
     printf("Netmask: %s\n", ip4addr_ntoa(netif_ip4_netmask(&gnetif)));
     printf("Gateway: %s\n", ip4addr_ntoa(netif_ip4_gw(&gnetif)));
     printf("===============================\n");
+
+    LcdManager_UpdateIpv4Address(ip4addr_ntoa(netif_ip4_addr(&gnetif)));
 #endif /* USE_DHCP */
 
     /* Create the TCP Echo Server thread */

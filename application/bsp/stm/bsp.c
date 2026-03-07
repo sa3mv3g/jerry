@@ -1,5 +1,6 @@
 #include "bsp.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #include "adc_filter.h"
@@ -10,7 +11,8 @@
 void                     SystemClock_Config(void);
 extern uint32_t          __eth_dma_start;
 extern TIM_HandleTypeDef htim1;
-extern I2C_HandleTypeDef hi2c3;
+extern I2C_HandleTypeDef hi2c4;
+extern TIM_HandleTypeDef htim7;
 
 /* Note: hadc1, Node_GPDMA1_Channel0, List_GPDMA1_Channel0, and
  * handle_GPDMA1_Channel0 are declared extern in main.h */
@@ -173,7 +175,8 @@ bsp_error_t BSP_Init(void)
     MX_LPUART1_UART_Init();
     MX_TIM1_Init();
     MX_ADC1_Init();
-    MX_I2C3_Init();
+    MX_I2C4_Init();
+    MX_TIM7_Init();
 
     BSP_LED_Init(LED_GREEN);
     BSP_LED_Init(LED_YELLOW);
@@ -562,8 +565,6 @@ bsp_error_t BSP_I2CDO_init()
 {
     bsp_error_t ret = BSP_OK;
 
-    MX_I2C3_Init();
-
     // Set initial state to all low and write to expanders
     ret = BSP_I2CDO_Write(0x0000U);
 
@@ -578,7 +579,7 @@ bsp_error_t BSP_I2CDO_Write(uint16_t value)
 
     // Write lower 8 bits to PCF8574
     output_byte = (uint8_t)(value & 0xFFU);
-    status      = HAL_I2C_Master_Transmit(&hi2c3, BSP_I2CDO_PCF8574_ADDR,
+    status      = HAL_I2C_Master_Transmit(&hi2c4, BSP_I2CDO_PCF8574_ADDR,
                                           &output_byte, 1, BSP_I2CDO_TIMEOUT);
     if (status != HAL_OK)
     {
@@ -596,7 +597,7 @@ bsp_error_t BSP_I2CDO_Write(uint16_t value)
     if (ret == BSP_OK)
     {
         output_byte = (uint8_t)((value >> 8U) & 0xFFU);
-        status      = HAL_I2C_Master_Transmit(&hi2c3, BSP_I2CDO_PCF8574A_ADDR,
+        status      = HAL_I2C_Master_Transmit(&hi2c4, BSP_I2CDO_PCF8574A_ADDR,
                                               &output_byte, 1, BSP_I2CDO_TIMEOUT);
         if (status != HAL_OK)
         {
@@ -627,7 +628,7 @@ bsp_error_t BSP_I2CDO_Read(uint16_t *value)
     }
 
     // Read from PCF8574
-    status = HAL_I2C_Master_Receive(&hi2c3, BSP_I2CDO_PCF8574_ADDR,
+    status = HAL_I2C_Master_Receive(&hi2c4, BSP_I2CDO_PCF8574_ADDR,
                                     &read_byte_pcf8574, 1, BSP_I2CDO_TIMEOUT);
     if (status != HAL_OK)
     {
@@ -645,7 +646,7 @@ bsp_error_t BSP_I2CDO_Read(uint16_t *value)
     if (ret == BSP_OK)
     {
         status =
-            HAL_I2C_Master_Receive(&hi2c3, BSP_I2CDO_PCF8574A_ADDR,
+            HAL_I2C_Master_Receive(&hi2c4, BSP_I2CDO_PCF8574A_ADDR,
                                    &read_byte_pcf8574a, 1, BSP_I2CDO_TIMEOUT);
         if (status != HAL_OK)
         {
@@ -754,4 +755,106 @@ uint8_t BSP_GetDeviceAddress(void)
     }
 
     return address;
+}
+
+bsp_error_t BSP_I2C_Master_Read(uint8_t address, uint8_t *buff, uint16_t len,
+                                uint32_t timeout)
+{
+    HAL_StatusTypeDef status;
+    bsp_error_t       retVal;
+
+    if (NULL == buff)
+    {
+        retVal = BSP_INVALID_ARG;
+    }
+    else
+    {
+        status = HAL_I2C_Master_Receive(&hi2c4, address, buff, len, timeout);
+        if (HAL_OK == status)
+        {
+            retVal = BSP_OK;
+        }
+        else
+        {
+            switch (status)
+            {
+                case HAL_BUSY:
+                    retVal = BSP_BUSY;
+                    break;
+                case HAL_TIMEOUT:
+                    retVal = BSP_TIMEOUT;
+                    break;
+                default:
+                case HAL_ERROR:
+                    retVal = BSP_ERROR;
+                    break;
+            }
+        }
+    }
+    return retVal;
+}
+
+bsp_error_t BSP_I2C_Master_Write(uint8_t address, uint8_t *buff, uint16_t len,
+                                 uint32_t timeout)
+{
+    HAL_StatusTypeDef status;
+    bsp_error_t       retVal;
+
+    if (NULL == buff)
+    {
+        retVal = BSP_INVALID_ARG;
+    }
+    else
+    {
+        status = HAL_I2C_Master_Transmit(&hi2c4, address, buff, len, timeout);
+        if (HAL_OK == status)
+        {
+            retVal = BSP_OK;
+        }
+        else
+        {
+            switch (status)
+            {
+                case HAL_BUSY:
+                    retVal = BSP_BUSY;
+                    break;
+                case HAL_TIMEOUT:
+                    retVal = BSP_TIMEOUT;
+                    break;
+                default:
+                case HAL_ERROR:
+                    retVal = BSP_ERROR;
+                    break;
+            }
+        }
+    }
+    return retVal;
+}
+
+/**
+ * @brief Delay in microseconds using TIM7 with HAL OnePulse functions
+ * @param us: delay in microseconds (up to 65535)
+ */
+void BSP_Delay_Us(uint32_t us)
+{
+    /* Stop the timer first (if it's running) */
+    HAL_TIM_Base_Stop(&htim7);
+
+    /* Set the period for the desired delay */
+    __HAL_TIM_SET_AUTORELOAD(&htim7, us - 1);
+
+    /* Reset counter */
+    __HAL_TIM_SET_COUNTER(&htim7, 0);
+
+    /* Clear any pending update flag */
+    __HAL_TIM_CLEAR_FLAG(&htim7, TIM_FLAG_UPDATE);
+
+    /* Start the timer in one-pulse mode */
+    HAL_TIM_Base_Start(&htim7);
+
+    /* Wait for timer to finish (update flag set) */
+    while (!__HAL_TIM_GET_FLAG(&htim7, TIM_FLAG_UPDATE));
+
+    /* Clear the update flag */
+    __HAL_TIM_CLEAR_FLAG(&htim7, TIM_FLAG_UPDATE);
 }

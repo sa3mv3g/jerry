@@ -26,12 +26,15 @@
                 "-m",
                 "0",
             ],
+            "postLaunchCommands": [
+                "add-symbol-file build/application/bsp/stm/stm32h563/jerry_secure_app.elf"
+            ],
         },
         {
             "name": "STM32H563 Attach to Microcontroller - ST-Link",
             "cwd": "${workspaceFolder}",
             "type": "cortex-debug",
-            "executable": "${workspaceFolder}/build/application/jerry_app.elf",
+            "executable": "build/application/jerry_app.elf",
             "request": "attach",
             "servertype": "stlink",
             "device": "STM32H563ZI", //MCU used
@@ -48,6 +51,9 @@
             "serverArgs": [
                 "-m",
                 "0",
+            ],
+            "postAttachCommands": [
+                "add-symbol-file build/application/bsp/stm/stm32h563/jerry_secure_app.elf"
             ],
         },
         {
@@ -69,7 +75,10 @@
             "device": "STM32H563ZI",
             "runToEntryPoint": "main",
             "svdFile": "${env:STM32CLT_PATH}/STMicroelectronics_CMSIS_SVD/STM32H563.svd",
-            "showDevDebugOutput": "raw"
+            "showDevDebugOutput": "raw",
+            "postLaunchCommands": [
+                "add-symbol-file build/application/bsp/stm/stm32h563/jerry_secure_app.elf"
+            ]
         }
     ]
 }

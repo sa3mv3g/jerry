@@ -156,11 +156,12 @@ static void print_digital_inputs(void)
         }
     }
 
-    (void)printf("[DI] DI0=%u DI1=%u DI2=%u DI3=%u DI4=%u DI5=%u DI6=%u DI7=%u\n",
-                 (unsigned int)di_values[0], (unsigned int)di_values[1],
-                 (unsigned int)di_values[2], (unsigned int)di_values[3],
-                 (unsigned int)di_values[4], (unsigned int)di_values[5],
-                 (unsigned int)di_values[6], (unsigned int)di_values[7]);
+    (void)printf(
+        "[DI] DI0=%u DI1=%u DI2=%u DI3=%u DI4=%u DI5=%u DI6=%u DI7=%u\n",
+        (unsigned int)di_values[0], (unsigned int)di_values[1],
+        (unsigned int)di_values[2], (unsigned int)di_values[3],
+        (unsigned int)di_values[4], (unsigned int)di_values[5],
+        (unsigned int)di_values[6], (unsigned int)di_values[7]);
 }
 
 /* Stack Monitor Task */

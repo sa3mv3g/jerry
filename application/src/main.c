@@ -14,18 +14,23 @@
 #include "task.h"
 #include "timers.h"
 
+#ifdef ENABLE_I2C_DEVICE_SCAN
+#include "i2c_scanner.h"
+#endif
+
 /* LwIP includes for memory stats */
 #include "lwip/mem.h"
 #include "lwip/memp.h"
 #include "lwip/stats.h"
 
 /* Stack size for the tasks */
-#define MAIN_TASK_STACK_SIZE     256
-#define LOG_TASK_STACK_SIZE      256
-#define MODBUS_TASK_STACK_SIZE   512
-#define FOTA_TASK_STACK_SIZE     512
-#define MONITOR_TASK_STACK_SIZE  256 /* Increased from 128 for printf calls */
-#define TCP_ECHO_TASK_STACK_SIZE 1024
+#define MAIN_TASK_STACK_SIZE       256U
+#define LOG_TASK_STACK_SIZE        256U
+#define MODBUS_TASK_STACK_SIZE     512U
+#define FOTA_TASK_STACK_SIZE       512U
+#define MONITOR_TASK_STACK_SIZE    256U
+#define TCP_ECHO_TASK_STACK_SIZE   1024U
+#define LCD_MANAGE_TASK_STACK_SIZE 1024U
 
 /* ==========================================================================
  * Forward Declarations (MISRA 8.4)
@@ -66,6 +71,9 @@ static StackType_t  xMonitorTaskStack[MONITOR_TASK_STACK_SIZE];
 
 static StaticTask_t xTcpEchoTaskTCB;
 static StackType_t  xTcpEchoTaskStack[TCP_ECHO_TASK_STACK_SIZE];
+
+static StaticTask_t xLcdManageTaskTCB;
+static StackType_t  xLcdManageTaskStack[LCD_MANAGE_TASK_STACK_SIZE];
 
 /* Task Handles */
 static TaskHandle_t xMainTaskHandle = NULL;
@@ -383,6 +391,11 @@ int main(void)
     /* Initialize Hardware (BSP) */
     BSP_Init();
 
+#ifdef ENABLE_I2C_DEVICE_SCAN
+    /* Scan I2C bus for connected devices (optional feature) */
+    I2C_ScanBus();
+#endif
+
     /* Create Main Task */
     xMainTaskHandle = xTaskCreateStatic(
         vMainTask, "Main", MAIN_TASK_STACK_SIZE, NULL,
@@ -426,6 +439,10 @@ void vMainTask(void* pvParameters)
     (void)xTaskCreateStatic(vTcpEchoTask, "TcpEcho", TCP_ECHO_TASK_STACK_SIZE,
                             NULL, tskIDLE_PRIORITY + 1, xTcpEchoTaskStack,
                             &xTcpEchoTaskTCB);
+
+    (void)xTaskCreateStatic(
+        vLcdManageTask, "LCDMan", LCD_MANAGE_TASK_STACK_SIZE, NULL,
+        tskIDLE_PRIORITY + 1, xLcdManageTaskStack, &xLcdManageTaskTCB);
 
     for (;;)
     {

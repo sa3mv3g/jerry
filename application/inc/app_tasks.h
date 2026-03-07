@@ -12,5 +12,6 @@ void vModbusTask(void* pvParameters);
 void vFotaTask(void* pvParameters);
 void vMonitorTask(void* pvParameters);
 void vTcpEchoTask(void* pvParameters);
+void vLcdManageTask(void* pvParameters);
 
 #endif /* APP_TASKS_H */

@@ -70,13 +70,23 @@ The following CMake options can be passed during configuration to customize the 
 | `PYTHON_EXECUTABLE` | Auto-detected | Python interpreter for cppcheck addons (`py` on Windows, `python3` on Unix) |
 | `UV_COMMAND` | `uv` | Command to invoke uv (e.g., `uv` or `py;-m;uv` for Windows) |
 
+#### Diagnostic Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `ENABLE_I2C_DEVICE_SCAN` | `OFF` | Enable I2C bus scanning at startup to detect connected devices |
+
 **Example with custom options:**
 ```bash
 cmake -S . -B build -G Ninja \
     -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake \
     -DVENDOR=stm \
-    -DCMAKE_BUILD_TYPE=Debug
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DENABLE_I2C_DEVICE_SCAN=ON
 ```
+
+**I2C Device Scanner:**
+When `ENABLE_I2C_DEVICE_SCAN` is enabled, the firmware will scan the I2C bus at startup and print all detected device addresses to the console. This is useful for hardware debugging and device discovery. See [I2C Device Scan Feature Documentation](docs/I2C_DEVICE_SCAN_FEATURE.md) for detailed usage instructions.
 
 ## Available Commands
 

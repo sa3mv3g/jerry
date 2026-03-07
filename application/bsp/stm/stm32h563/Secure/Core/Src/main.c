@@ -133,6 +133,11 @@ void MX_GTZC_S_Init(void)
   {
     Error_Handler();
   }
+  /* Configure I2C3 peripheral as non-secure for non-secure application access */
+  if (HAL_GTZC_TZSC_ConfigPeriphAttributes(GTZC_PERIPH_I2C3, GTZC_TZSC_PERIPH_NSEC) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE END GTZC_S_Init 1 */
   MPCBB_Area_Desc.SecureRWIllegalMode = GTZC_MPCBB_SRWILADIS_ENABLE;
   MPCBB_Area_Desc.InvertSecureState = GTZC_MPCBB_INVSECSTATE_NOT_INVERTED;
@@ -251,14 +256,15 @@ void MX_GPIO_Init(void)
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOC, GPIO_PIN_0|RMII_MDC_Pin|GPIO_PIN_2|GPIO_PIN_3
-                          |RMII_RXD0_Pin|RMII_RXD1_Pin|GPIO_PIN_9, GPIO_PIN_NSEC);
+                          |RMII_RXD0_Pin|RMII_RXD1_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOA, RMII_REF_CLK_Pin|RMII_MDIO_Pin|VBUS_SENSE_Pin|GPIO_PIN_6
-                          |RMII_CRS_DV_Pin|GPIO_PIN_8|USB_FS_N_Pin|USB_FS_P_Pin, GPIO_PIN_NSEC);
+                          |RMII_CRS_DV_Pin|USB_FS_N_Pin|USB_FS_P_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
-  HAL_GPIO_ConfigPinAttributes(GPIOB, GPIO_PIN_1|RMII_TXD1_Pin|ARD_D1_TX_Pin|ARD_D0_RX_Pin, GPIO_PIN_NSEC);
+  HAL_GPIO_ConfigPinAttributes(GPIOB, GPIO_PIN_1|RMII_TXD1_Pin|ARD_D1_TX_Pin|ARD_D0_RX_Pin
+                          |GPIO_PIN_8|GPIO_PIN_9, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOG, DI7_Pin|EN_AMPLIFIER_Pin|RMII_TXT_EN_Pin|RMI_TXD0_Pin

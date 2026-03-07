@@ -4,6 +4,11 @@
 # Application CMakeLists.txt
 include(FetchContent)
 
+# ==========================================================================
+# Optional Features
+# ==========================================================================
+option(ENABLE_I2C_DEVICE_SCAN "Enable I2C device address scanning at startup" OFF)
+
 # Include Modbus code generation configuration
 include(${CMAKE_SOURCE_DIR}/config/modbus_codegen.cmake)
 
@@ -165,20 +170,23 @@ target_compile_definitions(freertos_config INTERFACE projCOVERAGE_TEST=0)
 
 set(FREERTOS_PORT "GCC_ARM_CM33_NTZ_NONSECURE" CACHE STRING "FreeRTOS Port")
 
-message(STATUS "[1/5] Adding FreeRTOS-Kernel...")
+message(STATUS "[1] Adding FreeRTOS-Kernel...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/FreeRTOS-Kernel)
 
-message(STATUS "[2/5] Adding LwIP stack...")
+message(STATUS "[2] Adding LwIP stack...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lwip)
 
-message(STATUS "[3/5] Adding Modbus stack...")
+message(STATUS "[3] Adding Modbus stack...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/modbus)
 
-message(STATUS "[4/5] Adding ADC Filter library...")
+message(STATUS "[4] Adding ADC Filter library...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/adc_filter)
 
-message(STATUS "[5/5] Adding BSP (${BSP_DIR})...")
+message(STATUS "[5] Adding BSP (${BSP_DIR})...")
 add_subdirectory(${BSP_DIR})
+
+message(STATUS "[6] Adding I2C LCD library...")
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lcd_i2c)
 
 message(STATUS "=== Libraries configured ===")
 message(STATUS "")
@@ -212,6 +220,19 @@ modbus_add_generated_sources(
     GENERATED_FILES ${MODBUS_GENERATED_SOURCES}
 )
 
+# ==========================================================================
+# Optional Feature Configuration
+# ==========================================================================
+if(ENABLE_I2C_DEVICE_SCAN)
+    target_compile_definitions(jerry_app PRIVATE ENABLE_I2C_DEVICE_SCAN=1)
+    message(STATUS "[Optional Feature] I2C Device Scan: ENABLED")
+    message(STATUS "  - I2C bus will be scanned at startup")
+    message(STATUS "  - All detected device addresses will be printed to console")
+else()
+    message(STATUS "[Optional Feature] I2C Device Scan: DISABLED")
+    message(STATUS "  - To enable: cmake -DENABLE_I2C_DEVICE_SCAN=ON ..")
+endif()
+
 target_link_libraries(jerry_app
     PRIVATE
         "-Wl,--whole-archive"
@@ -221,6 +242,7 @@ target_link_libraries(jerry_app
         "-Wl,--no-whole-archive"
         freertos_kernel
         adc_filter
+        lcd_i2c
 )
 
 # Ensure jerry_secure_app is built first so import lib exists
