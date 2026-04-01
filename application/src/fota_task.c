@@ -16,6 +16,9 @@ void vFotaTask(void* pvParameters)
 
     /* Initialize FOTA (Flash, Security, etc.) */
 
+    xEventGroupSync(xSyncEventGroup, APPTASK_FOTA_TASK_EVENT_MASK,
+                    APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
+
     for (;;)
     {
         /* Check for updates */

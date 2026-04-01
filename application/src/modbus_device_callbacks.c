@@ -19,6 +19,7 @@
 #include "FreeRTOS.h"
 #include "bsp.h"
 #include "jerry_device_registers.h"
+#include "lcd_manager.h"
 #include "modbus_callbacks.h"
 #include "task.h"
 
@@ -133,6 +134,7 @@ static void update_digital_output(uint16_t channel, bool val, bool *pCoil)
                 {
                     *pCoil = val;
                 }
+                LcdManager_UpdateDigitalOutputStatus(channel, val);
                 printf(" ok\r\n");
             }
             else

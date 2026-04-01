@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 
+#include "app_tasks.h"
 #include "bsp.h"
 #include "ethernetif.h"
 #include "lcd_manager.h"
@@ -176,6 +177,9 @@ void vTcpEchoTask(void *pvParameters)
     ip4_addr_t gw;
 
     (void)pvParameters;
+
+    xEventGroupSync(xSyncEventGroup, APPTASK_TCPECHO_TASK_EVENT_MASK,
+                    APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
 
     printf("TCP Echo Task Started\n");
 

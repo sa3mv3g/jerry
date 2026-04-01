@@ -128,9 +128,9 @@ typedef int bsp_error_t;
 #define BSP_I2CDO_PCF8574A_ADDR                                              \
     (0x21 << 1) /**< 7-bit I2C address of PCF8574A (0x21), shifted left by 1 \
                    for HAL functions. */
-#define BSP_I2CDO_TIMEOUT                               \
-    100 /**< I2C communication timeout in milliseconds. \
-         */
+#define BSP_I2CDO_TIMEOUT                                \
+    100U /**< I2C communication timeout in milliseconds. \
+          */
 /** @} */
 
 /**

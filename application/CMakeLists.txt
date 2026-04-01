@@ -250,7 +250,7 @@ add_dependencies(jerry_app jerry_secure_app)
 
 # Compiler options are inherited from toolchain but we can add more specific ones
 target_compile_options(jerry_app PRIVATE
-    -Wall -Wextra -Werror -g -gdwarf-4
+    -Wall -Wextra -Werror -g -gdwarf-4 -Wfatal-errors
 )
 
 # Linker options

@@ -15,6 +15,7 @@
 #include "app_tasks.h"
 #include "bsp.h"
 #include "jerry_device_registers.h"
+#include "lcd_manager.h"
 #include "lwip/api.h"
 #include "lwip/err.h"
 #include "lwip/netbuf.h"
@@ -89,11 +90,15 @@ void vModbusTask(void *pvParameters)
 {
     (void)pvParameters;
 
+    uint8_t  dev_addr;
+    uint16_t initDigitalOutputCoilsValues;
+
     printf("Modbus Task Started\n");
 
     /* Read device address from DEVADDR pins and set Modbus unit ID */
-    uint8_t dev_addr = BSP_GetDeviceAddress();
+    dev_addr         = BSP_GetDeviceAddress();
     s_modbus_unit_id = MODBUS_UNIT_ID_BASE + dev_addr;
+
     printf("Modbus: Device address from DEVADDR pins: %u, Unit ID: %u\n",
            dev_addr, s_modbus_unit_id);
 
@@ -115,6 +120,15 @@ void vModbusTask(void *pvParameters)
         s_connections[i].conn   = NULL;
         s_connections[i].active = false;
     }
+
+    xEventGroupSync(xSyncEventGroup, APPTASK_MODBUS_TASK_EVENT_MASK,
+                    APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
+
+    LcdManager_UpdateModbusDeviceAddress(s_modbus_unit_id);
+    initDigitalOutputCoilsValues = 0x0;
+    BSP_I2CDO_Read(&initDigitalOutputCoilsValues);
+    modbus_cb_write_multiple_coils(
+        0, 16, (const uint8_t *)&initDigitalOutputCoilsValues);
 
     /* Start the Modbus TCP server */
     modbus_tcp_server_thread(NULL);

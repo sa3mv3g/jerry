@@ -171,6 +171,9 @@ void vMonitorTask(void* pvParameters)
 
     uint32_t stats_counter = 0;
 
+    xEventGroupSync(xSyncEventGroup, APPTASK_MONITOR_TASK_EVENT_MASK,
+                    APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
+
     (void)printf("[Monitor] Task started - monitoring stack and LwIP memory\n");
 
     for (;;)

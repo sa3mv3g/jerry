@@ -11,6 +11,7 @@
 #include "FreeRTOS.h"
 #include "app_tasks.h"
 #include "bsp.h"
+#include "lcd_manager.h"
 #include "task.h"
 #include "timers.h"
 
@@ -52,6 +53,9 @@ void print_lwip_memory_stats(void);
 bool check_lwip_memory_critical(void);
 #endif
 void print_task_stack_usage(void);
+
+EventGroupHandle_t        xSyncEventGroup;
+static StaticEventGroup_t xSyncEventGroupBuff;
 
 /* Static Task Structures */
 static StaticTask_t xMainTaskTCB;
@@ -396,15 +400,23 @@ int main(void)
     I2C_ScanBus();
 #endif
 
-    /* Create Main Task */
-    xMainTaskHandle = xTaskCreateStatic(
-        vMainTask, "Main", MAIN_TASK_STACK_SIZE, NULL,
-        (UBaseType_t)(tskIDLE_PRIORITY + 1U), xMainTaskStack, &xMainTaskTCB);
+    BSP_I2CDO_init();
 
-    if (NULL != xMainTaskHandle)
+    xSyncEventGroup = xEventGroupCreateStatic(&xSyncEventGroupBuff);
+
+    if (NULL != xSyncEventGroup)
     {
-        /* Start Scheduler */
-        vTaskStartScheduler();
+        /* Create Main Task */
+        xMainTaskHandle =
+            xTaskCreateStatic(vMainTask, "Main", MAIN_TASK_STACK_SIZE, NULL,
+                              (UBaseType_t)(tskIDLE_PRIORITY + 1U),
+                              xMainTaskStack, &xMainTaskTCB);
+
+        if (NULL != xMainTaskHandle)
+        {
+            /* Start Scheduler */
+            vTaskStartScheduler();
+        }
     }
 
     /* Should never reach here - MISRA 15.6 compliant compound statement */
@@ -444,9 +456,32 @@ void vMainTask(void* pvParameters)
         vLcdManageTask, "LCDMan", LCD_MANAGE_TASK_STACK_SIZE, NULL,
         tskIDLE_PRIORITY + 1, xLcdManageTaskStack, &xLcdManageTaskTCB);
 
+    xEventGroupSync(xSyncEventGroup, APPTASK_MAIN_TASK_EVENT_MASK,
+                    APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
+
     for (;;)
     {
         /* Main loop */
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(500));
+
+        for (uint8_t digitalInputChannelIndex = BSP_GPIODI_INDEX_0;
+             digitalInputChannelIndex <= BSP_GPIODI_INDEX_7;
+             digitalInputChannelIndex++)
+        {
+            uint32_t digitalInputValue;
+            bool     digitalInputStatus;
+
+            BSP_GPIODI_Read(digitalInputChannelIndex, &digitalInputValue);
+            if (digitalInputValue == GPIO_PIN_SET)
+            {
+                digitalInputStatus = true;
+            }
+            else
+            {
+                digitalInputStatus = false;
+            }
+            LcdManager_UpdateDigitalInputStatus(digitalInputChannelIndex,
+                                                digitalInputStatus);
+        }
     }
 }
