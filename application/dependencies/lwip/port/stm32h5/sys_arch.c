@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+ * Copyright (c) 2026
  * All rights reserved.
  *
  * LwIP System Architecture for FreeRTOS (Static Allocation)

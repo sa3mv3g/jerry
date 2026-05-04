@@ -2,7 +2,7 @@
  * @file i2c_scanner.c
  * @brief I2C Bus Scanner Utility Implementation
  *
- * @copyright Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+ * @copyright Copyright (c) 2026
  * All rights reserved.
  */
 

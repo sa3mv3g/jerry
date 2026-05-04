@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+# Copyright (c) 2026
 # All rights reserved.
 """
 Dynamic Modbus TCP test script for STM32H563.

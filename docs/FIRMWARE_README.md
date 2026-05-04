@@ -270,4 +270,4 @@ For issues and feature requests, please contact the development team.
 
 ## License
 
-Copyright (c) 2026 Advance Instrumentation 'n' Control Systems. All rights reserved.
+Copyright (c) 2026 . All rights reserved.

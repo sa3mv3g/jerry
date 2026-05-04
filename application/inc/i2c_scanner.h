@@ -5,7 +5,7 @@
  * This utility scans the I2C bus for connected devices and prints their
  * addresses to the console. Useful for debugging and device discovery.
  *
- * @copyright Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+ * @copyright Copyright (c) 2026
  * All rights reserved.
  */
 

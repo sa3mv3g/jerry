@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+ * Copyright (c) 2026
  * All rights reserved.
  *
  * STM32H5 LwIP Ethernet Interface Header

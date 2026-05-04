@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+# Copyright (c) 2026
 # All rights reserved.
 #
 # CPack Configuration for Jerry Firmware
@@ -70,7 +70,7 @@ endif()
 # Package Metadata
 # =============================================================================
 set(CPACK_PACKAGE_NAME "jerry-firmware")
-set(CPACK_PACKAGE_VENDOR "Advance Instrumentation 'n' Control Systems")
+set(CPACK_PACKAGE_VENDOR "")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Jerry Data Acquisition Firmware for STM32H563")
 set(CPACK_PACKAGE_DESCRIPTION "Jerry is a data acquisition firmware designed for STM32H5xxx series microcontrollers. It features FreeRTOS with static allocation, Modbus TCP/IP and RTU support, secure boot with TrustZone, and comprehensive I/O capabilities.")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/aics/jerry")

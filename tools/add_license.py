@@ -1,13 +1,13 @@
 import os
 
 HEADER_C = """/*
- * Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+ * Copyright (c) 2026
  * All rights reserved.
  */
 
 """
 
-HEADER_PY = """# Copyright (c) 2026 Advance Instrumentation 'n' Control Systems
+HEADER_PY = """# Copyright (c) 2026
 # All rights reserved.
 
 """
@@ -51,7 +51,7 @@ def process_file(filepath):
         return
 
     if (
-        "Copyright (c) 2026 Advance Instrumentation 'n' Control Systems"
+        "Copyright (c) 2026 "
         in content
     ):
         print(f"Skipping {filepath} (already has header)")
