@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MODBUS TCP Client</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; }
+        label { display: block; margin-top: 10px; }
+        input, button { margin-top: 5px; }
+        #result { white-space: pre-wrap; background: #f4f4f4; padding: 10px; margin-top: 10px; }
+        #status { font-weight: bold; margin-top: 10px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>MODBUS TCP Client</h1>
+    <div class="section">
+        <label for="proxyHost">Proxy Host:</label>
+        <input type="text" id="proxyHost" value="localhost">
+        <label for="proxyPort">Proxy Port:</label>
+        <input type="number" id="proxyPort" value="8080">
+        <div id="proxyStatus" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="section">
+        <label for="ip">Server IP:</label>
+        <input type="text" id="ip" value="192.168.1.100">
+        <label for="port">Port:</label>
+        <input type="number" id="port" value="502">
+    </div>
+
+    <div class="section">
+        <h2>Read Coils</h2>
+        <label for="coilStart">Starting Address:</label>
+        <input type="number" id="coilStart" value="0">
+        <label for="coilCount">Quantity:</label>
+        <input type="number" id="coilCount" value="1">
+        <button id="readCoils">Read Coils</button>
+        <div id="coilResult" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="section">
+        <h2>Read Holding Registers</h2>
+        <label for="regStart">Starting Address:</label>
+        <input type="number" id="regStart" value="0">
+        <label for="regCount">Quantity:</label>
+        <input type="number" id="regCount" value="1">
+        <button id="readHoldingRegisters">Read Holding Registers</button>
+        <div id="regResult" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="section">
+        <h2>Write Single Coil</h2>
+        <label for="writeCoilAddr">Address:</label>
+        <input type="number" id="writeCoilAddr" value="0">
+        <label for="writeCoilValue">Value (true/false):</label>
+        <input type="text" id="writeCoilValue" value="false">
+        <button id="writeCoil">Write Coil</button>
+    </div>
+
+    <div class="section">
+        <h2>Write Single Register</h2>
+        <label for="writeRegAddr">Address:</label>
+        <input type="number" id="writeRegAddr" value="0">
+        <label for="writeRegValue">Value:</label>
+        <input type="number" id="writeRegValue" value="0">
+        <button id="writeRegister">Write Register</button>
+    </div>
+
+    <script>
+        // Configuration for the proxy
+        const getProxyUrl = () => {
+            const host = document.getElementById('proxyHost').value || 'localhost';
+            const port = document.getElementById('proxyPort').value || '8080';
+            return `http://${host}:${port}`;
+        };
+
+        // Update proxy status
+        const updateProxyStatus = (message, isError = false) => {
+            const statusEl = document.getElementById('proxyStatus');
+            statusEl.textContent = message;
+            statusEl.className = isError ? 'error' : 'success';
+        };
+
+        // Test proxy connection
+        document.getElementById('proxyHost').addEventListener('change', testProxy);
+        document.getElementById('proxyPort').addEventListener('change', testProxy);
+
+        async function testProxy() {
+            const proxyUrl = getProxyUrl();
+            try {
+                const response = await fetch(`${proxyUrl}/test`, { timeout: 2000 });
+                if (response.ok) {
+                    updateProxyStatus('Proxy connected', false);
+                } else {
+                    updateProxyStatus(`Proxy error: ${response.status}`, true);
+                }
+            } catch (e) {
+                updateProxyStatus('Proxy not reachable', true);
+            }
+        }
+
+        // Initial test
+        testProxy();
+
+        // Helper to make proxy requests
+        async function proxyRequest(endpoint, data = {}) {
+            const proxyUrl = getProxyUrl();
+            const url = `${proxyUrl}${endpoint}`;
+
+            try {
+                const response = await fetch(url, {
+                    method: data.method || 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: data.body ? JSON.stringify(data.body) : undefined
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                throw new Error(`Proxy request failed: ${error.message}`);
+            }
+        }
+
+        // Read Coils
+        document.getElementById('readCoils').addEventListener('click', async () => {
+            const ip = document.getElementById('ip').value;
+            const port = parseInt(document.getElementById('port').value, 10);
+            const start = parseInt(document.getElementById('coilStart').value, 10);
+            const count = parseInt(document.getElementById('coilCount').value, 10);
+
+            try {
+                const result = await proxyRequest('/read_coils', {
+                    method: 'POST',
+                    body: { ip, port, start, count }
+                });
+                document.getElementById('coilResult').textContent = 'Coils: ' + JSON.stringify(result.value);
+            } catch (e) {
+                document.getElementById('coilResult').textContent = 'Error: ' + e.message;
+                document.getElementById('coilResult').className = 'error';
+            }
+        });
+
+        // Read Holding Registers
+        document.getElementById('readHoldingRegisters').addEventListener('click', async () => {
+            const ip = document.getElementById('ip').value;
+            const port = parseInt(document.getElementById('port').value, 10);
+            const start = parseInt(document.getElementById('regStart').value, 10);
+            const count = parseInt(document.getElementById('regCount').value, 10);
+
+            try {
+                const result = await proxyRequest('/read_holding_registers', {
+                    method: 'POST',
+                    body: { ip, port, start, count }
+                });
+                document.getElementById('regResult').textContent = 'Holding Registers: ' + JSON.stringify(result.value);
+                document.getElementById('regResult').className = '';
+            } catch (e) {
+                document.getElementById('regResult').textContent = 'Error: ' + e.message;
+                document.getElementById('regResult').className = 'error';
+            }
+        });
+
+        // Write Single Coil
+        document.getElementById('writeCoil').addEventListener('click', async () => {
+            const ip = document.getElementById('ip').value;
+            const port = parseInt(document.getElementById('port').value, 10);
+            const addr = parseInt(document.getElementById('writeCoilAddr').value, 10);
+            const value = document.getElementById('writeCoilValue').value.toLowerCase() === 'true';
+
+            try {
+                await proxyRequest('/write_coil', {
+                    method: 'POST',
+                    body: { ip, port, address: addr, value }
+                });
+                alert('Coil written successfully');
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        });
+
+        // Write Single Register
+        document.getElementById('writeRegister').addEventListener('click', async () => {
+            const ip = document.getElementById('ip').value;
+            const port = parseInt(document.getElementById('port').value, 10);
+            const addr = parseInt(document.getElementById('writeRegAddr').value, 10);
+            const value = parseInt(document.getElementById('writeRegValue').value, 10);
+
+            try {
+                await proxyRequest('/write_register', {
+                    method: 'POST',
+                    body: { ip, port, address: addr, value }
+                });
+                alert('Register written successfully');
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        });
+    </script>
+</body>
+</html>

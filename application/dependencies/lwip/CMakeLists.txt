@@ -17,6 +17,7 @@ add_subdirectory(port)
 target_include_directories(lwip_stack PUBLIC
     "${LWIP_PORT_INC}"
     "${STM32_LWIP_DIR}/src/include"
+    "${STM32_LWIP_DIR}/src/include/lwip"
     "${CMAKE_CURRENT_SOURCE_DIR}/config/"
 )
 

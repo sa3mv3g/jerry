@@ -23,13 +23,14 @@ def main():
     config_file = os.path.join(root_dir, "config", ".clang-format")
 
     exclusive_files_list:list[str] = [
-        os.path.join(root_dir, "application/bsp/stm/bsp.c"),
+        os.path.join(root_dir, "application/bsp/stm/Source/bsp.c"),
         os.path.join(root_dir, "application/bsp/bsp.h"),
     ]
 
     # Files to ignore/exclude if any
     # Search patterns
     patterns = [
+        os.path.join(root_dir, "application", "bsp", "stm", "Source", "**", "*.[ch]"),
         os.path.join(root_dir, "application", "src", "**", "*.[ch]"),
         os.path.join(root_dir, "application", "inc", "**", "*.[ch]"),
         os.path.join(root_dir, "application", "dependencies", "modbus", "src", "**", "*.[ch]"),
@@ -47,9 +48,19 @@ def main():
     for pattern in patterns:
         files.extend(glob.glob(pattern, recursive=True))
 
-    if not files:
+    # Filter out non-existing files
+    existing_files = []
+    for f in files:
+        if os.path.isfile(f):
+            existing_files.append(f)
+        else:
+            print(f"Warning: File {f} does not exist. Skipping.")
+
+    if not existing_files:
         print("No files found to format.")
         return
+
+    files = existing_files
 
     batch = []
     current_len = 0

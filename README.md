@@ -167,16 +167,16 @@ Jerry includes a custom Modbus library supporting RTU, ASCII, and TCP/IP protoco
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Application Layer                         │
-│              (User Callbacks & Register Data)                │
+│                    Application Layer                        │
+│              (User Callbacks & Register Data)               │
 ├─────────────────────────────────────────────────────────────┤
-│                      Core Layer                              │
+│                      Core Layer                             │
 │           (modbus_core.c, modbus_pdu.c)                     │
 ├─────────────────────────────────────────────────────────────┤
-│                    Protocol Layer                            │
+│                    Protocol Layer                           │
 │      (modbus_rtu.c, modbus_ascii.c, modbus_tcp.c)           │
 ├─────────────────────────────────────────────────────────────┤
-│                    Utility Layer                             │
+│                    Utility Layer                            │
 │            (modbus_crc.c, modbus_lrc.c)                     │
 └─────────────────────────────────────────────────────────────┘
 ```

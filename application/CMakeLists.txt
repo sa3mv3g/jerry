@@ -21,8 +21,18 @@ set(APP_HEADERS ${APP_HEADERS} bsp/bsp.h)
 set(DEPS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/")
 set(LWIP_DEPS_PATH "${DEPS_PATH}/lwip")
 
-# All cmake FetchContent_Declare's target should be of
-# /FCD_.*/ to make name unique.
+# ==========================================================================
+# WebSocket Configuration (must be set BEFORE FetchContent_MakeAvailable)
+# ==========================================================================
+# for now, disable security.
+set(LWS_WITH_SSL OFF CACHE BOOL "Build without security" FORCE)
+# Build only static library to avoid duplicate symbol issues
+set(LWS_WITH_SHARED OFF CACHE BOOL "Build the shared version of the library" FORCE)
+# build for platform
+set(LWS_PLAT_BAREMETAL OFF CACHE BOOL "Build the shared version of the library" FORCE)
+set(LWS_PLAT_FREERTOS ON CACHE BOOL "Build the shared version of the library" FORCE)
+# do not need IPV6.
+set(LWS_IPV6 OFF CACHE BOOL "Build the shared version of the library" FORCE)
 
 # ==========================================================================
 # CMSIS-DSP Configuration (must be set BEFORE FetchContent_MakeAvailable)
@@ -34,21 +44,21 @@ set(ARM_CPU "cortex-m33" CACHE STRING "ARM CPU type")
 set(CMSISCORE "${DEPS_PATH}/CMSIS_6/CMSIS/Core/Include" CACHE PATH "Path to CMSIS Core headers")
 
 # Enable all DSP functions
-set(BASICMATH ON CACHE BOOL "Include Basic Math Functions")
-set(COMPLEXMATH ON CACHE BOOL "Include Complex Math Functions")
-set(CONTROLLER ON CACHE BOOL "Include Controller Functions")
-set(FASTMATH ON CACHE BOOL "Include Fast Math Functions")
+set(BASICMATH OFF CACHE BOOL "Include Basic Math Functions")
+set(COMPLEXMATH OFF CACHE BOOL "Include Complex Math Functions")
+set(CONTROLLER OFF CACHE BOOL "Include Controller Functions")
+set(FASTMATH OFF CACHE BOOL "Include Fast Math Functions")
 set(FILTERING ON CACHE BOOL "Include Filtering Functions")
-set(MATRIX ON CACHE BOOL "Include Matrix Functions")
-set(STATISTICS ON CACHE BOOL "Include Statistics Functions")
-set(SUPPORT ON CACHE BOOL "Include Support Functions")
-set(TRANSFORM ON CACHE BOOL "Include Transform Functions")
-set(SVM ON CACHE BOOL "Include SVM Functions")
-set(BAYES ON CACHE BOOL "Include Bayes Functions")
-set(DISTANCE ON CACHE BOOL "Include Distance Functions")
-set(INTERPOLATION ON CACHE BOOL "Include Interpolation Functions")
-set(QUATERNIONMATH ON CACHE BOOL "Include Quaternion Math Functions")
-set(WINDOW ON CACHE BOOL "Include Window Functions")
+set(MATRIX OFF CACHE BOOL "Include Matrix Functions")
+set(STATISTICS OFF CACHE BOOL "Include Statistics Functions")
+set(SUPPORT OFF CACHE BOOL "Include Support Functions")
+set(TRANSFORM OFF CACHE BOOL "Include Transform Functions")
+set(SVM OFF CACHE BOOL "Include SVM Functions")
+set(BAYES OFF CACHE BOOL "Include Bayes Functions")
+set(DISTANCE OFF CACHE BOOL "Include Distance Functions")
+set(INTERPOLATION OFF CACHE BOOL "Include Interpolation Functions")
+set(QUATERNIONMATH OFF CACHE BOOL "Include Quaternion Math Functions")
+set(WINDOW OFF CACHE BOOL "Include Window Functions")
 
 # Disable Neon (not available on Cortex-M33)
 set(NEON OFF CACHE BOOL "Neon acceleration")
@@ -71,6 +81,9 @@ set(MATRIXCHECK OFF CACHE BOOL "Matrix dimension check")
 # Float16 support
 set(FLOAT16 OFF CACHE BOOL "Float16 support")
 
+# All cmake FetchContent_Declare's target should be of
+# /FCD_.*/ to make name unique.
+
 # ==========================================================================
 # FetchContent Progress Messages
 # ==========================================================================
@@ -78,7 +91,7 @@ message(STATUS "")
 message(STATUS "=== Fetching External Dependencies ===")
 
 # 1. Download Official STM32 LwIP Middleware
-message(STATUS "[1/4] Declaring STM32 LwIP Middleware (stm32-mw-lwip v2.1.3_20241213)...")
+message(STATUS "[1] Declaring STM32 LwIP Middleware (stm32-mw-lwip v2.1.3_20241213)...")
 FetchContent_Declare(
     FCD_stm32_mw_lwip
     GIT_REPOSITORY https://github.com/STMicroelectronics/stm32-mw-lwip.git
@@ -88,7 +101,7 @@ FetchContent_Declare(
 )
 
 # 2. Download FreeRTOS-Kernel
-message(STATUS "[2/4] Declaring FreeRTOS-Kernel (V11.2.0)...")
+message(STATUS "[2] Declaring FreeRTOS-Kernel (V11.2.0)...")
 FetchContent_Declare(
     FCD_freertos_kernel
     GIT_REPOSITORY https://github.com/FreeRTOS/FreeRTOS-Kernel.git
@@ -99,7 +112,7 @@ FetchContent_Declare(
 )
 
 # 3. Download CMSIS_6 for core headers (must be before CMSIS-DSP)
-message(STATUS "[3/4] Declaring CMSIS_6 (v6.1.0)...")
+message(STATUS "[3] Declaring CMSIS_6 (v6.1.0)...")
 FetchContent_Declare(
     FCD_cmsis_6
     GIT_REPOSITORY https://github.com/ARM-software/CMSIS_6.git
@@ -110,7 +123,7 @@ FetchContent_Declare(
 )
 
 # 4. Download CMSIS-DSP from official ARM GitHub repository
-message(STATUS "[4/4] Declaring CMSIS-DSP (v1.16.2)...")
+message(STATUS "[4] Declaring CMSIS-DSP (v1.16.2)...")
 FetchContent_Declare(
     FCD_cmsis_dsp
     GIT_REPOSITORY https://github.com/ARM-software/CMSIS-DSP.git
@@ -119,15 +132,52 @@ FetchContent_Declare(
     GIT_PROGRESS   TRUE
 )
 
+#5 Download WebSocket repo
+message(STATUS "[5] Declaring LibWebSockets (v4.5.8)...")
+FetchContent_Declare(
+    FCD_websockets
+    GIT_REPOSITORY https://github.com/sa3mv3g/libwebsockets.git
+    GIT_TAG        "main"
+    SOURCE_DIR     "${DEPS_PATH}/libwebsockets"
+    GIT_PROGRESS   TRUE
+)
+
+# Build only static library to avoid duplicate symbol issues
+set(LWS_WITH_SHARED OFF CACHE BOOL "Build the shared version of the library" FORCE)
+
 # Populate the content at configure time
 message(STATUS "")
 message(STATUS "Fetching dependencies (this may take a while on first run)...")
 message(STATUS "  - STM32 LwIP Middleware: ${LWIP_DEPS_PATH}/stm32-mw-lwip")
+FetchContent_MakeAvailable(FCD_stm32_mw_lwip)
+set(LWIP_LWS_SPEC_INCLUDE_DIR "${CMAKE_BINARY_DIR}/lwip_lws/include")
+file(MAKE_DIRECTORY "${LWIP_LWS_SPEC_INCLUDE_DIR}/sys")
+file(COPY
+    "${DEPS_PATH}/lwip/stm32-mw-lwip/src/include/lwip/sockets.h"
+    DESTINATION "${LWIP_LWS_SPEC_INCLUDE_DIR}/sys"
+)
+
+# ==========================================================================
+# download freertos kernel and copy required files
+# ==========================================================================
+
 message(STATUS "  - FreeRTOS-Kernel: ${DEPS_PATH}/FreeRTOS-Kernel")
+FetchContent_MakeAvailable(FCD_freertos_kernel)
+
+# websocket assumes location of some header files in freertos folder
+set(FREETOS_INCLUDE_DIR "${CMAKE_BINARY_DIR}/freertos_lws/")
+file(MAKE_DIRECTORY "${FREETOS_INCLUDE_DIR}/freertos")
+
+file(COPY
+    "${DEPS_PATH}/FreeRTOS-Kernel/include/"
+    DESTINATION "${FREETOS_INCLUDE_DIR}/freertos"
+)
 message(STATUS "  - CMSIS_6: ${DEPS_PATH}/CMSIS_6")
+FetchContent_MakeAvailable(FCD_cmsis_6)
 message(STATUS "  - CMSIS-DSP: ${DEPS_PATH}/CMSIS-DSP")
-message(STATUS "")
-FetchContent_MakeAvailable(FCD_stm32_mw_lwip FCD_freertos_kernel FCD_cmsis_6 FCD_cmsis_dsp)
+FetchContent_MakeAvailable(FCD_cmsis_dsp)
+message(STATUS "  - WebSockets: ${DEPS_PATH}/libwebsockets")
+FetchContent_MakeAvailable(FCD_websockets)
 message(STATUS "")
 message(STATUS "=== Dependencies fetched successfully ===")
 message(STATUS "")
@@ -188,8 +238,39 @@ add_subdirectory(${BSP_DIR})
 message(STATUS "[6] Adding I2C LCD library...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lcd_i2c)
 
+# add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/libwebsockets)
+
 message(STATUS "=== Libraries configured ===")
 message(STATUS "")
+
+# ==========================================================================
+# WebSocket Include Directories Configuration
+# AT THIS POINT ONLY GOD KNOWS HOW THIS WORK!!!!
+# ==========================================================================
+if(TARGET websockets)
+
+    # Add lwip include directories
+    if(TARGET lwip_stack)
+        target_include_directories(websockets SYSTEM PRIVATE
+            $<TARGET_PROPERTY:lwip_stack,INTERFACE_INCLUDE_DIRECTORIES>
+            ${LWIP_LWS_SPEC_INCLUDE_DIR}
+        )
+    endif()
+
+    # Add FreeRTOS include directories from freertos_kernel_include and freertos_kernel_port_headers
+    if(TARGET freertos_kernel)
+        target_include_directories(websockets SYSTEM PRIVATE
+            $<TARGET_PROPERTY:freertos_kernel_include,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:freertos_kernel_port_headers,INTERFACE_INCLUDE_DIRECTORIES>
+            ${FREETOS_INCLUDE_DIR}
+        )
+    endif()
+
+    # Add application inc directory for FreeRTOSConfig.h
+    target_include_directories(websockets SYSTEM PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/inc
+    )
+endif()
 
 # ==========================================================================
 # Modbus Code Generation
@@ -212,6 +293,7 @@ target_include_directories(jerry_app PRIVATE
     inc
     bsp
     src/generated
+    ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/CMSIS_6/CMSIS/Driver/Include
 )
 
 # Add Modbus generated sources to the application
@@ -235,6 +317,7 @@ endif()
 
 target_link_libraries(jerry_app
     PRIVATE
+        websockets
         "-Wl,--whole-archive"
         lwip_stack
         stm32h563_bsp
