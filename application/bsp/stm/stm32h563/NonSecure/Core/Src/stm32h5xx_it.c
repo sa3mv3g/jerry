@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdint.h>
 #include <stdio.h>
+#include "eeprom_emul.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -167,5 +168,109 @@ void ETH_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+
+void EXTI15_10_IRQHandler(void)
+{
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
+}
+
+void PVD_AVD_IRQHandler(void)
+{
+  HAL_PWR_PVD_IRQHandler();
+}
+
+/**
+  * @brief  This function handles PVD interrupt callback.
+  * @param  None
+  * @retval None
+  */
+void HAL_PWR_PVDCallback(void)
+{
+  /* Loop inside the handler to prevent the Cortex from using the Flash,
+     allowing the flash interface to finish any ongoing transfer. */
+  while (__HAL_PWR_GET_FLAG(PWR_FLAG_PVDO) != RESET)
+  {
+  }
+}
+
+void NMI_Handler(void)
+{
+  uint32_t Address;
+
+    /* Check if NMI is due to flash ECCD (error detection) */
+  if (__HAL_FLASH_GET_FLAG(FLASH_FLAG_ECCD))
+  {
+#ifdef EDATA_ENABLED
+	/* Check if NMI is related to a 0xFFFF value (empty value or possible header*/
+    if (READ_REG(FLASH->ECCDR) == 0xFFFF)
+    {
+	/* If yes, we clear the flag */
+      __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ECCD);
+
+	/* And we exit from NMI without doing anything */
+	/* We do not invalidate that line because it may try to reprogramm at 0 a header line or an empty line read at 0xFFFF */
+	/* The only consequence is that this line will trigger a new NMI later */
+      return;
+    }
+#endif
+    if(CleanupPhase==1)
+    {
+      if ((AddressRead >= START_PAGE_ADDRESS) && (AddressRead <= END_EEPROM_ADDRESS))
+      {
+      	/* Delete the corrupted flash address */
+#ifdef EDATA_ENABLED
+        Address=(uint32_t)(AddressRead&0xFFFFFFF8);
+#else
+        Address=(uint32_t)(AddressRead&0xFFFFFFF0);
+#endif
+        if (EE_DeleteCorruptedFlashAddress((uint32_t)Address) == EE_OK)
+        {
+          /* Resume execution if deletion succeeds */
+          return;
+        }
+        /* If we do not succeed to delete the corrupted flash address */
+        /* This might be because we try to write 0 at a line already considered at 0 which is a forbidden operation */
+        /* This problem triggers PROGERR, PGAERR and PGSERR flags */
+        else
+        {
+          /* We check if the flags concerned have been triggered */
+          if((__HAL_FLASH_GET_FLAG(FLASH_FLAG_WRPERR))  || (__HAL_FLASH_GET_FLAG(FLASH_FLAG_PGSERR)) ||
+             (__HAL_FLASH_GET_FLAG(FLASH_FLAG_STRBERR)) || (__HAL_FLASH_GET_FLAG(FLASH_FLAG_INCERR)))
+          {
+            /* If yes, we clear them */
+            __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_WRPERR);
+            __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_PGSERR);
+            __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_STRBERR);
+            __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_INCERR);
+
+            /* And we exit from NMI without doing anything */
+            /* We do not invalidate that line because it is not programmable at 0 till the next page erase */
+            /* The only consequence is that this line will trigger a new NMI later */
+            return;
+          }
+        }
+      }
+    }
+    else
+    {
+      __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ECCD);
+      return;
+    }
+  }
+
+  /* Go to infinite loop when NMI occurs in case:
+     - ECCD is raised in eeprom emulation flash pages but corrupted flash address deletion fails (except PROGERR, PGAERR and PGSERR)
+     - ECCD is raised out of eeprom emulation flash pages
+     - no ECCD is raised */
+
+  /* Go to infinite loop when NMI occurs */
+  while (1)
+  {
+    /* Toggle LED3 fast */
+    BSP_LED_Toggle(LED3);
+    HAL_Delay(40);
+  }
+
+}
 
 /* USER CODE END 1 */

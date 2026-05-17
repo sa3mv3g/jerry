@@ -146,6 +146,12 @@ typedef int bsp_error_t;
  * provided by the Board Support Package.
  */
 extern COM_InitTypeDef BspCOMInit;
+/**
+ * @brief  IWDG (Independent Watchdog) handler declaration
+ * @note   The actual definition of this handler is in the BSP implementation
+ * file where the IWDG peripheral is initialized and configured
+ */
+extern IWDG_HandleTypeDef hiwdg;
 
 /**
  * @brief Initializes the Board Support Package (BSP).
@@ -438,12 +444,49 @@ bsp_error_t BSP_GPIODI_Read(uint32_t channel, uint32_t *pVal);
  */
 uint8_t BSP_GetDeviceAddress(void);
 
+/**
+ * @brief  Reads data from an I2C slave device.
+ * @param  address: The 7-bit I2C device address (left-shifted by 1 for HAL
+ * compatibility)
+ * @param  buff: Pointer to the buffer that will receive the data read from the
+ * device
+ * @param  len: Number of bytes to read
+ * @param  timeout: Timeout duration in milliseconds
+ * @return bsp_error_t: BSP_OK if successful, otherwise an error code:
+ *         - BSP_INVALID_ARG if buff is NULL
+ *         - BSP_BUSY if I2C peripheral is busy
+ *         - BSP_TIMEOUT if operation timed out
+ *         - BSP_ERROR for other HAL errors
+ */
 bsp_error_t BSP_I2C_Master_Read(uint8_t address, uint8_t *buff, uint16_t len,
                                 uint32_t timeout);
 
+/**
+ * @brief  Writes data to an I2C slave device.
+ * @param  address: The 7-bit I2C device address (left-shifted by 1 for HAL
+ * compatibility)
+ * @param  buff: Pointer to the buffer containing the data to write
+ * @param  len: Number of bytes to write
+ * @param  timeout: Timeout duration in milliseconds
+ * @return bsp_error_t: BSP_OK if successful, otherwise an error code:
+ *         - BSP_INVALID_ARG if buff is NULL
+ *         - BSP_BUSY if I2C peripheral is busy
+ *         - BSP_TIMEOUT if operation timed out
+ *         - BSP_ERROR for other HAL errors
+ */
 bsp_error_t BSP_I2C_Master_Write(uint8_t address, uint8_t *buff, uint16_t len,
                                  uint32_t timeout);
 
+/**
+ * @brief  Provides a delay in microseconds using TIM7.
+ * @param  us: Delay duration in microseconds (maximum 65535)
+ * @note   This function uses TIM7 in one-pulse mode to generate precise
+ * microsecond delays
+ * @note   The delay is approximate and may vary slightly due to interrupt
+ * latency
+ * @note   Maximum delay is 65535 microseconds (approximately 65.5 milliseconds)
+ * @retval None
+ */
 void BSP_Delay_Us(uint32_t us);
 
 #endif  // BSP_H

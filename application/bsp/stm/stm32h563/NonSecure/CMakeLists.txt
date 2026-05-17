@@ -39,15 +39,15 @@ project(${CMAKE_PROJECT_NAME})
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
 
-# Include mx-generated 
+# Include mx-generated
 include("mx-generated.cmake")
 
 
 # In order to use CMake for cross-compiling
-set(CMAKE_CXX_COMPILER_FORCED "true") 
+set(CMAKE_CXX_COMPILER_FORCED "true")
 
 # Add project symbols (macros)
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined symbols
 )
 
@@ -57,11 +57,12 @@ enable_language(C ASM)
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
+
 )
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    Core/Src/main.c
+
 )
 
 # Link directories setup

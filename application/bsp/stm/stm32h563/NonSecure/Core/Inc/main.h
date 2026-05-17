@@ -31,7 +31,18 @@ extern "C" {
 #include "stm32h5xx_nucleo.h"
 #include <stdio.h>
 
+#include "stm32h5xx_ll_crc.h"
+#include "stm32h5xx_ll_bus.h"
+#include "stm32h5xx_ll_cortex.h"
+#include "stm32h5xx_ll_rcc.h"
+#include "stm32h5xx_ll_system.h"
+#include "stm32h5xx_ll_utils.h"
+#include "stm32h5xx_ll_pwr.h"
+#include "stm32h5xx_ll_gpio.h"
+#include "stm32h5xx_ll_dma.h"
+
 #include "secure_nsc.h" /* For export Non-secure callable APIs */
+#include "stm32h5xx_ll_exti.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -69,6 +80,7 @@ void MX_TIM1_Init(void);
 void MX_IWDG_Init(void);
 void MX_I2C4_Init(void);
 void MX_TIM7_Init(void);
+void MX_CRC_Init(void);
 
 /* USER CODE BEGIN EFP */
 void ethernetif_get_mac_addr(uint8_t *mac_addr);
