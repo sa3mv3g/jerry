@@ -296,8 +296,7 @@
         "scale_factor": 0.01,
         "unit": "%",
         "group": "pwm_control",
-        "access": "read_write",
-        "persistent": true
+        "access": "read_write"
       },
       {
         "name": "pwm_0_frequency",
@@ -310,8 +309,7 @@
         "max_value": 100000,
         "unit": "Hz",
         "group": "pwm_control",
-        "access": "read_write",
-        "persistent": true
+        "access": "read_write"
       },
       {
         "name": "pwm_1_duty_cycle",
@@ -325,8 +323,7 @@
         "scale_factor": 0.01,
         "unit": "%",
         "group": "pwm_control",
-        "access": "read_write",
-        "persistent": true
+        "access": "read_write"
       },
       {
         "name": "pwm_1_frequency",
@@ -339,8 +336,7 @@
         "max_value": 100000,
         "unit": "Hz",
         "group": "pwm_control",
-        "access": "read_write",
-        "persistent": true
+        "access": "read_write"
       },
       {
         "name": "pwm_2_duty_cycle",
@@ -354,8 +350,7 @@
         "scale_factor": 0.01,
         "unit": "%",
         "group": "pwm_control",
-        "access": "read_write",
-        "persistent": true
+        "access": "read_write"
       },
       {
         "name": "pwm_2_frequency",
@@ -368,8 +363,7 @@
         "max_value": 100000,
         "unit": "Hz",
         "group": "pwm_control",
-        "access": "read_write",
-        "persistent": true
+        "access": "read_write"
       },
       {
         "name": "pwm_3_duty_cycle",
@@ -383,8 +377,7 @@
         "scale_factor": 0.01,
         "unit": "%",
         "group": "pwm_control",
-        "access": "read_write",
-        "persistent": true
+        "access": "read_write"
       },
       {
         "name": "pwm_3_frequency",
@@ -397,8 +390,7 @@
         "max_value": 100000,
         "unit": "Hz",
         "group": "pwm_control",
-        "access": "read_write",
-        "persistent": true
+        "access": "read_write"
       },
       {
         "name": "adc_0_value",
@@ -581,7 +573,7 @@
       {
         "name": "key2",
         "address": 129,
-        "description": "key1",
+        "description": "key2",
         "data_type": "uint16",
         "size": 1,
         "default_value": 0,

@@ -139,6 +139,21 @@ typedef int bsp_error_t;
 #define BSP_ADC1_NUM_CHANNELS 6U
 
 /**
+ * @brief Union to access the individual bytes, half-words, or word of a float.
+ *
+ * This union allows type-punning to access the underlying representation of a
+ * float as a 32-bit unsigned integer, two 16-bit unsigned integers, or four
+ * 8-bit unsigned integers.
+ */
+typedef union
+{
+    float    f32;
+    uint32_t u32;
+    uint16_t u16[2];
+    uint8_t  u8[4];
+} unpack_float_t;
+
+/**
  * @brief Global configuration structure for BSP COM port initialization.
  *
  * This structure holds the configuration parameters (Baud Rate, Word Length,
@@ -488,5 +503,30 @@ bsp_error_t BSP_I2C_Master_Write(uint8_t address, uint8_t *buff, uint16_t len,
  * @retval None
  */
 void BSP_Delay_Us(uint32_t us);
+
+/**
+ * @brief  Reads data from the EEPROM emulation.
+ * @param  address: Start address to read from
+ * @param  pBuff: Pointer to the buffer that will receive the data read from the
+ * EEPROM
+ * @param  sizeBytes: Number of bytes to read
+ * @return bsp_error_t: BSP_OK if successful, otherwise an error code:
+ *         - BSP_INVALID_ARG if pBuff is NULL
+ *         - BSP_ERROR for other errors
+ */
+bsp_error_t BSP_EEPROM_Read(uint32_t address, uint8_t *pBuff,
+                            uint32_t sizeBytes);
+
+/**
+ * @brief  Writes data to the EEPROM emulation.
+ * @param  address: Start address to write to
+ * @param  pBuff: Pointer to the buffer containing the data to write
+ * @param  sizeBytes: Number of bytes to write
+ * @return bsp_error_t: BSP_OK if successful, otherwise an error code:
+ *         - BSP_INVALID_ARG if pBuff is NULL
+ *         - BSP_ERROR for other errors
+ */
+bsp_error_t BSP_EEPROM_Write(uint32_t address, uint8_t *pBuff,
+                             uint32_t sizeBytes);
 
 #endif  // BSP_H

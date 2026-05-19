@@ -106,6 +106,30 @@
 #define {{ config.device.name | upper }}_IR_MIN_ADDR         {{ config.stats.input_registers_min_addr }}U
 #define {{ config.device.name | upper }}_IR_MAX_ADDR         {{ config.stats.input_registers_max_addr }}U
 
+
+/* ==========================================================================
+ * Persistent Memory (NVM) Definitions
+ * ========================================================================== */
+
+/* NVM offsets for persistent registers */
+{% for reg in config.persistent_registers %}
+#define MODBUS_NVM_{{ reg.name | upper }} ({{ reg.nvm_offset }}U)
+{% endfor %}
+
+/* Size of NVM needed for persistent registers */
+#define MODBUS_NVM_SIZE ({{ config.total_nvm_size }}U)
+
+/* Structure to hold all persistent register values */
+typedef struct {
+{% for reg in config.persistent_registers %}
+    {%- if reg.data_type == "uint16" %}uint16_t
+    {%- elif reg.data_type == "uint32" %}uint32_t
+    {%- elif reg.data_type == "float32" %}float
+    {%- else %}uint16_t {# default #}
+    {%- endif %} {{ reg.name }};
+{% endfor %}
+} __attribute__((packed)) jerry_nvm_t;
+
 {% endif %}
 {% if config.enums %}
 /* ==========================================================================
@@ -239,6 +263,20 @@ void {{ config.device.name | lower }}_registers_init(void);
  * @return Pointer to input registers data
  */
 {{ config.device.name | lower }}_input_registers_t* {{ config.device.name | lower }}_get_input_registers(void);
+
+{% endif %}
+{% if config.persistent_registers %}
+/**
+ * @brief Get pointer to NVM data as byte array for EEPROM storage
+ * @return Pointer to NVM byte array
+ */
+uint8_t* {{ config.device.name | lower }}_get_nvm_bytes(void);
+
+/**
+ * @brief Get pointer to NVM data as structure for register access
+ * @return Pointer to NVM structure
+ */
+jerry_nvm_t* {{ config.device.name | lower }}_get_nvm_struct(void);
 
 {% endif %}
 #endif /* {{ config.device.name | upper }}_REGISTERS_H */

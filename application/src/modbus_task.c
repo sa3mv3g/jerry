@@ -42,6 +42,9 @@
 /** Receive timeout in milliseconds */
 #define MODBUS_RECV_TIMEOUT_MS 5000U
 
+#define BSP_EEPROM_READ(A, B, C) \
+    if (BSP_OK != BSP_EEPROM_Read(A, B, C)) break;
+
 /* ==========================================================================
  * Private Types
  * ========================================================================== */
@@ -90,12 +93,15 @@ void vModbusTask(void *pvParameters)
 {
     (void)pvParameters;
 
-    uint8_t  dev_addr;
-    uint16_t initDigitalOutputCoilsValues;
+    uint8_t                           dev_addr;
+    uint16_t                          initDigitalOutputCoilsValues;
+    jerry_device_holding_registers_t *hrRegs;
+    bsp_error_t                       err;
 
     printf("[Modbus] Task Started\n");
 
     /* Read device address from DEVADDR pins and set Modbus unit ID */
+    err              = BSP_ERROR;
     dev_addr         = BSP_GetDeviceAddress();
     s_modbus_unit_id = MODBUS_UNIT_ID_BASE + dev_addr;
 
@@ -104,6 +110,46 @@ void vModbusTask(void *pvParameters)
 
     /* Initialize register data structures */
     jerry_device_registers_init();
+    /* Read parameters from EEPROM */
+    hrRegs = jerry_device_get_holding_registers();
+    do
+    {
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_0_SCALE_FACTOR,
+                        (uint8_t *)&hrRegs->adc_0_scale_factor, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_0_OFFSET_TERM,
+                        (uint8_t *)&hrRegs->adc_0_offset_term, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_0_DEAD_ZONE,
+                        (uint8_t *)&hrRegs->adc_0_dead_zone, sizeof(float));
+
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_1_SCALE_FACTOR,
+                        (uint8_t *)&hrRegs->adc_1_scale_factor, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_1_OFFSET_TERM,
+                        (uint8_t *)&hrRegs->adc_1_offset_term, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_1_DEAD_ZONE,
+                        (uint8_t *)&hrRegs->adc_1_dead_zone, sizeof(float));
+
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_2_SCALE_FACTOR,
+                        (uint8_t *)&hrRegs->adc_2_scale_factor, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_2_OFFSET_TERM,
+                        (uint8_t *)&hrRegs->adc_2_offset_term, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_2_DEAD_ZONE,
+                        (uint8_t *)&hrRegs->adc_2_dead_zone, sizeof(float));
+
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_3_SCALE_FACTOR,
+                        (uint8_t *)&hrRegs->adc_3_scale_factor, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_3_OFFSET_TERM,
+                        (uint8_t *)&hrRegs->adc_3_offset_term, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_3_DEAD_ZONE,
+                        (uint8_t *)&hrRegs->adc_3_dead_zone, sizeof(float));
+        err = BSP_OK;
+
+    } while (0);
+
+    if (BSP_OK != err)
+    {
+        printf("[Modbus] Failed to read calibration data from EEPROM!!");
+    }
+
     printf("[Modbus] registers initialized\n");
 
     /* Initialize connection tracking */

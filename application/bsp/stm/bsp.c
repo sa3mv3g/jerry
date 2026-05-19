@@ -214,7 +214,7 @@ bsp_error_t BSP_Init(void)
     if (__HAL_PWR_GET_FLAG(PWR_FLAG_SBF) == RESET)
     {
         /* Blink LED_OK (Green) twice at startup */
-        printf("POR\r\n");
+        printf("[BSP] POR\r\n");
         BSP_LED_On(LED_OK);
         HAL_Delay(100);
         BSP_LED_Off(LED_OK);
@@ -233,7 +233,7 @@ bsp_error_t BSP_Init(void)
     }
     else
     {
-        printf("Wakeup\r\n");
+        printf("[BSP] Wakeup\r\n");
 
         /* Blink LED_OK (Green) upon wakeup */
         BSP_LED_On(LED_OK);
@@ -887,9 +887,60 @@ bsp_error_t BSP_I2C_Master_Write(uint8_t address, uint8_t *buff, uint16_t len,
     return retVal;
 }
 
-/*============================================================================*/
-/*                          Private Functions                                 */
-/*============================================================================*/
+bsp_error_t BSP_EEPROM_Read(uint32_t address, uint8_t *pBuff,
+                            uint32_t sizeBytes)
+{
+    bsp_error_t ret = BSP_OK;
+    uint32_t    i;
+    EE_Status   ee_status;
+
+    if (pBuff == NULL)
+    {
+        ret = BSP_INVALID_ARG;
+    }
+    else
+    {
+        for (i = 0; i < sizeBytes; i++)
+        {
+            ee_status =
+                EE_ReadVariable8bits((uint16_t)(address + i), &pBuff[i]);
+            if (ee_status != EE_OK)
+            {
+                ret = BSP_ERROR;
+                break;
+            }
+        }
+    }
+
+    return ret;
+}
+
+bsp_error_t BSP_EEPROM_Write(uint32_t address, uint8_t *pBuff,
+                             uint32_t sizeBytes)
+{
+    bsp_error_t ret = BSP_OK;
+    uint32_t    i;
+    EE_Status   ee_status;
+
+    if (pBuff == NULL)
+    {
+        ret = BSP_INVALID_ARG;
+    }
+    else
+    {
+        for (i = 0; i < sizeBytes; i++)
+        {
+            ee_status =
+                EE_WriteVariable8bits((uint16_t)(address + i), pBuff[i]);
+            if (ee_status != EE_OK)
+            {
+                ret = BSP_ERROR;
+                break;
+            }
+        }
+    }
+    return ret;
+}
 
 /**
  * @brief Delay in microseconds using TIM7 with HAL OnePulse functions
@@ -919,6 +970,9 @@ void BSP_Delay_Us(uint32_t us)
     __HAL_TIM_CLEAR_FLAG(&htim7, TIM_FLAG_UPDATE);
 }
 
+/*============================================================================*/
+/*                          Private Functions                                 */
+/*============================================================================*/
 static void PVD_Config(void)
 {
     PWR_PVDTypeDef sConfigPVD;
