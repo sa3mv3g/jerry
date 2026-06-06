@@ -42,30 +42,83 @@ Vendor specific tools:
 
 ### Build Instructions
 
-1.  **Configure the project**:
+The project uses [`tools/build.py`](tools/build.py) as the single source of truth for build
+configuration. It wraps CMake + Ninja and accepts human-friendly `--vendor` and `--profile`
+arguments.
+
+1.  **Debug build** (default):
     ```bash
-    cmake -S . -B build -G Ninja -DCPPCHECK_USE_ADDONS=ON
+    uv run python tools/build.py
     ```
 
-2.  **Build the firmware**:
+2.  **Release build** (fully stripped, no debug symbols):
     ```bash
-    cmake --build build --target jerry_app
+    uv run python tools/build.py --profile release
+    ```
+
+    The Release build automatically runs these additional steps:
+    -   **PRE-BUILD**: `clang-format` — code style is enforced before compilation.
+        The build aborts if any file is not correctly formatted.
+    -   **POST-BUILD**: `cppcheck` with MISRA C:2012 addon — static analysis report
+        written to `build/stm-Release/cppcheck_report*.txt`.
+    -   **POST-BUILD**: `lizard` — cyclomatic complexity report written to
+        `build/stm-Release/lizrad_report.xml`.
+
+3.  **Explicit vendor + profile**:
+    ```bash
+    uv run python tools/build.py --vendor stm --profile release
     ```
 
 This will produce two binaries:
--   `build/application/bsp/stm/stm32h563/jerry_secure_app.elf` (Secure Application)
--   `build/application/jerry_app.elf` (Non-Secure Application)
+
+-   Debug:
+    -   `build/stm-Debug/application/bsp/stm/stm32h563/jerry_secure_app.elf` (Secure Application)
+    -   `build/stm-Debug/application/jerry_app.elf` (Non-Secure Application)
+-   Release (stripped):
+    -   `build/stm-Release/application/bsp/stm/stm32h563/jerry_secure_app.elf`
+    -   `build/stm-Release/application/jerry_app.elf`
+
+Each build type gets its own directory under `build/` — e.g. `build/stm-Debug/`,
+`build/stm-Release/`, `build/stm-RelWithDebInfo/`, `build/stm-MinSizeRel/`.
+
+### Build Script Reference
+
+```
+uv run python tools/build.py [COMMAND] [OPTIONS]
+
+Commands:
+  configure     Run CMake configure only
+  build         Configure (if needed) + build jerry_app  [default]
+  clean         Remove build directory for selected vendor/profile
+  clean-all     Remove all build directories
+  flash         Flash firmware to device
+  lint          Run all static analysis tools
+  format        Run clang-format on C/C++ and Python sources
+  package       Build + create CPack ZIP package
+
+Options:
+  --vendor stm                  Microcontroller vendor (default: stm)
+  --profile debug|release|...   Build profile (default: debug)
+  --reconfigure                 Force re-run of CMake configure
+  --enable-i2c-scan             Enable I2C bus scanning at startup
+  --cppcheck-addons             Enable cppcheck MISRA and naming addons
+  --disable-modbus-rtu          Disable Modbus RTU protocol
+  --disable-modbus-ascii        Disable Modbus ASCII protocol
+  --disable-modbus-tcp          Disable Modbus TCP protocol
+  --cmake-arg -DKEY=VALUE       Pass additional CMake -D argument (repeatable)
+```
 
 ### CMake Configuration Options
 
-The following CMake options can be passed during configuration to customize the build:
+The following options are managed by `tools/build.py` and passed to CMake automatically.
+They can also be overridden via `--cmake-arg` for advanced use.
 
 #### Core Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `VENDOR` | `stm` | Microcontroller vendor selection |
-| `CMAKE_BUILD_TYPE` | - | Build type: `Debug`, `Release`, `RelWithDebInfo`, `MinSizeRel` |
+| `CMAKE_BUILD_TYPE` | `Debug` | Build type: `Debug`, `Release`, `RelWithDebInfo`, `MinSizeRel` |
 | `CPPCHECK_USE_ADDONS` | `OFF` | Enable cppcheck MISRA and naming addons |
 | `PYTHON_EXECUTABLE` | Auto-detected | Python interpreter for cppcheck addons (`py` on Windows, `python3` on Unix) |
 | `UV_COMMAND` | `uv` | Command to invoke uv (e.g., `uv` or `py;-m;uv` for Windows) |
@@ -76,73 +129,77 @@ The following CMake options can be passed during configuration to customize the 
 |--------|---------|-------------|
 | `ENABLE_I2C_DEVICE_SCAN` | `OFF` | Enable I2C bus scanning at startup to detect connected devices |
 
-**Example with custom options:**
+**Example with optional features:**
 ```bash
-cmake -S . -B build -G Ninja \
-    -DCMAKE_TOOLCHAIN_FILE=application/bsp/toolchain.cmake \
-    -DVENDOR=stm \
-    -DCMAKE_BUILD_TYPE=Debug \
-    -DENABLE_I2C_DEVICE_SCAN=ON
+uv run python tools/build.py --profile debug --enable-i2c-scan --cppcheck-addons
+```
+
+**Advanced: pass raw CMake flags:**
+```bash
+uv run python tools/build.py --cmake-arg "-DCMAKE_VERBOSE_MAKEFILE=ON"
 ```
 
 **I2C Device Scanner:**
-When `ENABLE_I2C_DEVICE_SCAN` is enabled, the firmware will scan the I2C bus at startup and print all detected device addresses to the console. This is useful for hardware debugging and device discovery. See [I2C Device Scan Feature Documentation](docs/I2C_DEVICE_SCAN_FEATURE.md) for detailed usage instructions.
+When `--enable-i2c-scan` is passed, the firmware will scan the I2C bus at startup and print all
+detected device addresses to the console. This is useful for hardware debugging and device
+discovery. See [I2C Device Scan Feature Documentation](docs/I2C_DEVICE_SCAN_FEATURE.md) for
+detailed usage instructions.
 
 ## Available Commands
 
-This project leverages CMake custom targets to integrate quality assurance tools.
+This project leverages `tools/build.py` and CMake custom targets to integrate quality assurance
+tools.
 
 ### Code Formatting
 
 Format C/C++ and Python code:
 ```bash
-cmake --build build --target format
+uv run python tools/build.py format
 ```
 
 ### Static Analysis & Linting
 
 Run all quality checks (CppCheck, Lizard, Pylint, Ruff):
 ```bash
-cmake --build build --target lint
+uv run python tools/build.py lint
 ```
 
 Run individual tools:
 
 -   **CppCheck** (Static Analysis):
     ```bash
-    cmake --build build --target cppcheck
+    cmake --build build/stm-Debug --target cppcheck
     ```
 -   **CppCheck with MISRA** (MISRA C:2012 Compliance):
     ```bash
     # Configure with MISRA addon enabled
-    cmake -S . -B build -G Ninja \
-        -DCPPCHECK_USE_ADDONS=ON
+    uv run python tools/build.py configure --cppcheck-addons
 
     # Run cppcheck with MISRA checking
-    cmake --build build --target cppcheck
+    cmake --build build/stm-Debug --target cppcheck
 
     # View MISRA violations (Windows)
-    type build\cppcheck_report.txt | findstr /i "misra"
+    type build\stm-Debug\cppcheck_report.txt | findstr /i "misra"
 
     # View MISRA violations (Linux/macOS)
-    grep -i "misra" build/cppcheck_report.txt
+    grep -i "misra" build/stm-Debug/cppcheck_report.txt
     ```
     **Note:** MISRA checking requires:
     - cppcheck with MISRA addon installed (typically at `<cppcheck-install>/share/cppcheck/addons/misra.py`)
-    - Python interpreter (auto-detected, or override with `-DPYTHON_EXECUTABLE=/path/to/python`)
+    - Python interpreter (auto-detected, or override with `--cmake-arg "-DPYTHON_EXECUTABLE=/path/to/python"`)
     - MISRA rule texts file at `refs/misra_c_2012__headlines_for_cppcheck.txt`
 
 -   **Lizard** (Complexity Metrics):
     ```bash
-    cmake --build build --target lizard
+    cmake --build build/stm-Debug --target lizard
     ```
 -   **Pylint** (Python Linting):
     ```bash
-    cmake --build build --target pylint
+    cmake --build build/stm-Debug --target pylint
     ```
 -   **Ruff** (Python Formatting/Linting):
     ```bash
-    cmake --build build --target ruff
+    cmake --build build/stm-Debug --target ruff
     ```
 
 ## Coding Standards
@@ -347,15 +404,24 @@ STM32_Programmer_CLI -c port=SWD -ob SECWM2_STRT=0x7F SECWM2_END=0x0 SECBOOTADD=
 
 You must flash **both** the Secure and Non-Secure applications.
 
+Use the build script for a one-step flash (builds if needed, then flashes):
+```bash
+uv run python tools/build.py flash --profile release
+```
+
+Or flash manually after building:
+
 **Flash Secure App (to 0x0C000000):**
 ```bash
-STM32_Programmer_CLI -c port=SWD -w build/application/bsp/stm/stm32h563/jerry_secure_app.elf -v -rst
+STM32_Programmer_CLI -c port=SWD -w build/stm-Release/application/bsp/stm/stm32h563/jerry_secure_app.elf -v -rst
 ```
 
 **Flash Non-Secure App (to 0x08100000):**
 ```bash
-STM32_Programmer_CLI -c port=SWD -w build/application/jerry_app.elf -v -rst
+STM32_Programmer_CLI -c port=SWD -w build/stm-Release/application/jerry_app.elf -v -rst
 ```
+
+> **Note:** Replace `stm-Release` with `stm-Debug` if flashing a debug build.
 
 #### 3. Debugging tips
 

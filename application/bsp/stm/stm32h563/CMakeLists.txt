@@ -89,7 +89,8 @@ target_include_directories(stm32h563_bsp PUBLIC
     ../../../../application/bsp
 )
 target_compile_options(stm32h563_bsp PRIVATE
-    -Wall -Wextra -Werror -g -gdwarf-4 -Wno-unused-parameter -Wno-old-style-declaration
+    -Wall -Wextra -Werror -Wno-unused-parameter -Wno-old-style-declaration
+    $<$<CONFIG:Debug>:-gdwarf-4>
 )
 # Compiler Definitions
 target_compile_definitions(stm32h563_bsp PUBLIC
@@ -171,8 +172,9 @@ target_include_directories(jerry_secure_app PUBLIC
 )
 
 target_compile_options(jerry_secure_app PRIVATE
-    -Wall -Wextra -Werror -g -gdwarf-4 -Wno-unused-parameter -Wno-old-style-declaration
+    -Wall -Wextra -Werror -Wno-unused-parameter -Wno-old-style-declaration
     -mcmse
+    $<$<CONFIG:Debug>:-gdwarf-4>
 )
 
 target_compile_definitions(jerry_secure_app PUBLIC
@@ -190,3 +192,10 @@ add_custom_command(TARGET jerry_secure_app POST_BUILD
     COMMAND ${CMAKE_OBJDUMP} -d $<TARGET_FILE:jerry_secure_app> > $<TARGET_FILE_DIR:jerry_secure_app>/jerry_secure_app.asm
     COMMENT "Generating disassembly for jerry_secure_app"
 )
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_custom_command(TARGET jerry_secure_app POST_BUILD
+        COMMAND ${CMAKE_OBJCOPY} --strip-all $<TARGET_FILE:jerry_secure_app>
+        COMMENT "Stripping all symbols from jerry_secure_app (Release build)"
+    )
+endif()

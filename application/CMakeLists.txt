@@ -9,6 +9,16 @@ include(FetchContent)
 # ==========================================================================
 option(ENABLE_I2C_DEVICE_SCAN "Enable I2C device address scanning at startup" OFF)
 
+# ==========================================================================
+# Application Version
+# ==========================================================================
+# These cache variables are set via build.py --version-* or cmake -D.
+# The build number (Unix timestamp) is generated fresh on every cmake --build
+# call by tools/gen_version.py via the generate_app_version custom target.
+set(APP_VERSION_MAJOR "1" CACHE STRING "Application version major number")
+set(APP_VERSION_MINOR "0" CACHE STRING "Application version minor number")
+set(APP_VERSION_PATCH "0" CACHE STRING "Application version patch number")
+
 # Include Modbus code generation configuration
 include(${CMAKE_SOURCE_DIR}/config/modbus_codegen.cmake)
 
@@ -212,6 +222,7 @@ target_include_directories(jerry_app PRIVATE
     inc
     bsp
     src/generated
+    "${CMAKE_BINARY_DIR}/generated"
 )
 
 # Add Modbus generated sources to the application
@@ -245,12 +256,30 @@ target_link_libraries(jerry_app
         lcd_i2c
 )
 
+# ==========================================================================
+# Build-time version header generation
+# ==========================================================================
+# This custom target ALWAYS runs on every cmake --build call, regenerating
+# app_version.h with a fresh Unix timestamp as the build number.
+# jerry_device_registers.c includes app_version.h and will recompile when
+# the timestamp changes, ensuring the version info is always up-to-date.
+add_custom_target(generate_app_version ALL
+    COMMAND ${UV_RUN_CMD} python "${CMAKE_SOURCE_DIR}/tools/gen_version.py"
+            --output "${CMAKE_BINARY_DIR}/generated/app_version.h"
+            --major "${APP_VERSION_MAJOR}"
+            --minor "${APP_VERSION_MINOR}"
+            --patch "${APP_VERSION_PATCH}"
+    COMMENT "Generating app_version.h (build=${APP_VERSION_MAJOR}.${APP_VERSION_MINOR}.${APP_VERSION_PATCH}, timestamp=<unix>)"
+    VERBATIM
+)
+
 # Ensure jerry_secure_app is built first so import lib exists
-add_dependencies(jerry_app jerry_secure_app)
+add_dependencies(jerry_app jerry_secure_app generate_app_version)
 
 # Compiler options are inherited from toolchain but we can add more specific ones
 target_compile_options(jerry_app PRIVATE
-    -Wall -Wextra -Werror -g -gdwarf-4 -Wfatal-errors
+    -Wall -Wextra -Werror -Wfatal-errors
+    $<$<CONFIG:Debug>:-gdwarf-4>
 )
 
 # Linker options
@@ -264,3 +293,10 @@ add_custom_command(TARGET jerry_app POST_BUILD
     COMMAND ${CMAKE_OBJDUMP} -d $<TARGET_FILE:jerry_app> > $<TARGET_FILE_DIR:jerry_app>/jerry_app.asm
     COMMENT "Generating disassembly for jerry_app"
 )
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_custom_command(TARGET jerry_app POST_BUILD
+        COMMAND ${CMAKE_OBJCOPY} --strip-all $<TARGET_FILE:jerry_app>
+        COMMENT "Stripping all symbols from jerry_app (Release build)"
+    )
+endif()

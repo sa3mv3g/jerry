@@ -17,6 +17,7 @@
 #include <stdio.h>
 
 #include "FreeRTOS.h"
+#include "app_version.h"
 #include "bsp.h"
 #include "jerry_device_registers.h"
 #include "lcd_manager.h"
@@ -813,21 +814,27 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t  start_address,
                 register_values[i] = (uint16_t)regs->rtc_second;
                 break;
             case JERRY_DEVICE_HR_APP_VERSION_MAJOR:
+                /* Refresh from compile-time constants before reading */
+                regs->app_version_major = APP_VERSION_MAJOR;
                 register_values[i] = (uint16_t)regs->app_version_major;
                 break;
             case JERRY_DEVICE_HR_APP_VERSION_MINOR:
+                regs->app_version_minor = APP_VERSION_MINOR;
                 register_values[i] = (uint16_t)regs->app_version_minor;
                 break;
             case JERRY_DEVICE_HR_APP_VERSION_PATCH:
+                regs->app_version_patch = APP_VERSION_PATCH;
                 register_values[i] = (uint16_t)regs->app_version_patch;
                 break;
             case JERRY_DEVICE_HR_APP_BUILD_NUMBER:
-                /* High word of 32-bit value */
+                /* Refresh build number then return high word of 32-bit value */
+                regs->app_build_number = APP_BUILD_NUMBER;
                 register_values[i] =
                     (uint16_t)((uint32_t)regs->app_build_number >> 16U);
                 break;
             case JERRY_DEVICE_HR_APP_BUILD_NUMBER + 1U:
-                /* Low word of 32-bit value */
+                /* Low word of 32-bit value (build number already refreshed above) */
+                regs->app_build_number = APP_BUILD_NUMBER;
                 register_values[i] =
                     (uint16_t)((uint32_t)regs->app_build_number & 0xFFFFU);
                 break;
@@ -1099,6 +1106,16 @@ modbus_exception_t modbus_cb_write_single_register(uint16_t address,
             }
         }
         break;
+        /* Version and build number registers are read-only.
+         * Writes are silently ignored so bulk-write masters that include
+         * these addresses in a range do not receive an exception. */
+        case JERRY_DEVICE_HR_APP_VERSION_MAJOR:
+        case JERRY_DEVICE_HR_APP_VERSION_MINOR:
+        case JERRY_DEVICE_HR_APP_VERSION_PATCH:
+        case JERRY_DEVICE_HR_APP_BUILD_NUMBER:
+        case JERRY_DEVICE_HR_APP_BUILD_NUMBER + 1U:
+            break;
+
         default:
             return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
     }
@@ -1168,21 +1185,27 @@ modbus_exception_t modbus_cb_read_input_registers(uint16_t  start_address,
                 register_values[i] = (uint16_t)regs->adc_3_value;
                 break;
             case JERRY_DEVICE_IR_APP_VERSION_MAJOR:
+                /* Refresh from compile-time constants before reading */
+                regs->app_version_major = APP_VERSION_MAJOR;
                 register_values[i] = (uint16_t)regs->app_version_major;
                 break;
             case JERRY_DEVICE_IR_APP_VERSION_MINOR:
+                regs->app_version_minor = APP_VERSION_MINOR;
                 register_values[i] = (uint16_t)regs->app_version_minor;
                 break;
             case JERRY_DEVICE_IR_APP_VERSION_PATCH:
+                regs->app_version_patch = APP_VERSION_PATCH;
                 register_values[i] = (uint16_t)regs->app_version_patch;
                 break;
             case JERRY_DEVICE_IR_APP_BUILD_NUMBER:
-                /* High word of 32-bit value */
+                /* Refresh build number then return high word of 32-bit value */
+                regs->app_build_number = APP_BUILD_NUMBER;
                 register_values[i] =
                     (uint16_t)((uint32_t)regs->app_build_number >> 16U);
                 break;
             case JERRY_DEVICE_IR_APP_BUILD_NUMBER + 1U:
-                /* Low word of 32-bit value */
+                regs->app_build_number = APP_BUILD_NUMBER;
+                /* Low word of 32-bit value (build number already refreshed above) */
                 register_values[i] =
                     (uint16_t)((uint32_t)regs->app_build_number & 0xFFFFU);
                 break;

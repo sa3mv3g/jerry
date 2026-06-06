@@ -1,26 +1,15 @@
-SET(LIZARD_REPORT_FILENAME_NOEXT lizrad_report)
-
-SET(LIZARD_CLI_PARAMS 
---length 100
---CCN 15
---arguments 5
---modified
---languages cpp
---exclude "./application/bsp/*"
---exclude "./application/dependencies/*" 
---exclude "./tools/*" 
---exclude "./test/*"
-)
+# Copyright (c) 2026
+# All rights reserved.
+#
+# Lizard configuration for CMake.
+#
+# All analysis parameters (thresholds, exclude patterns, paths) are defined in
+# tools/run_lizard.py, which is the single source of truth for Lizard config.
+# This file only passes the --release flag for Release builds so run_lizard.py
+# selects XML output instead of HTML.
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    list(APPEND LIZARD_CLI_PARAMS 
-        --xml
-        --output_file build/${LIZARD_REPORT_FILENAME_NOEXT}.xml
-    )
+    set(LIZARD_CLI_PARAMS --release)
 else()
-
-    list(APPEND LIZARD_CLI_PARAMS
-        --html
-        --output_file build/${LIZARD_REPORT_FILENAME_NOEXT}.html
-    )
+    set(LIZARD_CLI_PARAMS "")
 endif()

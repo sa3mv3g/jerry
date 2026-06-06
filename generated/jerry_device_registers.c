@@ -12,6 +12,7 @@
  * @copyright Copyright (c) 2026
  */
 
+#include "app_version.h"
 #include "jerry_device_persistant.h"
 #include "jerry_device_registers.h"
 #include <string.h>
@@ -66,6 +67,16 @@ void jerry_device_registers_init(void)
 
     /* Initialize input registers */
     (void)memset(&s_input_registers, 0, sizeof(s_input_registers));
+    s_input_registers.app_version_major = APP_VERSION_MAJOR;
+    s_input_registers.app_version_minor = APP_VERSION_MINOR;
+    s_input_registers.app_version_patch = APP_VERSION_PATCH;
+    s_input_registers.app_build_number  = APP_BUILD_NUMBER;
+
+    /* Mirror version info into holding registers */
+    s_holding_registers.app_version_major = APP_VERSION_MAJOR;
+    s_holding_registers.app_version_minor = APP_VERSION_MINOR;
+    s_holding_registers.app_version_patch = APP_VERSION_PATCH;
+    s_holding_registers.app_build_number  = APP_BUILD_NUMBER;
 
 }
 
