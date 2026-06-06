@@ -107,16 +107,8 @@ endif()
 # =============================================================================
 # Generator Selection
 # =============================================================================
-# Default generators based on platform
 # Note: CPACK_GENERATOR must be set BEFORE including CPack module
-if(WIN32)
-    # Use ZIP on Windows (NSIS requires separate installation)
-    set(CPACK_GENERATOR "ZIP" CACHE STRING "CPack generator to use")
-elseif(APPLE)
-    set(CPACK_GENERATOR "TGZ" CACHE STRING "CPack generator to use")
-else()
-    set(CPACK_GENERATOR "TGZ" CACHE STRING "CPack generator to use")
-endif()
+set(CPACK_GENERATOR "ZIP" CACHE STRING "CPack generator to use")
 
 # =============================================================================
 # Archive Generator Configuration (ZIP/TGZ)

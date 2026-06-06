@@ -392,10 +392,17 @@ class STM32Programmer:
 def find_firmware_files(
     build_dir: Path,
 ) -> tuple[Optional[Path], Optional[Path]]:
-    """Find firmware files in the build directory.
+    """Find firmware files in the build directory or next to this script.
+
+    Search order:
+    1. Release artifact layout: ELFs in the same directory as this script
+       (used when running from an extracted CPack ZIP on the production line).
+    2. CMake build tree layout: ELFs under ``build_dir/application/...``
+       (used during development).
 
     Args:
-        build_dir: Path to the build directory.
+        build_dir: Path to the CMake build directory (fallback when ELFs are
+                   not found next to the script).
 
     Returns:
         Tuple of (secure_app_path, nonsecure_app_path).
@@ -403,7 +410,26 @@ def find_firmware_files(
     secure_app = None
     nonsecure_app = None
 
-    # Expected paths based on CMake configuration
+    # ------------------------------------------------------------------
+    # Priority 1: release artifact layout — ELFs sit next to this script.
+    # This is the layout produced by CPack for the production-line ZIP.
+    # ------------------------------------------------------------------
+    script_dir = Path(__file__).resolve().parent
+    secure_path_release = script_dir / "jerry_secure_app.elf"
+    nonsecure_path_release = script_dir / "jerry_app.elf"
+
+    if secure_path_release.exists():
+        secure_app = secure_path_release
+    if nonsecure_path_release.exists():
+        nonsecure_app = nonsecure_path_release
+
+    if secure_app and nonsecure_app:
+        logger.info("Using release artifact layout (ELFs next to script)")
+        return secure_app, nonsecure_app
+
+    # ------------------------------------------------------------------
+    # Priority 2: CMake build tree layout (development workflow).
+    # ------------------------------------------------------------------
     secure_path = (
         build_dir
         / "application"
