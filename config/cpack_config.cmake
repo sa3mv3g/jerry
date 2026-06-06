@@ -79,20 +79,46 @@ set(CPACK_PACKAGE_DESCRIPTION "Jerry is a data acquisition firmware designed for
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/aics/jerry")
 set(CPACK_PACKAGE_CONTACT "support@aics.com")
 
-# Version information - can be overridden via command line
-if(NOT DEFINED CPACK_PACKAGE_VERSION_MAJOR)
+# =============================================================================
+# Version — derived from APP_VERSION_* cache vars set by tools/build.py.
+# These are set via --version-major/minor/patch args to build.py, which passes
+# them as -DAPP_VERSION_MAJOR=N etc. to CMake at configure time.
+# Fallback to "1.0.0" if not set (e.g. direct cmake invocation without build.py).
+# =============================================================================
+if(DEFINED APP_VERSION_MAJOR)
+    set(CPACK_PACKAGE_VERSION_MAJOR "${APP_VERSION_MAJOR}")
+else()
     set(CPACK_PACKAGE_VERSION_MAJOR "1")
 endif()
-if(NOT DEFINED CPACK_PACKAGE_VERSION_MINOR)
+if(DEFINED APP_VERSION_MINOR)
+    set(CPACK_PACKAGE_VERSION_MINOR "${APP_VERSION_MINOR}")
+else()
     set(CPACK_PACKAGE_VERSION_MINOR "0")
 endif()
-if(NOT DEFINED CPACK_PACKAGE_VERSION_PATCH)
+if(DEFINED APP_VERSION_PATCH)
+    set(CPACK_PACKAGE_VERSION_PATCH "${APP_VERSION_PATCH}")
+else()
     set(CPACK_PACKAGE_VERSION_PATCH "0")
 endif()
-set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
+set(CPACK_PACKAGE_VERSION
+    "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
 
-# Package file name format: jerry-firmware-1.0.0-stm32h563-<commit_hash>
-set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-stm32h563-${GIT_COMMIT_HASH}")
+# Normalise build type to lowercase for use in the filename (e.g. Release → release)
+string(TOLOWER "${CMAKE_BUILD_TYPE}" _build_type_lower)
+if(_build_type_lower STREQUAL "")
+    set(_build_type_lower "unknown")
+endif()
+
+# Normalise vendor to lowercase
+string(TOLOWER "${VENDOR}" _vendor_lower)
+if(_vendor_lower STREQUAL "")
+    set(_vendor_lower "unknown")
+endif()
+
+# Package file name format: jerry-firmware-<version>-<vendor>-<profile>-<commit_hash>
+# Example: jerry-firmware-2.1.0-stm-release-9e1c7e83.zip
+set(CPACK_PACKAGE_FILE_NAME
+    "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${_vendor_lower}-${_build_type_lower}-${GIT_COMMIT_HASH}")
 
 # =============================================================================
 # Resource Files

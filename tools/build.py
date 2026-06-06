@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Copyright (c) 2026
 # All rights reserved.
+# ruff: noqa: S324  # MD5 is used for file integrity, not cryptographic security
 """
 Jerry Firmware Build Script
 ============================
@@ -30,6 +31,7 @@ Examples:
 """
 
 import argparse
+import hashlib
 import shutil
 import subprocess
 import sys
@@ -152,10 +154,27 @@ def cmake_build(vendor: str, profile: str, target: str = "jerry_app") -> int:
 # =============================================================================
 
 
+def _version_args_provided(args: argparse.Namespace) -> bool:
+    """Return True if any --version-* argument was explicitly provided.
+
+    When version args are provided, CMake must be re-configured so the new
+    APP_VERSION_* cache values are written and picked up by CPack and gen_version.py.
+    """
+    return any(
+        getattr(args, attr, None) is not None
+        for attr in ("version_major", "version_minor", "version_patch")
+    )
+
+
 def cmd_configure(args: argparse.Namespace) -> int:
     """Run CMake configure step only, without building."""
     extra = _collect_extra_cmake_args(args)
-    return cmake_configure(args.vendor, args.profile, extra, force=args.reconfigure)
+    return cmake_configure(
+        args.vendor,
+        args.profile,
+        extra,
+        force=args.reconfigure or _version_args_provided(args),
+    )
 
 
 def cmd_build(args: argparse.Namespace) -> int:
@@ -179,7 +198,12 @@ def cmd_build(args: argparse.Namespace) -> int:
     if is_release and "-DCPPCHECK_USE_ADDONS=ON" not in extra:
         extra.append("-DCPPCHECK_USE_ADDONS=ON")
 
-    rc = cmake_configure(args.vendor, args.profile, extra, force=args.reconfigure)
+    rc = cmake_configure(
+        args.vendor,
+        args.profile,
+        extra,
+        force=args.reconfigure or _version_args_provided(args),
+    )
     if rc != 0:
         return rc
 
@@ -280,18 +304,61 @@ def cmd_format(args: argparse.Namespace) -> int:
     return cmake_build(args.vendor, args.profile, target="format")
 
 
+def _generate_md5(zip_path: Path) -> Path:
+    """Compute MD5 of zip_path and write a <name>.md5 sidecar file.
+
+    The sidecar file contains a single line in the standard md5sum format:
+        <hex_digest>  <filename>
+
+    Args:
+        zip_path: Path to the ZIP file to checksum.
+
+    Returns:
+        Path to the generated .md5 sidecar file.
+    """
+    md5 = hashlib.md5()  # noqa: S324
+    with open(zip_path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            md5.update(chunk)
+    digest = md5.hexdigest()
+    md5_path = zip_path.with_suffix(".md5")
+    md5_path.write_text(f"{digest}  {zip_path.name}\n", encoding="utf-8")
+    return md5_path
+
+
 def cmd_package(args: argparse.Namespace) -> int:
-    """Build the firmware and create a CPack ZIP distribution package."""
+    """Build the firmware, create a CPack ZIP package, and generate an MD5 sidecar file."""
     extra = _collect_extra_cmake_args(args)
-    rc = cmake_configure(args.vendor, args.profile, extra, force=args.reconfigure)
+    # If any version arg was explicitly provided, force reconfigure so the new
+    # APP_VERSION_* values are written to the CMake cache and picked up by CPack.
+    rc = cmake_configure(
+        args.vendor,
+        args.profile,
+        extra,
+        force=args.reconfigure or _version_args_provided(args),
+    )
     if rc != 0:
         return rc
     rc = cmake_build(args.vendor, args.profile)
     if rc != 0:
         return rc
     bdir = build_dir(args.vendor, args.profile)
-    cmd: list[str] = ["cpack"]
-    return run(cmd, cwd=bdir)
+    rc = run(["cpack"], cwd=bdir)
+    if rc != 0:
+        return rc
+
+    # Find the generated ZIP and produce an MD5 sidecar file next to it.
+    zip_files = sorted(bdir.glob("*.zip"))
+    if not zip_files:
+        print("[build.py] WARNING: No ZIP file found in build dir after cpack.")
+        return 0
+
+    for zip_path in zip_files:
+        md5_path = _generate_md5(zip_path)
+        print(f"[build.py] MD5: {md5_path.name}")
+        print(f"[build.py]      {md5_path.read_text(encoding='utf-8').strip()}")
+
+    return 0
 
 
 # =============================================================================
