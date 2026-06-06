@@ -30,7 +30,7 @@ class TestReadCoils:
         result = modbus_client.read_coils(
             address=COIL_SYSTEM_ENABLE,
             count=1,
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert not result.isError(), f"Read failed: {result}"
@@ -43,7 +43,7 @@ class TestReadCoils:
         result = modbus_client.read_coils(
             address=COIL_MIN_ADDR,
             count=count,
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert not result.isError(), f"Read failed: {result}"
@@ -54,7 +54,7 @@ class TestReadCoils:
         result = modbus_client.read_coils(
             address=65535,
             count=1,
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert result.isError()
@@ -69,7 +69,7 @@ class TestWriteSingleCoil:
         result = modbus_client.write_coil(
             address=COIL_OUTPUT_1,
             value=True,
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert not result.isError(), f"Write failed: {result}"
@@ -78,7 +78,7 @@ class TestWriteSingleCoil:
         read_result = modbus_client.read_coils(
             address=COIL_OUTPUT_1,
             count=1,
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert not read_result.isError()
@@ -89,7 +89,7 @@ class TestWriteSingleCoil:
         result = modbus_client.write_coil(
             address=COIL_OUTPUT_1,
             value=False,
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert not result.isError()
@@ -98,7 +98,7 @@ class TestWriteSingleCoil:
         read_result = modbus_client.read_coils(
             address=COIL_OUTPUT_1,
             count=1,
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert not read_result.isError()
@@ -107,13 +107,13 @@ class TestWriteSingleCoil:
     def test_write_single_coil_toggle(self, modbus_client, unit_id):
         """Test toggling a coil ON and OFF."""
         # Turn ON
-        modbus_client.write_coil(address=COIL_OUTPUT_2, value=True, slave=unit_id)
-        result = modbus_client.read_coils(address=COIL_OUTPUT_2, count=1, slave=unit_id)
+        modbus_client.write_coil(address=COIL_OUTPUT_2, value=True, device_id=unit_id)
+        result = modbus_client.read_coils(address=COIL_OUTPUT_2, count=1, device_id=unit_id)
         assert result.bits[0] == True
 
         # Turn OFF
-        modbus_client.write_coil(address=COIL_OUTPUT_2, value=False, slave=unit_id)
-        result = modbus_client.read_coils(address=COIL_OUTPUT_2, count=1, slave=unit_id)
+        modbus_client.write_coil(address=COIL_OUTPUT_2, value=False, device_id=unit_id)
+        result = modbus_client.read_coils(address=COIL_OUTPUT_2, count=1, device_id=unit_id)
         assert result.bits[0] == False
 
     def test_write_single_coil_invalid_address(self, modbus_client, unit_id):
@@ -121,7 +121,7 @@ class TestWriteSingleCoil:
         result = modbus_client.write_coil(
             address=65535,
             value=True,
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert result.isError()
@@ -138,7 +138,7 @@ class TestWriteMultipleCoils:
         result = modbus_client.write_coils(
             address=COIL_OUTPUT_1,
             values=values,
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert not result.isError(), f"Write failed: {result}"
@@ -147,7 +147,7 @@ class TestWriteMultipleCoils:
         read_result = modbus_client.read_coils(
             address=COIL_OUTPUT_1,
             count=len(values),
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert not read_result.isError()
@@ -162,7 +162,7 @@ class TestWriteMultipleCoils:
         result = modbus_client.write_coils(
             address=COIL_MIN_ADDR,
             values=values,
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert not result.isError()
@@ -175,7 +175,7 @@ class TestWriteMultipleCoils:
         result = modbus_client.write_coils(
             address=COIL_MIN_ADDR,
             values=values,
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert not result.isError()
@@ -185,7 +185,7 @@ class TestWriteMultipleCoils:
         result = modbus_client.write_coils(
             address=65530,
             values=[True, False, True, False, True, False],
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert result.isError()
@@ -202,13 +202,13 @@ class TestCoilPatterns:
         modbus_client.write_coils(
             address=COIL_OUTPUT_1,
             values=pattern,
-            slave=unit_id
+            device_id=unit_id
         )
 
         result = modbus_client.read_coils(
             address=COIL_OUTPUT_1,
             count=len(pattern),
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert not result.isError()
@@ -222,13 +222,13 @@ class TestCoilPatterns:
         modbus_client.write_coils(
             address=COIL_OUTPUT_1,
             values=pattern,
-            slave=unit_id
+            device_id=unit_id
         )
 
         result = modbus_client.read_coils(
             address=COIL_OUTPUT_1,
             count=len(pattern),
-            slave=unit_id
+            device_id=unit_id
         )
 
         assert not result.isError()
