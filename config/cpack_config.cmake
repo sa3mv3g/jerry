@@ -181,6 +181,14 @@ install(FILES
     OPTIONAL
 )
 
+# Install one-click Windows launcher to root of package
+install(FILES
+    "${CMAKE_SOURCE_DIR}/tools/flash.bat"
+    DESTINATION .
+    COMPONENT Firmware
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+)
+
 # Install flashing script to root of package
 install(FILES
     "${CMAKE_SOURCE_DIR}/tools/flash_nucleo.py"

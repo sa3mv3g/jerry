@@ -1,0 +1,137 @@
+# =============================================================================
+# Hardware Configuration for Robot Framework HIL Tests
+# =============================================================================
+# Single source of truth for all hardware connection mappings, IP addresses,
+# serial ports, and test tolerances.
+#
+# Override individual values at runtime:
+#   uv run robot --variable DUT_HOST:192.168.1.50 tests/robot/suites/
+# =============================================================================
+
+dut:
+  modbus_tcp_host: "192.168.1.100"   # STM32H5 Nucleo IP address
+  modbus_tcp_port: 502
+  modbus_unit_id: 1
+  modbus_rtu_port: "/dev/ttyUSB0"    # FUTURE: Modbus RTU UART port
+  modbus_rtu_baudrate: 115200
+  modbus_rtu_parity: "N"
+  modbus_rtu_stopbits: 1
+  modbus_timeout: 3.0                # seconds
+
+ad3:
+  serial_number: ""                  # Leave empty to use first found AD3 device
+  wavegen_vref: 3.3                  # Volts - matches STM32 ADC VREF+
+
+  # ---------------------------------------------------------------------------
+  # Analog output to ADC input mapping
+  # AD3 Wavegen channels inject known voltages into STM32 ADC inputs
+  # ---------------------------------------------------------------------------
+  adc_channels:
+    - ad3_wavegen: 1                 # AD3 W1 (Wavegen channel 1)
+      stm32_channel: 0               # BSP_ADC1_CHANNEL_A0 (PA0, CN7 A0)
+      modbus_input_reg_raw: 0        # adc_0_value (FC04 address 0)
+      modbus_input_reg_cal: 4        # adc_0_calibrated_value float32 (FC04 address 4-5)
+    - ad3_wavegen: 2                 # AD3 W2 (Wavegen channel 2)
+      stm32_channel: 1               # BSP_ADC1_CHANNEL_A1 (PA1, CN7 A1)
+      modbus_input_reg_raw: 1        # adc_1_value (FC04 address 1)
+      modbus_input_reg_cal: 6        # adc_1_calibrated_value float32 (FC04 address 6-7)
+
+  # ---------------------------------------------------------------------------
+  # Digital I/O mapping
+  # AD3 DIO 0-7 are configured as OUTPUTS to drive STM32 digital inputs DI0-DI7
+  # AD3 DIO 8-15 are configured as INPUTS to read STM32 digital outputs DO0-DO7
+  # ---------------------------------------------------------------------------
+  digital_inputs:                    # AD3 drives these (DIO 0-7 as outputs)
+    count: 8
+    ad3_dio_start: 0                 # AD3 DIO 0-7
+    modbus_discrete_input_start: 0   # FC02 addresses 0-7
+    modbus_coil_mirror_start: 16     # FC01 addresses 16-23 (DI mirror coils)
+
+  digital_outputs:                   # AD3 reads these (DIO 8-15 as inputs)
+    count: 8                         # First 8 of 16 DO channels (DO0-DO7)
+    ad3_dio_start: 8                 # AD3 DIO 8-15
+    modbus_coil_start: 0             # FC01/FC05 addresses 0-7
+
+  # ---------------------------------------------------------------------------
+  # PWM measurement
+  # AD3 Scope channels measure STM32 PWM outputs
+  # ---------------------------------------------------------------------------
+  pwm_channels:
+    - ad3_scope_channel: 1           # AD3 Scope CH1
+      modbus_enable_coil: 24         # pwm_0_enable coil address
+      modbus_freq_reg: 50            # pwm_0_frequency holding register
+      modbus_duty_reg: 51            # pwm_0_duty_cycle holding register
+    - ad3_scope_channel: 2           # AD3 Scope CH2
+      modbus_enable_coil: 25         # pwm_1_enable coil address
+      modbus_freq_reg: 52            # pwm_1_frequency holding register
+      modbus_duty_reg: 53            # pwm_1_duty_cycle holding register
+
+  # ---------------------------------------------------------------------------
+  # UART for Modbus RTU (FUTURE: requires RTU task in firmware)
+  # ---------------------------------------------------------------------------
+  uart:
+    baudrate: 115200
+    parity: "N"
+    stop_bits: 1
+
+  # ---------------------------------------------------------------------------
+  # I2C for PCF8574/PCF8574A expander verification
+  # AD3 I2C connects in parallel to STM32 I2C4 bus (PB6=SCL, PB7=SDA)
+  # Use 4.7kOhm pull-ups on SDA/SCL if not already present on Nucleo board
+  # ---------------------------------------------------------------------------
+  i2c:
+    clock_hz: 100000                 # 100kHz standard mode (matches STM32 I2C4)
+    pcf8574_addr: 0x20               # 7-bit address of PCF8574 (DO0-DO7)
+    pcf8574a_addr: 0x21              # 7-bit address of PCF8574A (DO8-DO15)
+    snoop_mode: true                 # true=passive snoop; false=AD3 as I2C master
+
+# =============================================================================
+# Test Tolerances and Limits
+# =============================================================================
+tolerances:
+  adc_percent: 2.0                   # ADC accuracy tolerance in percent (±2%)
+  pwm_frequency_percent: 1.0         # PWM frequency tolerance in percent (±1%)
+  pwm_duty_percent: 1.0              # PWM duty cycle tolerance in percent (±1%)
+  i2c_clock_percent: 10.0            # I2C SCL frequency tolerance in percent (±10%)
+  filter_settle_ms: 200              # ADC filter settling time in milliseconds
+
+# =============================================================================
+# Modbus Register Map (from jerry_registers.json)
+# =============================================================================
+registers:
+  coils:
+    digital_output_start: 0          # DO0-DO15 (addresses 0-15)
+    digital_output_count: 16
+    digital_input_mirror_start: 16   # DI0-DI7 mirror (addresses 16-23, read-only)
+    digital_input_mirror_count: 8
+    pwm_enable_start: 24             # PWM0-PWM3 enable (addresses 24-27)
+    pwm_enable_count: 4
+
+  discrete_inputs:
+    digital_input_start: 0           # DI0-DI7 (addresses 0-7)
+    digital_input_count: 8
+
+  input_registers:
+    adc_raw_start: 0                 # adc_0_value .. adc_3_value (addresses 0-3)
+    adc_raw_count: 4
+    adc_cal_start: 4                 # adc_0_calibrated_value float32 (addresses 4-11)
+    adc_cal_count: 8                 # 4 channels x 2 registers each
+    version_major: 100               # app_version_major
+    version_minor: 101               # app_version_minor
+    version_patch: 102               # app_version_patch
+
+  holding_registers:
+    adc_scale_factor_start: 104      # adc_0_scale_factor float32 (addresses 104-105)
+    adc_offset_start: 106            # adc_0_offset_term float32 (addresses 106-107)
+    adc_dead_zone_start: 108         # adc_0_dead_zone float32 (addresses 108-109)
+    system_tick_low: 200             # system_tick_low
+    system_tick_high: 201            # system_tick_high
+    rtc_year: 210
+    rtc_month: 211
+    rtc_day: 212
+    rtc_hour: 213
+    rtc_minute: 214
+    rtc_second: 215
+    version_major: 300               # app_version_major (holding register mirror)
+    version_minor: 301
+    version_patch: 302
