@@ -178,9 +178,6 @@ void vTcpEchoTask(void *pvParameters)
 
     (void)pvParameters;
 
-    xEventGroupSync(xSyncEventGroup, APPTASK_TCPECHO_TASK_EVENT_MASK,
-                    APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
-
     printf("TCP Echo Task Started\n");
 
     /* Initialize the LwIP stack */
@@ -251,7 +248,6 @@ void vTcpEchoTask(void *pvParameters)
            (gnetif.flags & NETIF_FLAG_LINK_UP) ? 1 : 0,
            (gnetif.flags & NETIF_FLAG_ETHARP) ? 1 : 0,
            (gnetif.flags & NETIF_FLAG_BROADCAST) ? 1 : 0);
-    printf("========================================\n");
 
 #if USE_DHCP
     /* Start DHCP to obtain IP address automatically */
@@ -288,6 +284,11 @@ void vTcpEchoTask(void *pvParameters)
 
     LcdManager_UpdateIpv4Address(ip4addr_ntoa(netif_ip4_addr(&gnetif)));
 #endif /* USE_DHCP */
+
+    HAL_IWDG_Refresh(&hiwdg);
+
+    xEventGroupSync(xSyncEventGroup, APPTASK_TCPECHO_TASK_EVENT_MASK,
+                    APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
 
     /* Create the TCP Echo Server thread */
     tcp_echo_thread(NULL);

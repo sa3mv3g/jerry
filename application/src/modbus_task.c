@@ -42,6 +42,9 @@
 /** Receive timeout in milliseconds */
 #define MODBUS_RECV_TIMEOUT_MS 5000U
 
+#define BSP_EEPROM_READ(A, B, C) \
+    if (BSP_OK != BSP_EEPROM_Read(A, B, C)) break;
+
 /* ==========================================================================
  * Private Types
  * ========================================================================== */
@@ -90,29 +93,64 @@ void vModbusTask(void *pvParameters)
 {
     (void)pvParameters;
 
-    uint8_t  dev_addr;
-    uint16_t initDigitalOutputCoilsValues;
+    uint8_t                           dev_addr;
+    uint16_t                          initDigitalOutputCoilsValues;
+    jerry_device_holding_registers_t *hrRegs;
+    bsp_error_t                       err;
 
-    printf("Modbus Task Started\n");
+    printf("[Modbus] Task Started\n");
 
     /* Read device address from DEVADDR pins and set Modbus unit ID */
+    err              = BSP_ERROR;
     dev_addr         = BSP_GetDeviceAddress();
     s_modbus_unit_id = MODBUS_UNIT_ID_BASE + dev_addr;
 
-    printf("Modbus: Device address from DEVADDR pins: %u, Unit ID: %u\n",
+    printf("[Modbus] Device address from DEVADDR pins: %u, Unit ID: %u\n",
            dev_addr, s_modbus_unit_id);
-
-    /* Wait for LwIP to be fully initialized
-     * The tcpip_init() is called from main and takes some time to complete.
-     * We need to wait until the network stack is ready before creating
-     * netconn structures.
-     */
-    printf("Modbus: Waiting for network stack initialization...\n");
-    vTaskDelay(pdMS_TO_TICKS(2000));
 
     /* Initialize register data structures */
     jerry_device_registers_init();
-    printf("Modbus registers initialized\n");
+    /* Read parameters from EEPROM */
+    hrRegs = jerry_device_get_holding_registers();
+    do
+    {
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_0_SCALE_FACTOR,
+                        (uint8_t *)&hrRegs->adc_0_scale_factor, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_0_OFFSET_TERM,
+                        (uint8_t *)&hrRegs->adc_0_offset_term, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_0_DEAD_ZONE,
+                        (uint8_t *)&hrRegs->adc_0_dead_zone, sizeof(float));
+
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_1_SCALE_FACTOR,
+                        (uint8_t *)&hrRegs->adc_1_scale_factor, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_1_OFFSET_TERM,
+                        (uint8_t *)&hrRegs->adc_1_offset_term, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_1_DEAD_ZONE,
+                        (uint8_t *)&hrRegs->adc_1_dead_zone, sizeof(float));
+
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_2_SCALE_FACTOR,
+                        (uint8_t *)&hrRegs->adc_2_scale_factor, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_2_OFFSET_TERM,
+                        (uint8_t *)&hrRegs->adc_2_offset_term, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_2_DEAD_ZONE,
+                        (uint8_t *)&hrRegs->adc_2_dead_zone, sizeof(float));
+
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_3_SCALE_FACTOR,
+                        (uint8_t *)&hrRegs->adc_3_scale_factor, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_3_OFFSET_TERM,
+                        (uint8_t *)&hrRegs->adc_3_offset_term, sizeof(float));
+        BSP_EEPROM_READ(MODBUS_NVM_ADC_3_DEAD_ZONE,
+                        (uint8_t *)&hrRegs->adc_3_dead_zone, sizeof(float));
+        err = BSP_OK;
+
+    } while (0);
+
+    if (BSP_OK != err)
+    {
+        printf("[Modbus] Failed to read calibration data from EEPROM!!");
+    }
+
+    printf("[Modbus] registers initialized\n");
 
     /* Initialize connection tracking */
     for (uint8_t i = 0U; i < MODBUS_MAX_CONNECTIONS; i++)
@@ -121,14 +159,19 @@ void vModbusTask(void *pvParameters)
         s_connections[i].active = false;
     }
 
+    HAL_IWDG_Refresh(&hiwdg);
+
     xEventGroupSync(xSyncEventGroup, APPTASK_MODBUS_TASK_EVENT_MASK,
                     APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
 
     LcdManager_UpdateModbusDeviceAddress(s_modbus_unit_id);
     initDigitalOutputCoilsValues = 0x0;
-    BSP_I2CDO_Read(&initDigitalOutputCoilsValues);
-    modbus_cb_write_multiple_coils(
-        0, 16, (const uint8_t *)&initDigitalOutputCoilsValues);
+
+    if (BSP_OK == BSP_I2CDO_Read(&initDigitalOutputCoilsValues))
+    {
+        modbus_cb_write_multiple_coils(
+            0, 16, (const uint8_t *)&initDigitalOutputCoilsValues);
+    }
 
     /* Start the Modbus TCP server */
     modbus_tcp_server_thread(NULL);
@@ -155,11 +198,13 @@ static void modbus_tcp_server_thread(void *arg)
 
     (void)arg;
 
+    printf("[Modbus]: Available netconns: %d\n",
+           lwip_stats.memp[MEMP_NETCONN]->avail);
     /* Create a new TCP connection handle */
     listen_conn = netconn_new(NETCONN_TCP);
     if (listen_conn == NULL)
     {
-        printf("Modbus: Failed to create connection\n");
+        printf("[Modbus]: Failed to create connection\n");
         return;
     }
 
@@ -167,7 +212,8 @@ static void modbus_tcp_server_thread(void *arg)
     err = netconn_bind(listen_conn, IP_ADDR_ANY, MODBUS_TCP_PORT);
     if (err != ERR_OK)
     {
-        printf("Modbus: Failed to bind to port %u: %d\n", MODBUS_TCP_PORT, err);
+        printf("[Modbus]: Failed to bind to port %u: %d\n", MODBUS_TCP_PORT,
+               err);
         netconn_delete(listen_conn);
         return;
     }
@@ -176,12 +222,12 @@ static void modbus_tcp_server_thread(void *arg)
     err = netconn_listen(listen_conn);
     if (err != ERR_OK)
     {
-        printf("Modbus: Failed to listen: %d\n", err);
+        printf("[Modbus]: Failed to listen: %d\n", err);
         netconn_delete(listen_conn);
         return;
     }
 
-    printf("Modbus TCP Server listening on port %u\n", MODBUS_TCP_PORT);
+    printf("[Modbus] TCP Server listening on port %u\n", MODBUS_TCP_PORT);
 
     /* Main server loop */
     while (1)
@@ -190,7 +236,7 @@ static void modbus_tcp_server_thread(void *arg)
         err = netconn_accept(listen_conn, &new_conn);
         if (err == ERR_OK)
         {
-            printf("Modbus: New connection accepted\n");
+            printf("[Modbus]: New connection accepted\n");
 
             /* Set receive timeout */
             netconn_set_recvtimeout(new_conn, MODBUS_RECV_TIMEOUT_MS);
@@ -201,11 +247,11 @@ static void modbus_tcp_server_thread(void *arg)
             /* Clean up */
             netconn_close(new_conn);
             netconn_delete(new_conn);
-            printf("Modbus: Connection closed\n");
+            printf("[Modbus]: Connection closed\n");
         }
         else
         {
-            printf("Modbus: Accept error: %d\n", err);
+            printf("[Modbus]: Accept error: %d\n", err);
             vTaskDelay(pdMS_TO_TICKS(100));
         }
     }
@@ -255,13 +301,13 @@ static void modbus_handle_connection(struct netconn *conn)
                                             NETCONN_COPY);
                         if (err != ERR_OK)
                         {
-                            printf("Modbus: Write error: %d\n", err);
+                            printf("[Modbus]: Write error: %d\n", err);
                         }
                     }
                 }
                 else
                 {
-                    printf("Modbus: Process error: %d\n", (int)modbus_err);
+                    printf("[Modbus]: Process error: %d\n", (int)modbus_err);
                 }
             }
 
@@ -274,7 +320,7 @@ static void modbus_handle_connection(struct netconn *conn)
         else
         {
             /* Connection error - exit */
-            printf("Modbus: Receive error: %d\n", err);
+            printf("[Modbus]: Receive error: %d\n", err);
             break;
         }
     }
@@ -298,7 +344,7 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
     err = modbus_tcp_parse_frame(request, request_len, &request_adu);
     if (err != MODBUS_OK)
     {
-        printf("Modbus: Frame parse error: %d\n", (int)err);
+        printf("[Modbus]: Frame parse error: %d\n", (int)err);
         return err;
     }
 

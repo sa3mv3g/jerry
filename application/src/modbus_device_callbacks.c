@@ -17,6 +17,7 @@
 #include <stdio.h>
 
 #include "FreeRTOS.h"
+#include "app_version.h"
 #include "bsp.h"
 #include "jerry_device_registers.h"
 #include "lcd_manager.h"
@@ -35,6 +36,8 @@
 #define ADDR_IN_RANGE_FROM_ZERO(addr, max) ((addr) <= (max))
 #define ADDR_IN_RANGE_NONZERO(addr, min, max) \
     (((addr) >= (min)) && ((addr) <= (max)))
+#define KEY1_UNLOCK_VALUE (0x5555U)
+#define KEY2_UNLOCK_VALUE (0xDDDDU)
 
 /**
  * @brief Update a Modbus register with a filtered ADC value in millivolts
@@ -182,6 +185,32 @@ static bsp_error_t update_digital_input(unsigned int channel, bool *pCoil,
     }
 
     return apiStatus;
+}
+
+static inline bsp_error_t update_calibration(uint32_t address, float newValue)
+{
+    float       oldVal = 0.0f;
+    bsp_error_t err    = BSP_OK;
+
+    err = BSP_EEPROM_Read(address, (uint8_t *)&oldVal, sizeof(oldVal));
+
+    if (err == BSP_OK)
+    {
+        if (oldVal != newValue)
+        {
+            err = BSP_EEPROM_Write(address, (uint8_t *)&newValue,
+                                   sizeof(newValue));
+        }
+    }
+
+    return err;
+}
+
+static inline void f32_to_u16(float val, uint16_t *register_values)
+{
+    unpack_float_t num;
+    num.f32 = val;
+    memcpy(register_values, num.u16, 2);
 }
 
 /* ==========================================================================
@@ -785,24 +814,103 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t  start_address,
                 register_values[i] = (uint16_t)regs->rtc_second;
                 break;
             case JERRY_DEVICE_HR_APP_VERSION_MAJOR:
+                /* Refresh from compile-time constants before reading */
+                regs->app_version_major = APP_VERSION_MAJOR;
                 register_values[i] = (uint16_t)regs->app_version_major;
                 break;
             case JERRY_DEVICE_HR_APP_VERSION_MINOR:
+                regs->app_version_minor = APP_VERSION_MINOR;
                 register_values[i] = (uint16_t)regs->app_version_minor;
                 break;
             case JERRY_DEVICE_HR_APP_VERSION_PATCH:
+                regs->app_version_patch = APP_VERSION_PATCH;
                 register_values[i] = (uint16_t)regs->app_version_patch;
                 break;
             case JERRY_DEVICE_HR_APP_BUILD_NUMBER:
-                /* High word of 32-bit value */
+                /* Refresh build number then return high word of 32-bit value */
+                regs->app_build_number = APP_BUILD_NUMBER;
                 register_values[i] =
                     (uint16_t)((uint32_t)regs->app_build_number >> 16U);
                 break;
             case JERRY_DEVICE_HR_APP_BUILD_NUMBER + 1U:
-                /* Low word of 32-bit value */
+                /* Low word of 32-bit value (build number already refreshed above) */
+                regs->app_build_number = APP_BUILD_NUMBER;
                 register_values[i] =
                     (uint16_t)((uint32_t)regs->app_build_number & 0xFFFFU);
                 break;
+
+            /* ADC0 Calibration */
+            case JERRY_DEVICE_HR_ADC_0_SCALE_FACTOR:
+            case JERRY_DEVICE_HR_ADC_0_SCALE_FACTOR + 1U:
+                f32_to_u16(
+                    regs->adc_0_scale_factor,
+                    &register_values[JERRY_DEVICE_HR_ADC_0_SCALE_FACTOR]);
+                break;
+            case JERRY_DEVICE_HR_ADC_0_OFFSET_TERM:
+            case JERRY_DEVICE_HR_ADC_0_OFFSET_TERM + 1U:
+                f32_to_u16(regs->adc_0_offset_term,
+                           &register_values[JERRY_DEVICE_HR_ADC_0_OFFSET_TERM]);
+                break;
+            case JERRY_DEVICE_HR_ADC_0_DEAD_ZONE:
+            case JERRY_DEVICE_HR_ADC_0_DEAD_ZONE + 1U:
+                f32_to_u16(regs->adc_0_offset_term,
+                           &register_values[JERRY_DEVICE_HR_ADC_0_DEAD_ZONE]);
+                break;
+
+            /* ADC1 Calibration */
+            case JERRY_DEVICE_HR_ADC_1_SCALE_FACTOR:
+            case JERRY_DEVICE_HR_ADC_1_SCALE_FACTOR + 1U:
+                f32_to_u16(
+                    regs->adc_1_scale_factor,
+                    &register_values[JERRY_DEVICE_HR_ADC_1_SCALE_FACTOR]);
+                break;
+            case JERRY_DEVICE_HR_ADC_1_OFFSET_TERM:
+            case JERRY_DEVICE_HR_ADC_1_OFFSET_TERM + 1U:
+                f32_to_u16(regs->adc_1_offset_term,
+                           &register_values[JERRY_DEVICE_HR_ADC_1_OFFSET_TERM]);
+                break;
+            case JERRY_DEVICE_HR_ADC_1_DEAD_ZONE:
+            case JERRY_DEVICE_HR_ADC_1_DEAD_ZONE + 1U:
+                f32_to_u16(regs->adc_1_offset_term,
+                           &register_values[JERRY_DEVICE_HR_ADC_1_DEAD_ZONE]);
+                break;
+
+            /* ADC2 Calibration */
+            case JERRY_DEVICE_HR_ADC_2_SCALE_FACTOR:
+            case JERRY_DEVICE_HR_ADC_2_SCALE_FACTOR + 1U:
+                f32_to_u16(
+                    regs->adc_2_scale_factor,
+                    &register_values[JERRY_DEVICE_HR_ADC_2_SCALE_FACTOR]);
+                break;
+            case JERRY_DEVICE_HR_ADC_2_OFFSET_TERM:
+            case JERRY_DEVICE_HR_ADC_2_OFFSET_TERM + 1U:
+                f32_to_u16(regs->adc_2_offset_term,
+                           &register_values[JERRY_DEVICE_HR_ADC_2_OFFSET_TERM]);
+                break;
+            case JERRY_DEVICE_HR_ADC_2_DEAD_ZONE:
+            case JERRY_DEVICE_HR_ADC_2_DEAD_ZONE + 1U:
+                f32_to_u16(regs->adc_2_offset_term,
+                           &register_values[JERRY_DEVICE_HR_ADC_2_DEAD_ZONE]);
+                break;
+
+            /* ADC3 Calibration */
+            case JERRY_DEVICE_HR_ADC_3_SCALE_FACTOR:
+            case JERRY_DEVICE_HR_ADC_3_SCALE_FACTOR + 1U:
+                f32_to_u16(
+                    regs->adc_3_scale_factor,
+                    &register_values[JERRY_DEVICE_HR_ADC_3_SCALE_FACTOR]);
+                break;
+            case JERRY_DEVICE_HR_ADC_3_OFFSET_TERM:
+            case JERRY_DEVICE_HR_ADC_3_OFFSET_TERM + 1U:
+                f32_to_u16(regs->adc_3_offset_term,
+                           &register_values[JERRY_DEVICE_HR_ADC_3_OFFSET_TERM]);
+                break;
+            case JERRY_DEVICE_HR_ADC_3_DEAD_ZONE:
+            case JERRY_DEVICE_HR_ADC_3_DEAD_ZONE + 1U:
+                f32_to_u16(regs->adc_3_offset_term,
+                           &register_values[JERRY_DEVICE_HR_ADC_3_DEAD_ZONE]);
+                break;
+
             default:
                 return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
         }
@@ -914,6 +1022,100 @@ modbus_exception_t modbus_cb_write_single_register(uint16_t address,
             }
             regs->rtc_second = value;
             break;
+
+        case JERRY_DEVICE_HR_KEY1:
+            regs->key1 = value;
+            break;
+
+        case JERRY_DEVICE_HR_KEY2:
+        {
+            bsp_error_t err = BSP_OK;
+            if (KEY1_UNLOCK_VALUE == regs->key1 && KEY2_UNLOCK_VALUE == value)
+            {
+                do
+                {
+                    err = update_calibration(MODBUS_NVM_ADC_0_SCALE_FACTOR,
+                                             regs->adc_0_scale_factor);
+
+                    if (err != BSP_OK) break;
+
+                    err = update_calibration(MODBUS_NVM_ADC_0_OFFSET_TERM,
+                                             regs->adc_0_offset_term);
+                    if (err != BSP_OK) break;
+
+                    err = update_calibration(MODBUS_NVM_ADC_0_DEAD_ZONE,
+                                             regs->adc_0_dead_zone);
+
+                    if (err != BSP_OK) break;
+
+                    err = update_calibration(MODBUS_NVM_ADC_1_SCALE_FACTOR,
+                                             (regs->adc_1_scale_factor));
+
+                    if (err != BSP_OK) break;
+
+                    err = update_calibration(MODBUS_NVM_ADC_1_OFFSET_TERM,
+                                             (regs->adc_1_offset_term));
+
+                    if (err != BSP_OK) break;
+
+                    err = update_calibration(MODBUS_NVM_ADC_1_DEAD_ZONE,
+                                             (regs->adc_1_dead_zone));
+
+                    if (err != BSP_OK) break;
+
+                    err = update_calibration(MODBUS_NVM_ADC_2_SCALE_FACTOR,
+                                             (regs->adc_2_scale_factor));
+
+                    if (err != BSP_OK) break;
+
+                    err = update_calibration(MODBUS_NVM_ADC_2_OFFSET_TERM,
+                                             (regs->adc_2_offset_term));
+
+                    if (err != BSP_OK) break;
+
+                    err = update_calibration(MODBUS_NVM_ADC_2_DEAD_ZONE,
+                                             (regs->adc_2_dead_zone));
+
+                    if (err != BSP_OK) break;
+
+                    err = update_calibration(MODBUS_NVM_ADC_3_SCALE_FACTOR,
+                                             (regs->adc_3_scale_factor));
+
+                    if (err != BSP_OK) break;
+
+                    err = update_calibration(MODBUS_NVM_ADC_3_OFFSET_TERM,
+                                             (regs->adc_3_offset_term));
+
+                    if (err != BSP_OK) break;
+
+                    err = update_calibration(MODBUS_NVM_ADC_3_DEAD_ZONE,
+                                             (regs->adc_3_dead_zone));
+
+                    if (err != BSP_OK) break;
+
+                } while (false);
+            }
+
+            /* reset them back to init value */
+            regs->key1 = 0;
+            regs->key2 = 0;
+
+            if (err != BSP_OK)
+            {
+                return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+            }
+        }
+        break;
+        /* Version and build number registers are read-only.
+         * Writes are silently ignored so bulk-write masters that include
+         * these addresses in a range do not receive an exception. */
+        case JERRY_DEVICE_HR_APP_VERSION_MAJOR:
+        case JERRY_DEVICE_HR_APP_VERSION_MINOR:
+        case JERRY_DEVICE_HR_APP_VERSION_PATCH:
+        case JERRY_DEVICE_HR_APP_BUILD_NUMBER:
+        case JERRY_DEVICE_HR_APP_BUILD_NUMBER + 1U:
+            break;
+
         default:
             return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
     }
@@ -983,21 +1185,27 @@ modbus_exception_t modbus_cb_read_input_registers(uint16_t  start_address,
                 register_values[i] = (uint16_t)regs->adc_3_value;
                 break;
             case JERRY_DEVICE_IR_APP_VERSION_MAJOR:
+                /* Refresh from compile-time constants before reading */
+                regs->app_version_major = APP_VERSION_MAJOR;
                 register_values[i] = (uint16_t)regs->app_version_major;
                 break;
             case JERRY_DEVICE_IR_APP_VERSION_MINOR:
+                regs->app_version_minor = APP_VERSION_MINOR;
                 register_values[i] = (uint16_t)regs->app_version_minor;
                 break;
             case JERRY_DEVICE_IR_APP_VERSION_PATCH:
+                regs->app_version_patch = APP_VERSION_PATCH;
                 register_values[i] = (uint16_t)regs->app_version_patch;
                 break;
             case JERRY_DEVICE_IR_APP_BUILD_NUMBER:
-                /* High word of 32-bit value */
+                /* Refresh build number then return high word of 32-bit value */
+                regs->app_build_number = APP_BUILD_NUMBER;
                 register_values[i] =
                     (uint16_t)((uint32_t)regs->app_build_number >> 16U);
                 break;
             case JERRY_DEVICE_IR_APP_BUILD_NUMBER + 1U:
-                /* Low word of 32-bit value */
+                regs->app_build_number = APP_BUILD_NUMBER;
+                /* Low word of 32-bit value (build number already refreshed above) */
                 register_values[i] =
                     (uint16_t)((uint32_t)regs->app_build_number & 0xFFFFU);
                 break;

@@ -2,41 +2,68 @@
 Pytest Configuration for Modbus Integration Tests
 
 This module provides fixtures and configuration for pymodbus integration tests.
+
+Connection parameters can be supplied in three ways (highest priority first):
+  1. pytest CLI options:  --modbus-host, --modbus-port, --modbus-unit-id
+  2. Environment variables: MODBUS_HOST, MODBUS_PORT, MODBUS_UNIT_ID
+  3. Defaults in test_config.py: 192.168.1.100, 502, 1
+
+Example:
+    uv run pytest tests/integration/ -m hardware \\
+        --modbus-host 10.0.0.50 --modbus-port 502 --modbus-unit-id 3
 """
 
 import pytest
 from pymodbus.client import ModbusTcpClient
-from pymodbus.exceptions import ModbusException, ConnectionException
+from pymodbus.exceptions import ConnectionException
 
 from test_config import MODBUS_HOST, MODBUS_PORT, MODBUS_UNIT_ID, TIMEOUT
 
 
-@pytest.fixture(scope="module")
-def modbus_client():
-    """
-    Create a Modbus TCP client fixture.
+@pytest.fixture(scope="session")
+def modbus_host(request):
+    """Return the Modbus host from CLI option, env var, or default."""
+    return request.config.getoption("--modbus-host")
 
-    This fixture creates a connection to the Modbus slave device
-    and yields the client for use in tests. The connection is
-    closed after all tests in the module complete.
+
+@pytest.fixture(scope="session")
+def modbus_port(request):
+    """Return the Modbus port from CLI option, env var, or default."""
+    return request.config.getoption("--modbus-port")
+
+
+@pytest.fixture(scope="session")
+def modbus_unit_id(request):
+    """Return the Modbus unit ID from CLI option, env var, or default."""
+    return request.config.getoption("--modbus-unit-id")
+
+
+@pytest.fixture(scope="module")
+def modbus_client(modbus_host, modbus_port):  # pylint: disable=redefined-outer-name
+    """Create a Modbus TCP client fixture shared across all tests in a module.
+
+    Connection parameters are resolved from CLI options, environment variables,
+    or test_config.py defaults (in that priority order).
 
     Yields:
-        ModbusTcpClient: Connected Modbus client
+        ModbusTcpClient: Connected Modbus client.
 
     Raises:
-        pytest.skip: If connection cannot be established
+        pytest.skip: If the connection cannot be established.
     """
     client = ModbusTcpClient(
-        host=MODBUS_HOST,
-        port=MODBUS_PORT,
+        host=modbus_host,
+        port=modbus_port,
         timeout=TIMEOUT,
     )
 
     try:
         if not client.connect():
-            pytest.skip(f"Cannot connect to Modbus device at {MODBUS_HOST}:{MODBUS_PORT}")
-    except ConnectionException as e:
-        pytest.skip(f"Connection failed: {e}")
+            pytest.skip(
+                f"Cannot connect to Modbus device at {modbus_host}:{modbus_port}"
+            )
+    except ConnectionException as exc:
+        pytest.skip(f"Connection failed: {exc}")
 
     yield client
 
@@ -44,19 +71,17 @@ def modbus_client():
 
 
 @pytest.fixture(scope="function")
-def modbus_client_per_test():
-    """
-    Create a Modbus TCP client fixture per test.
+def modbus_client_per_test(modbus_host, modbus_port):  # pylint: disable=redefined-outer-name
+    """Create a fresh Modbus TCP client for each individual test.
 
-    This fixture creates a fresh connection for each test,
-    useful for connection-related tests.
+    Useful for connection-related tests that need a clean connection state.
 
     Yields:
-        ModbusTcpClient: Connected Modbus client
+        ModbusTcpClient: Modbus client (not yet connected).
     """
     client = ModbusTcpClient(
-        host=MODBUS_HOST,
-        port=MODBUS_PORT,
+        host=modbus_host,
+        port=modbus_port,
         timeout=TIMEOUT,
     )
 
@@ -67,9 +92,9 @@ def modbus_client_per_test():
 
 
 @pytest.fixture
-def unit_id():
+def unit_id(modbus_unit_id):  # pylint: disable=redefined-outer-name
     """Return the configured Modbus unit ID."""
-    return MODBUS_UNIT_ID
+    return modbus_unit_id
 
 
 def pytest_configure(config):
@@ -77,12 +102,8 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
-    config.addinivalue_line(
-        "markers", "stress: marks tests as stress tests"
-    )
-    config.addinivalue_line(
-        "markers", "hardware: marks tests that require hardware"
-    )
+    config.addinivalue_line("markers", "stress: marks tests as stress tests")
+    config.addinivalue_line("markers", "hardware: marks tests that require hardware")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -95,23 +116,30 @@ def pytest_collection_modifyitems(config, items):
 
 
 def pytest_addoption(parser):
-    """Add custom command line options."""
+    """Add custom command line options for Modbus connection parameters."""
     parser.addoption(
         "--no-hardware",
         action="store_true",
         default=False,
-        help="Skip tests that require hardware connection"
+        help="Skip tests that require hardware connection",
     )
     parser.addoption(
         "--modbus-host",
         action="store",
         default=MODBUS_HOST,
-        help="Modbus device IP address"
+        help=f"Modbus device IP address (default: {MODBUS_HOST}, env: MODBUS_HOST)",
     )
     parser.addoption(
         "--modbus-port",
         action="store",
         default=MODBUS_PORT,
         type=int,
-        help="Modbus device port"
+        help=f"Modbus device TCP port (default: {MODBUS_PORT}, env: MODBUS_PORT)",
+    )
+    parser.addoption(
+        "--modbus-unit-id",
+        action="store",
+        default=MODBUS_UNIT_ID,
+        type=int,
+        help=f"Modbus slave unit ID (default: {MODBUS_UNIT_ID}, env: MODBUS_UNIT_ID)",
     )

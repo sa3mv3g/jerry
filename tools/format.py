@@ -32,6 +32,7 @@ def main():
     patterns = [
         os.path.join(root_dir, "application", "src", "**", "*.[ch]"),
         os.path.join(root_dir, "application", "inc", "**", "*.[ch]"),
+        os.path.join(root_dir, "application", "src", "generated", "**", "*.[ch]"),
         os.path.join(root_dir, "application", "dependencies", "modbus", "src", "**", "*.[ch]"),
         os.path.join(root_dir, "application", "dependencies", "modbus", "inc", "**", "*.[ch]"),
         os.path.join(root_dir, "application", "dependencies", "lwip", "port", "stm32h5", "**", "*.[ch]"),

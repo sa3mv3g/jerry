@@ -6,9 +6,10 @@ Jerry is a data acquisition firmware for the NUCLEO-H563ZI development board (ST
 
 | File | Description |
 |------|-------------|
+| `flash.bat` | **One-click production flash launcher (Windows)** |
 | `jerry_secure_app.elf` | Secure application (TrustZone secure world) |
 | `jerry_app.elf` | Non-secure application (main firmware) |
-| `flash_nucleo.py` | Automated flashing script |
+| `flash_nucleo.py` | Automated flashing script (called by `flash.bat`) |
 | `jerry_device_register_map.txt` | Modbus register documentation |
 
 ## Requirements
@@ -23,7 +24,34 @@ Jerry is a data acquisition firmware for the NUCLEO-H563ZI development board (ST
   - Download from: https://www.st.com/en/development-tools/stm32cubeprog.html
   - Ensure `STM32_Programmer_CLI` is on your system PATH
 
-## Quick Start
+## Production Line Flashing (One-Click)
+
+This is the recommended workflow for programming boards on the production line.
+
+### Prerequisites
+
+- **Python 3.10+** installed and available on `PATH`
+- **STM32CubeCLT** or **STM32CubeProgrammer** installed
+  - Download: https://www.st.com/en/development-tools/stm32cubeprog.html
+  - `STM32_Programmer_CLI` must be on `PATH` or in a standard install location
+- Board **option bytes already configured** (TrustZone pre-configured before reaching the line)
+- USB cable (Type-A to Micro-B) connecting the board to the PC
+
+### Steps
+
+1. **Extract** the ZIP package to any folder on the production PC.
+2. **Connect** the NUCLEO-H563ZI board via USB.
+3. **Double-click `flash.bat`** in Windows Explorer.
+4. Press any key when prompted to start flashing.
+5. Wait for the **"SUCCESS: Board programmed successfully!"** message.
+6. The board resets automatically and starts running the firmware.
+
+> If flashing fails, the window stays open showing the error. Check USB connection
+> and ensure `STM32_Programmer_CLI` is installed and on `PATH`.
+
+---
+
+## Developer Quick Start
 
 ### 1. Connect the Board
 

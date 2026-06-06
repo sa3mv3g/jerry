@@ -33,6 +33,7 @@ void vLcdManageTask(void* pvParameters)
     (void)pvParameters;
     LcdI2cError err;
 
+    gUdpateLcdSem = xSemaphoreCreateBinaryStatic(&gUdpateLcdSemBuff);
     memset(gLcdStrings, (char)' ', sizeof(gLcdStrings));
     for (uint8_t lcdRow = 0; lcdRow < LCD_MANAGER_ROWS_MAX; lcdRow++)
     {
@@ -48,36 +49,30 @@ void vLcdManageTask(void* pvParameters)
 
     /* Initialize LCD with app-managed handle */
     err = LcdI2c_Init(&lcd_handle, &config);
-    if (err != kLcdI2cOk)
+
+    if (err == kLcdI2cOk)
     {
-        /* Handle initialization error */
-        /* Could log error or retry */
-        for (;;)
-        {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
+        /* LCD initialized successfully */
+        LcdI2c_Clear(&lcd_handle);
+        LcdI2c_WriteStringAt(&lcd_handle, 0, 0, "www.aics.co.in");
+        LcdI2c_Clear(&lcd_handle);
     }
 
-    /* LCD initialized successfully */
-    LcdI2c_Clear(&lcd_handle);
-    LcdI2c_WriteStringAt(&lcd_handle, 0, 0, "www.aics.co.in");
-
-    gUdpateLcdSem = xSemaphoreCreateBinaryStatic(&gUdpateLcdSemBuff);
+    HAL_IWDG_Refresh(&hiwdg);
 
     xEventGroupSync(xSyncEventGroup, APPTASK_LCDMANAGE_TASK_EVENT_MASK,
                     APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
 
-    LcdI2c_Clear(&lcd_handle);
-
     /* Main task loop */
     for (;;)
     {
-        if (xSemaphoreTake(gUdpateLcdSem, portMAX_DELAY) == pdTRUE)
+        if ((xSemaphoreTake(gUdpateLcdSem, portMAX_DELAY) == pdTRUE) &&
+            (err == kLcdI2cOk))
         {
             for (uint8_t lcdRow = 0; lcdRow < LCD_MANAGER_ROWS_MAX; lcdRow++)
             {
-                LcdI2c_WriteStringAt(&lcd_handle, 0, lcdRow,
-                                     gLcdStrings[lcdRow]);
+                err = LcdI2c_WriteStringAt(&lcd_handle, 0, lcdRow,
+                                           gLcdStrings[lcdRow]);
             }
         }
     }

@@ -20,6 +20,6 @@ void vLoggingTask(void* pvParameters)
     for (;;)
     {
         /* Process log queue and send over UART */
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

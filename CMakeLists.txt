@@ -58,7 +58,8 @@ if(UV_FOUND)
     )
 
     add_custom_target(lizard
-        COMMAND ${UV_RUN_CMD} lizard ${LIZARD_CLI_PARAMS}
+        COMMAND ${CMAKE_COMMAND} -E env CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR}
+                ${UV_RUN_CMD} python tools/run_lizard.py ${LIZARD_CLI_PARAMS}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Running Lizard metrics..."
     )

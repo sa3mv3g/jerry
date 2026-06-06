@@ -14,8 +14,6 @@
 /* LwIP includes for memory stats */
 #include "lwip/stats.h"
 
-extern IWDG_HandleTypeDef hiwdg;
-
 /* External diagnostic functions from main.c */
 #if LWIP_STATS
 extern void print_lwip_memory_stats(void);
@@ -170,6 +168,8 @@ void vMonitorTask(void* pvParameters)
     (void)pvParameters;
 
     uint32_t stats_counter = 0;
+
+    HAL_IWDG_Refresh(&hiwdg);
 
     xEventGroupSync(xSyncEventGroup, APPTASK_MONITOR_TASK_EVENT_MASK,
                     APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);

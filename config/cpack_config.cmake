@@ -4,12 +4,15 @@
 # CPack Configuration for Jerry Firmware
 # This file configures the packaging of Jerry firmware binaries for distribution.
 #
-# Usage:
-#   cmake -S . -B build -G Ninja
-#   cmake --build build --target jerry_app
-#   cd build && cpack
+# Usage (via build.py):
+#   uv run python tools/build.py package --vendor stm --profile release
 #
-# This will generate packages in the build directory.
+# Usage (via cmake directly):
+#   uv run python tools/build.py configure --vendor stm --profile release
+#   cmake --build build/stm-Release --target jerry_app
+#   cd build/stm-Release && cpack
+#
+# This will generate packages in the build directory (e.g. build/stm-Release/).
 
 # =============================================================================
 # Git Repository Status Check
@@ -107,16 +110,8 @@ endif()
 # =============================================================================
 # Generator Selection
 # =============================================================================
-# Default generators based on platform
 # Note: CPACK_GENERATOR must be set BEFORE including CPack module
-if(WIN32)
-    # Use ZIP on Windows (NSIS requires separate installation)
-    set(CPACK_GENERATOR "ZIP" CACHE STRING "CPack generator to use")
-elseif(APPLE)
-    set(CPACK_GENERATOR "TGZ" CACHE STRING "CPack generator to use")
-else()
-    set(CPACK_GENERATOR "TGZ" CACHE STRING "CPack generator to use")
-endif()
+set(CPACK_GENERATOR "ZIP" CACHE STRING "CPack generator to use")
 
 # =============================================================================
 # Archive Generator Configuration (ZIP/TGZ)

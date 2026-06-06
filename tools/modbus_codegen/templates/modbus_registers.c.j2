@@ -39,6 +39,14 @@ static {{ config.device.name | lower }}_holding_registers_t s_holding_registers;
 static {{ config.device.name | lower }}_input_registers_t s_input_registers;
 
 {% endif %}
+{% if config.persistent_registers %}
+/** Persistent registers (NVM) data storage - union allows access as struct or byte array */
+static union {
+    jerry_nvm_t nvm_struct;
+    uint8_t nvm_bytes[{{ config.total_nvm_size }}];
+} s_nvm;
+
+{% endif %}
 /* ==========================================================================
  * Initialization
  * ========================================================================== */
@@ -113,3 +121,16 @@ void {{ config.device.name | lower }}_registers_init(void)
 }
 
 {% endif %}
+{% if config.persistent_registers %}
+uint8_t* {{ config.device.name | lower }}_get_nvm_bytes(void)
+{
+    return s_nvm.nvm_bytes;
+}
+
+jerry_nvm_t* {{ config.device.name | lower }}_get_nvm_struct(void)
+{
+    return &s_nvm.nvm_struct;
+}
+
+{% endif %}
+

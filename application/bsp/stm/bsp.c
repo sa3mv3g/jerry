@@ -4,8 +4,13 @@
 #include <string.h>
 
 #include "adc_filter.h"
+#include "eeprom_emul.h"
+#include "eeprom_emul_conf.h"
 #include "main.h"
 #include "stm32h5xx_hal.h"
+
+#define LED_OK       LED2
+#define PWR_FLAG_WUF PWR_WAKEUP_FLAG4
 
 /* External declarations */
 void                     SystemClock_Config(void);
@@ -117,39 +122,24 @@ void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
 }
 
 /*============================================================================*/
-/*                          MPU Configuration                                 */
+/*                      Private Functions Declarations                        */
 /*============================================================================*/
 
-static void MPU_Config(void)
-{
-    MPU_Region_InitTypeDef     MPU_InitStruct     = {0};
-    MPU_Attributes_InitTypeDef MPU_AttributesInit = {0};
+/**
+ * @brief Program MPU
+ *
+ * @param  None
+ * @retval None
+ */
+static void MPU_Config(void);
 
-    /* Disables the MPU */
-    HAL_MPU_Disable();
-
-    /* Configure the MPU attributes for Ethernet Buffers */
-    /* Attribute 0: Normal, Non-Cacheable */
-    MPU_AttributesInit.Number     = MPU_ATTRIBUTES_NUMBER0;
-    MPU_AttributesInit.Attributes = MPU_NOT_CACHEABLE;
-    HAL_MPU_ConfigMemoryAttributes(&MPU_AttributesInit);
-
-    /* Configure the MPU region */
-    MPU_InitStruct.Enable      = MPU_REGION_ENABLE;
-    MPU_InitStruct.Number      = MPU_REGION_NUMBER0;
-    MPU_InitStruct.BaseAddress = (uint32_t)&__eth_dma_start;
-    MPU_InitStruct.LimitAddress =
-        (uint32_t)&__eth_dma_start + 32 * 1024 - 1; /* 32KB region */
-    MPU_InitStruct.AttributesIndex  = MPU_ATTRIBUTES_NUMBER0;
-    MPU_InitStruct.AccessPermission = MPU_REGION_ALL_RW;
-    MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_ENABLE;
-    MPU_InitStruct.IsShareable      = MPU_ACCESS_OUTER_SHAREABLE;
-
-    HAL_MPU_ConfigRegion(&MPU_InitStruct);
-
-    /* Enables the MPU */
-    HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
-}
+/**
+ * @brief  Programmable Voltage Detector (PVD) Configuration
+ *         PVD set to level 6 for a threshold around 2.9V.
+ * @param  None
+ * @retval None
+ */
+static void PVD_Config(void);
 
 /*============================================================================*/
 /*                          BSP Initialization                                */
@@ -177,6 +167,21 @@ bsp_error_t BSP_Init(void)
     MX_ADC1_Init();
     MX_I2C4_Init();
     MX_TIM7_Init();
+    MX_CRC_Init();
+    /*
+        Enable and set FLASH Interrupt priority
+        FLASH interrupt is used for the purpose of pages clean up under
+        interrupt
+     */
+    HAL_NVIC_SetPriority(FLASH_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(FLASH_IRQn);
+
+    HAL_FLASH_Unlock();
+    /* Configure Programmable Voltage Detector (PVD) */
+    /* PVD interrupt is used to suspend the current application flow in case
+       a power-down is detected, allowing the flash interface to finish any
+       ongoing operation before a reset is triggered. */
+    PVD_Config();
 
     BSP_LED_Init(LED_GREEN);
     BSP_LED_Init(LED_YELLOW);
@@ -201,6 +206,57 @@ bsp_error_t BSP_Init(void)
 
     /* Initialize ADC filter subsystem */
     BSP_ADC1_FilterInit();
+
+    /* Set EEPROM emulation firmware to erase all potentially incompletely
+       erased pages if the system came from an asynchronous reset. Conditional
+       erase is safe to use if all Flash operations where completed before the
+       system reset */
+    if (__HAL_PWR_GET_FLAG(PWR_FLAG_SBF) == RESET)
+    {
+        /* Blink LED_OK (Green) twice at startup */
+        printf("[BSP] POR\r\n");
+        BSP_LED_On(LED_OK);
+        HAL_Delay(100);
+        BSP_LED_Off(LED_OK);
+        HAL_Delay(100);
+        BSP_LED_On(LED_OK);
+        HAL_Delay(100);
+        BSP_LED_Off(LED_OK);
+
+        /* System reset comes from a power-on reset: Forced Erase */
+        /* Initialize EEPROM emulation driver (mandatory) */
+        EE_Status ee_status = EE_Init(EE_FORCED_ERASE);
+        if (ee_status != EE_OK)
+        {
+            Error_Handler();
+        }
+    }
+    else
+    {
+        printf("[BSP] Wakeup\r\n");
+
+        /* Blink LED_OK (Green) upon wakeup */
+        BSP_LED_On(LED_OK);
+        HAL_Delay(100);
+        BSP_LED_Off(LED_OK);
+
+        /* Clear the Standby flag */
+        __HAL_PWR_CLEAR_FLAG(PWR_FLAG_SBF);
+
+        /* Check and Clear the Wakeup flag */
+        if (__HAL_PWR_GET_FLAG(PWR_FLAG_WUF) != RESET)
+        {
+            __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WUF);
+        }
+
+        /* System reset comes from a STANDBY wakeup: Conditional Erase*/
+        /* Initialize EEPROM emulation driver (mandatory) */
+        EE_Status ee_status = EE_Init(EE_CONDITIONAL_ERASE);
+        if (ee_status != EE_OK)
+        {
+            Error_Handler();
+        }
+    }
 
     HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_1);
     BSP_ADC1_Start();
@@ -831,6 +887,61 @@ bsp_error_t BSP_I2C_Master_Write(uint8_t address, uint8_t *buff, uint16_t len,
     return retVal;
 }
 
+bsp_error_t BSP_EEPROM_Read(uint32_t address, uint8_t *pBuff,
+                            uint32_t sizeBytes)
+{
+    bsp_error_t ret = BSP_OK;
+    uint32_t    i;
+    EE_Status   ee_status;
+
+    if (pBuff == NULL)
+    {
+        ret = BSP_INVALID_ARG;
+    }
+    else
+    {
+        for (i = 0; i < sizeBytes; i++)
+        {
+            ee_status =
+                EE_ReadVariable8bits((uint16_t)(address + i), &pBuff[i]);
+            if (ee_status != EE_OK)
+            {
+                ret = BSP_ERROR;
+                break;
+            }
+        }
+    }
+
+    return ret;
+}
+
+bsp_error_t BSP_EEPROM_Write(uint32_t address, uint8_t *pBuff,
+                             uint32_t sizeBytes)
+{
+    bsp_error_t ret = BSP_OK;
+    uint32_t    i;
+    EE_Status   ee_status;
+
+    if (pBuff == NULL)
+    {
+        ret = BSP_INVALID_ARG;
+    }
+    else
+    {
+        for (i = 0; i < sizeBytes; i++)
+        {
+            ee_status =
+                EE_WriteVariable8bits((uint16_t)(address + i), pBuff[i]);
+            if (ee_status != EE_OK)
+            {
+                ret = BSP_ERROR;
+                break;
+            }
+        }
+    }
+    return ret;
+}
+
 /**
  * @brief Delay in microseconds using TIM7 with HAL OnePulse functions
  * @param us: delay in microseconds (up to 65535)
@@ -857,4 +968,56 @@ void BSP_Delay_Us(uint32_t us)
 
     /* Clear the update flag */
     __HAL_TIM_CLEAR_FLAG(&htim7, TIM_FLAG_UPDATE);
+}
+
+/*============================================================================*/
+/*                          Private Functions                                 */
+/*============================================================================*/
+static void PVD_Config(void)
+{
+    PWR_PVDTypeDef sConfigPVD;
+    sConfigPVD.PVDLevel = PWR_PVDLEVEL_6;
+    sConfigPVD.Mode     = PWR_PVD_MODE_IT_RISING;
+    if (HAL_PWR_ConfigPVD(&sConfigPVD) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    /* Enable PVD */
+    HAL_PWR_EnablePVD();
+
+    /* Enable and set PVD Interrupt priority */
+    HAL_NVIC_SetPriority(PVD_AVD_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(PVD_AVD_IRQn);
+}
+
+static void MPU_Config(void)
+{
+    MPU_Region_InitTypeDef     MPU_InitStruct     = {0};
+    MPU_Attributes_InitTypeDef MPU_AttributesInit = {0};
+
+    /* Disables the MPU */
+    HAL_MPU_Disable();
+
+    /* Configure the MPU attributes for Ethernet Buffers */
+    /* Attribute 0: Normal, Non-Cacheable */
+    MPU_AttributesInit.Number     = MPU_ATTRIBUTES_NUMBER0;
+    MPU_AttributesInit.Attributes = MPU_NOT_CACHEABLE;
+    HAL_MPU_ConfigMemoryAttributes(&MPU_AttributesInit);
+
+    /* Configure the MPU region */
+    MPU_InitStruct.Enable      = MPU_REGION_ENABLE;
+    MPU_InitStruct.Number      = MPU_REGION_NUMBER0;
+    MPU_InitStruct.BaseAddress = (uint32_t)&__eth_dma_start;
+    MPU_InitStruct.LimitAddress =
+        (uint32_t)&__eth_dma_start + 32 * 1024 - 1; /* 32KB region */
+    MPU_InitStruct.AttributesIndex  = MPU_ATTRIBUTES_NUMBER0;
+    MPU_InitStruct.AccessPermission = MPU_REGION_ALL_RW;
+    MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_ENABLE;
+    MPU_InitStruct.IsShareable      = MPU_ACCESS_OUTER_SHAREABLE;
+
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+    /* Enables the MPU */
+    HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }

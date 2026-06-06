@@ -117,6 +117,23 @@ class ModbusCodeGenerator:
 
         return config
 
+    def _get_data_type_size(self, data_type: str) -> int:
+        """Get the size in bytes for a given data type.
+
+        Args:
+            data_type: The data type string (e.g., "uint16", "float32")
+
+        Returns:
+            Size in bytes
+        """
+        if data_type == "uint16":
+            return 2
+        elif data_type in ("uint32", "float32"):
+            return 4
+        else:
+            # Default to uint16 size
+            return 2
+
     def _preprocess_config(self, config: dict[str, Any]) -> dict[str, Any]:
         """Preprocess configuration for template rendering.
 
@@ -163,6 +180,23 @@ class ModbusCodeGenerator:
                 stats[f"{reg_type}_min_addr"] = 0
                 stats[f"{reg_type}_max_addr"] = 0
 
+        # Process persistent registers for NVM generation
+        persistent_registers = []
+        nvm_offset = 0
+
+        # Check all register types for persistent registers
+        for reg_type in ["holding_registers", "input_registers"]:
+            for reg in registers.get(reg_type, []):
+                if reg.get("persistent", False):
+                    # Create a copy of the register with additional NVM info
+                    persistent_reg = reg.copy()
+                    persistent_reg["nvm_offset"] = nvm_offset
+                    persistent_registers.append(persistent_reg)
+                    # Increment offset by the size in bytes of this register
+                    nvm_offset += self._get_data_type_size(reg.get("data_type", "uint16"))
+
+        config["persistent_registers"] = persistent_registers
+        config["total_nvm_size"] = nvm_offset
         config["stats"] = stats
         return config
 
