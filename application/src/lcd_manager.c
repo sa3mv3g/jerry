@@ -1,7 +1,10 @@
 #include "lcd_manager.h"
 
+#include <stdio.h>
+
 #include "FreeRTOS.h"
 #include "app_tasks.h"
+#include "app_version.h"
 #include "bsp.h"
 #include "lcd_i2c.h"
 #include "semphr.h"
@@ -52,10 +55,12 @@ void vLcdManageTask(void* pvParameters)
 
     if (err == kLcdI2cOk)
     {
-        /* LCD initialized successfully */
+        /* LCD initialized successfully — show version splash for 2 seconds */
         LcdI2c_Clear(&lcd_handle);
-        LcdI2c_WriteStringAt(&lcd_handle, 0, 0, "www.aics.co.in");
-        LcdI2c_Clear(&lcd_handle);
+        LcdI2c_WriteStringAt(&lcd_handle, 0, 3, "www.aics.co.in");
+        LcdManager_ShowVersionSplash(APP_VERSION_MAJOR, APP_VERSION_MINOR,
+                                     APP_VERSION_PATCH, APP_BUILD_NUMBER,
+                                     APP_GIT_HASH, 2000U);
     }
 
     HAL_IWDG_Refresh(&hiwdg);
@@ -171,4 +176,34 @@ void LcdManager_UpdateDigitalInputStatus(uint8_t channel, bool value)
             xSemaphoreGive(gUdpateLcdSem);
         }
     }
+}
+
+void LcdManager_ShowVersionSplash(uint16_t version_major,
+                                  uint16_t version_minor,
+                                  uint16_t version_patch, uint32_t build_number,
+                                  const char* git_hash, uint32_t display_ms)
+{
+    char line[LCD_MANAGER_COLS_MAX + 1];
+
+    /* Row 0: "v<major>.<minor>.<patch>" */
+    snprintf(line, sizeof(line), "v%u.%u.%u", (unsigned)version_major,
+             (unsigned)version_minor, (unsigned)version_patch);
+    LcdI2c_WriteStringAt(&lcd_handle, 0, 0, line);
+
+    /* Row 1: build number (Unix timestamp, up to 10 digits) */
+    snprintf(line, sizeof(line), "%lu", (unsigned long)build_number);
+    LcdI2c_WriteStringAt(&lcd_handle, 0, 1, line);
+
+    /* Row 2: git commit hash (e.g. "9e1c7e83" or "9e1c7e83+" for dirty builds)
+     */
+    if (git_hash != NULL)
+    {
+        LcdI2c_WriteStringAt(&lcd_handle, 0, 2, git_hash);
+    }
+
+    /* Hold the splash screen for the requested duration */
+    vTaskDelay(pdMS_TO_TICKS(display_ms));
+
+    /* Clear the display so normal operation can begin */
+    LcdI2c_Clear(&lcd_handle);
 }

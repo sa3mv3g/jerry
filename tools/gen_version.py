@@ -12,7 +12,8 @@ cmake --build invocation.
 Usage:
     python tools/gen_version.py \\
         --output <path/to/app_version.h> \\
-        --major 1 --minor 0 --patch 0
+        --major 1 --minor 0 --patch 0 \\
+        --git-hash 9e1c7e83
 """
 
 import argparse
@@ -59,6 +60,13 @@ _HEADER_TEMPLATE = """\
  */
 #define APP_BUILD_NUMBER   {build_number}UL
 
+/**
+ * Git commit hash string (short, 8 hex chars) captured at configure time.
+ * Appended with '+' if the repository had uncommitted changes at configure time.
+ * Set to "unknown" if git is not available.
+ */
+#define APP_GIT_HASH       "{git_hash}"
+
 #endif /* APP_VERSION_H */
 """
 
@@ -97,6 +105,13 @@ def _parse_args() -> argparse.Namespace:
         metavar="N",
         help="Application version patch number (default: 0).",
     )
+    parser.add_argument(
+        "--git-hash",
+        default="unknown",
+        dest="git_hash",
+        metavar="HASH",
+        help="Short git commit hash (default: unknown).",
+    )
     return parser.parse_args()
 
 
@@ -115,6 +130,7 @@ def main() -> int:
         minor=args.minor,
         patch=args.patch,
         build_number=build_number,
+        git_hash=args.git_hash,
     )
 
     out_path.write_text(content, encoding="utf-8")

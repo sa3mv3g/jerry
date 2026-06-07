@@ -19,6 +19,38 @@ set(APP_VERSION_MAJOR "1" CACHE STRING "Application version major number")
 set(APP_VERSION_MINOR "0" CACHE STRING "Application version minor number")
 set(APP_VERSION_PATCH "0" CACHE STRING "Application version patch number")
 
+# Resolve git commit hash at configure time.
+# The hash is fixed per configure run — a new commit requires reconfigure.
+# Appends '+' if the repository has uncommitted changes at configure time.
+find_program(GIT_EXECUTABLE_APP git)
+if(GIT_EXECUTABLE_APP)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE_APP} rev-parse --short=8 HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE APP_GIT_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE _git_hash_result
+    )
+    if(NOT _git_hash_result EQUAL 0)
+        set(APP_GIT_HASH "unknown")
+    else()
+        execute_process(
+            COMMAND ${GIT_EXECUTABLE_APP} status --porcelain
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            OUTPUT_VARIABLE _git_dirty
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+        if(_git_dirty)
+            set(APP_GIT_HASH "${APP_GIT_HASH}+")
+        endif()
+    endif()
+else()
+    set(APP_GIT_HASH "unknown")
+endif()
+message(STATUS "[Version] Git hash: ${APP_GIT_HASH}")
+
 # Include Modbus code generation configuration
 include(${CMAKE_SOURCE_DIR}/config/modbus_codegen.cmake)
 
@@ -269,7 +301,8 @@ add_custom_target(generate_app_version ALL
             --major "${APP_VERSION_MAJOR}"
             --minor "${APP_VERSION_MINOR}"
             --patch "${APP_VERSION_PATCH}"
-    COMMENT "Generating app_version.h (build=${APP_VERSION_MAJOR}.${APP_VERSION_MINOR}.${APP_VERSION_PATCH}, timestamp=<unix>)"
+            --git-hash "${APP_GIT_HASH}"
+    COMMENT "Generating app_version.h (${APP_VERSION_MAJOR}.${APP_VERSION_MINOR}.${APP_VERSION_PATCH} ${APP_GIT_HASH})"
     VERBATIM
 )
 
