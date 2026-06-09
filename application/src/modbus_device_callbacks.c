@@ -202,6 +202,11 @@ static void update_digital_output(uint16_t channel, bool val, bool *pCoil)
                 printf(" fail\r\n");
             }
         }
+        else
+        {
+            printf("[DO] Channel %d I2C read fail (bsp_err=%d tick=%lu)\r\n",
+                   channel, (int)err, (unsigned long)xTaskGetTickCount());
+        }
     }
 }
 
