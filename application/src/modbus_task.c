@@ -152,6 +152,25 @@ void vModbusTask(void *pvParameters)
 
     printf("[Modbus] registers initialized\n");
 
+    /* Print calibration values in use after EEPROM load (or defaults on virgin flash) */
+    printf("[Modbus] Calibration values:\n");
+    printf("[Modbus]   ADC0: scale=%.6f  offset=%.6f  dead_zone=%.6f\n",
+           (double)hrRegs->adc_0_scale_factor,
+           (double)hrRegs->adc_0_offset_term,
+           (double)hrRegs->adc_0_dead_zone);
+    printf("[Modbus]   ADC1: scale=%.6f  offset=%.6f  dead_zone=%.6f\n",
+           (double)hrRegs->adc_1_scale_factor,
+           (double)hrRegs->adc_1_offset_term,
+           (double)hrRegs->adc_1_dead_zone);
+    printf("[Modbus]   ADC2: scale=%.6f  offset=%.6f  dead_zone=%.6f\n",
+           (double)hrRegs->adc_2_scale_factor,
+           (double)hrRegs->adc_2_offset_term,
+           (double)hrRegs->adc_2_dead_zone);
+    printf("[Modbus]   ADC3: scale=%.6f  offset=%.6f  dead_zone=%.6f\n",
+           (double)hrRegs->adc_3_scale_factor,
+           (double)hrRegs->adc_3_offset_term,
+           (double)hrRegs->adc_3_dead_zone);
+
     /* Initialize connection tracking */
     for (uint8_t i = 0U; i < MODBUS_MAX_CONNECTIONS; i++)
     {
@@ -334,11 +353,11 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
                                              uint8_t       *response,
                                              uint16_t      *response_len)
 {
-    modbus_adu_t       request_adu;
-    modbus_adu_t       response_adu;
-    modbus_pdu_t       response_pdu;
-    modbus_error_t     err;
-    modbus_exception_t exception = MODBUS_EXCEPTION_NONE;
+    static modbus_adu_t request_adu;
+    static modbus_adu_t response_adu;
+    static modbus_pdu_t response_pdu;
+    modbus_error_t      err;
+    modbus_exception_t  exception = MODBUS_EXCEPTION_NONE;
 
     /* Parse the TCP frame */
     err = modbus_tcp_parse_frame(request, request_len, &request_adu);

@@ -25,11 +25,11 @@
 #include "lwip/stats.h"
 
 /* Stack size for the tasks */
-#define MAIN_TASK_STACK_SIZE       256U
-#define LOG_TASK_STACK_SIZE        256U
-#define MODBUS_TASK_STACK_SIZE     512U
+#define MAIN_TASK_STACK_SIZE       512U
+#define LOG_TASK_STACK_SIZE        512U
+#define MODBUS_TASK_STACK_SIZE     1024U
 #define FOTA_TASK_STACK_SIZE       512U
-#define MONITOR_TASK_STACK_SIZE    256U
+#define MONITOR_TASK_STACK_SIZE    512U
 #define TCP_ECHO_TASK_STACK_SIZE   1024U
 #define LCD_MANAGE_TASK_STACK_SIZE 1024U
 

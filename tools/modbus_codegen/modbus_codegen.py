@@ -182,7 +182,7 @@ class ModbusCodeGenerator:
 
         # Process persistent registers for NVM generation
         persistent_registers = []
-        nvm_offset = 0
+        nvm_offset = 2
 
         # Check all register types for persistent registers
         for reg_type in ["holding_registers", "input_registers"]:
