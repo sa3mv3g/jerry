@@ -20,8 +20,17 @@ from typing import Dict, List, Optional, Any, TextIO
 
 # Constants
 PERIPHERALS = [
-    "USART", "UART", "LPUART", "SPI", "I2C", "ETH", "SDMMC", "CAN", "USB",
-    "SDIO", "FDCAN"
+    "USART",
+    "UART",
+    "LPUART",
+    "SPI",
+    "I2C",
+    "ETH",
+    "SDMMC",
+    "CAN",
+    "USB",
+    "SDIO",
+    "FDCAN",
 ]
 
 CONTEXT_MAP = {
@@ -42,8 +51,8 @@ RTE_MAPPING = {
     "USB": {
         "Device": "RTE_Drivers_USBD{}",
         "Host": "RTE_Drivers_USBH{}",
-        "OTG": "RTE_Drivers_USBH{}"
-    }
+        "OTG": "RTE_Drivers_USBH{}",
+    },
 }
 
 
@@ -59,8 +68,8 @@ def setup_logging(log_file: str = "mx_device_gen.log"):
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[
             logging.FileHandler(log_file),
-            logging.StreamHandler(sys.stdout)
-        ]
+            logging.StreamHandler(sys.stdout),
+        ],
     )
 
 
@@ -86,7 +95,7 @@ class IOCFile:
         """
         self.path = path
         try:
-            with open(path, 'r', encoding='utf-8', errors='replace') as f:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
                 self.lines = [line.strip() for line in f.readlines()]
         except FileNotFoundError:
             logging.error("File not found: %s", path)
@@ -94,8 +103,8 @@ class IOCFile:
 
         self.config: Dict[str, str] = {}
         for line in self.lines:
-            if '=' in line:
-                parts = line.split('=', 1)
+            if "=" in line:
+                parts = line.split("=", 1)
                 self.config[parts[0].strip()] = parts[1].strip()
 
     def get_lines(self) -> List[str]:
@@ -130,7 +139,7 @@ def get_digit_at_end(text: str) -> str:
     Returns:
         str: The sequence of digits found at the end, or an empty string.
     """
-    match = re.search(r'\d+$', text)
+    match = re.search(r"\d+$", text)
     return match.group(0) if match else ""
 
 
@@ -149,9 +158,9 @@ def replace_special_chars(text: str, ch: str) -> str:
         str: The sanitized text.
     """
     # Replace non-alphanumeric characters with ch
-    out_text = re.sub(r'[^a-zA-Z0-9]', ch, text)
+    out_text = re.sub(r"[^a-zA-Z0-9]", ch, text)
     # Replace multiple occurrences of ch with a single ch
-    out_text = re.sub(f'{re.escape(ch)}+', ch, out_text)
+    out_text = re.sub(f"{re.escape(ch)}+", ch, out_text)
     return out_text.strip(ch)
 
 
@@ -189,7 +198,7 @@ class MXDeviceGenerator:
         contexts = []
         for line in self.ioc.get_lines():
             if line.startswith("Mcu.Context"):
-                parts = line.split('=')
+                parts = line.split("=")
                 if parts[0][-1].isdigit():  # Mcu.Context0, Mcu.Context1...
                     contexts.append(parts[1])
         return contexts
@@ -203,7 +212,7 @@ class MXDeviceGenerator:
         """
         for line in self.ioc.get_lines():
             if line.startswith("ProjectManager.MainLocation="):
-                return str(Path(line.split('=')[1]))
+                return str(Path(line.split("=")[1]))
         return ""
 
     def get_device_family(self) -> str:
@@ -215,7 +224,7 @@ class MXDeviceGenerator:
         """
         for line in self.ioc.get_lines():
             if line.startswith("Mcu.Family=STM32"):
-                return line.split('=')[1]
+                return line.split("=")[1]
         return ""
 
     def get_peripherals(self, context: Optional[str] = None) -> List[str]:
@@ -247,7 +256,7 @@ class MXDeviceGenerator:
                 continue
 
             try:
-                peripheral = line.split('=')[1]
+                peripheral = line.split("=")[1]
             except IndexError:
                 continue
 
@@ -300,14 +309,18 @@ class MXDeviceGenerator:
             return info
 
         try:
-            with open(main_path, 'r', encoding='utf-8', errors='replace') as f:
+            with open(main_path, "r", encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
 
             section_found = False
             for line in lines:
                 if not section_found:
-                    if (line.strip().startswith(f"static void MX_{peripheral}_Init")
-                            and ";" not in line):
+                    if (
+                        line.strip().startswith(
+                            f"static void MX_{peripheral}_Init"
+                        )
+                        and ";" not in line
+                    ):
                         section_found = True
                     continue
 
@@ -321,8 +334,7 @@ class MXDeviceGenerator:
 
                 if "HAL_I2CEx_ConfigDigitalFilter" in line:
                     match = re.search(
-                        r'ConfigDigitalFilter\s*\([^,]+,\s*([^)]+)\)',
-                        line
+                        r"ConfigDigitalFilter\s*\([^,]+,\s*([^)]+)\)", line
                     )
                     if match:
                         info["DNF"] = match.group(1).strip()
@@ -353,15 +365,19 @@ class MXDeviceGenerator:
                             (Pin, Port, Mode, etc.).
         """
         info: Dict[str, str] = {
-            "Pin": "", "Port": "", "Mode": "",
-            "Pull": "", "Speed": "", "Alternate": ""
+            "Pin": "",
+            "Port": "",
+            "Mode": "",
+            "Pull": "",
+            "Speed": "",
+            "Alternate": "",
         }
 
         if not msp_path.exists():
             return info
 
         try:
-            with open(msp_path, 'r', encoding='utf-8', errors='replace') as f:
+            with open(msp_path, "r", encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
         except (OSError, IOError) as e:
             logging.error("Error parsing pin config: %s", e)
@@ -370,7 +386,7 @@ class MXDeviceGenerator:
         pin_num = get_digit_at_end(pin)
         gpio_pin = f"GPIO_PIN_{pin_num}"
         # pin is like PA11 -> Port A
-        match = re.search(r'P([A-Z])', pin)
+        match = re.search(r"P([A-Z])", pin)
         if not match:
             return info
         port_letter = match.group(1)
@@ -392,16 +408,14 @@ class MXDeviceGenerator:
                 continue
 
             if "HAL_GPIO_Init" in line:
-                port_match = (
-                    gpio_port in line or
-                    (label and f"{label}_GPIO_Port" in line)
+                port_match = gpio_port in line or (
+                    label and f"{label}_GPIO_Port" in line
                 )
                 if port_match:
                     # Check if the captured Pin matches this pin
                     values = [v.strip() for v in info["Pin"].split("|")]
-                    is_pin_match = (
-                        gpio_pin in values or
-                        (label and f"{label}_Pin" in values)
+                    is_pin_match = gpio_pin in values or (
+                        label and f"{label}_Pin" in values
                     )
 
                     if is_pin_match:
@@ -481,15 +495,21 @@ class MXDeviceGenerator:
             # If info is empty, provide a default empty dict structure
             if not info:
                 info = {
-                    "Pin": "", "Port": "", "Mode": "",
-                    "Pull": "", "Speed": "", "Alternate": ""
+                    "Pin": "",
+                    "Port": "",
+                    "Mode": "",
+                    "Pull": "",
+                    "Speed": "",
+                    "Alternate": "",
                 }
 
             pins_info[pin_signal] = [p, info]
 
         return pins_info
 
-    def get_rte_define(self, peripheral: str, virtual_mode: str) -> Optional[str]:
+    def get_rte_define(
+        self, peripheral: str, virtual_mode: str
+    ) -> Optional[str]:
         """
         Get the RTE define for a peripheral.
 
@@ -506,7 +526,7 @@ class MXDeviceGenerator:
         for p in PERIPHERALS:
             if peripheral.startswith(p):
                 name = p
-                index = peripheral[len(p):]
+                index = peripheral[len(p) :]
                 break
 
         if not name:
@@ -552,10 +572,10 @@ class MXDeviceGenerator:
         Returns:
             str: The formatted #define statement.
         """
-        invalid_chars = ['=', ' ', '/', '(', ')', '[', ']', '\\', '-']
+        invalid_chars = ["=", " ", "/", "(", ")", "[", "]", "\\", "-"]
         for ch in invalid_chars:
-            name = name.replace(ch, '_')
-            value = value.replace(ch, '_')
+            name = name.replace(ch, "_")
+            value = value.replace(ch, "_")
 
         name = f"MX_{name}".ljust(39)
         return f"#define {name}{value}"
@@ -584,8 +604,12 @@ class MXDeviceGenerator:
 """)
 
     def write_peripheral_cfg(
-        self, f: TextIO, peripheral: str, vmode: str,
-        i2c_info: Dict[str, str], pins: Dict[str, Any]
+        self,
+        f: TextIO,
+        peripheral: str,
+        vmode: str,
+        i2c_info: Dict[str, str],
+        pins: Dict[str, Any],
     ):
         """
         Write configuration defines for a specific peripheral to the file.
@@ -603,29 +627,25 @@ class MXDeviceGenerator:
             "Mode": "GPIO_Mode",
             "Pull": "GPIO_PuPd",
             "Speed": "GPIO_Speed",
-            "Alternate": "GPIO_AF"
+            "Alternate": "GPIO_AF",
         }
 
         f.write(
-            f"\n/*------------------------------ {peripheral}".ljust(52) +
-            "-----------------------------*/\n"
+            f"\n/*------------------------------ {peripheral}".ljust(52)
+            + "-----------------------------*/\n"
         )
         f.write(self.create_define(peripheral, "1") + "\n\n")
 
         if i2c_info:
             f.write("/* Filter Settings */\n")
             for item, val in i2c_info.items():
-                f.write(
-                    self.create_define(f"{peripheral}_{item}", val) + "\n"
-                )
+                f.write(self.create_define(f"{peripheral}_{item}", val) + "\n")
             f.write("\n")
 
         if vmode:
             f.write("/* Virtual mode */\n")
             f.write(self.create_define(f"{peripheral}_VM", vmode) + "\n")
-            f.write(
-                self.create_define(f"{peripheral}_{vmode}", "1") + "\n\n"
-            )
+            f.write(self.create_define(f"{peripheral}_{vmode}", "1") + "\n\n")
 
         if pins:
             f.write("/* Pins */\n")
@@ -635,15 +655,14 @@ class MXDeviceGenerator:
                 info = pin_data[1]
 
                 f.write(f"\n/* {pin_func} */\n")
-                f.write(
-                    self.create_define(f"{pin_func}_Pin", real_pin) + "\n"
-                )
+                f.write(self.create_define(f"{pin_func}_Pin", real_pin) + "\n")
 
                 for key, suffix in pin_define_name.items():
                     val = info.get(key, "")
                     if val:
                         f.write(
-                            self.create_define(f"{pin_func}_{suffix}", val) + "\n"
+                            self.create_define(f"{pin_func}_{suffix}", val)
+                            + "\n"
                         )
 
     def write_rte_components(self, f: TextIO, peripherals: List[str]):
@@ -654,7 +673,9 @@ class MXDeviceGenerator:
             f (TextIO): The file object to write to.
             peripherals (List[str]): List of peripheral names.
         """
-        f.write("\n/*\n * Auto generated Run-Time-Environment Component Configuration File\n")
+        f.write(
+            "\n/*\n * Auto generated Run-Time-Environment Component Configuration File\n"
+        )
         f.write(" *      *** Do not modify ! ***\n")
         f.write(f" * Target:  '{self.get_device_family()}'\n")
         f.write(" */\n\n")
@@ -664,16 +685,17 @@ class MXDeviceGenerator:
         f.write("/*\n * Define the Device Header File:\n */\n")
         family = self.get_device_family().lower()
         header = f"{family}xx.h"
-        f.write(f"#define CMSIS_device_header \"{header}\"\n\n")
+        f.write(f'#define CMSIS_device_header "{header}"\n\n')
 
         for peripheral in peripherals:
             vmode = self.get_virtual_mode(peripheral)
             define = self.get_rte_define(peripheral, vmode)
             if define:
-                f.write(f"#define {define}              /* Driver {peripheral} */\n")
+                f.write(
+                    f"#define {define}              /* Driver {peripheral} */\n"
+                )
 
         f.write("\n#endif /* RTE_COMPONENTS_H */\n")
-
 
     def get_user_defines(self):
         retval = {}
@@ -694,8 +716,10 @@ class MXDeviceGenerator:
                                 define_name = b[0]
                                 define_ctx = b[1]
                                 if define_ctx not in retval:
-                                    retval[define_ctx] = []    
-                                retval[define_ctx].append({'name': define_name, 'value': define_value})
+                                    retval[define_ctx] = []
+                                retval[define_ctx].append(
+                                    {"name": define_name, "value": define_value}
+                                )
         return retval
 
     def run(self):
@@ -729,15 +753,18 @@ class MXDeviceGenerator:
 
                 main_loc = self.get_main_location()
                 main_folder = self.work_dir / context_folder / main_loc
-                logging.info("Main folder for context %s: %s",
-                             context, main_folder)
+                logging.info(
+                    "Main folder for context %s: %s", context, main_folder
+                )
 
-                configs.append({
-                    "main_path": main_folder / "main.c",
-                    "msp_path": main_folder / msp_name,
-                    "context": context,
-                    "index": project_index
-                })
+                configs.append(
+                    {
+                        "main_path": main_folder / "main.c",
+                        "msp_path": main_folder / msp_name,
+                        "context": context,
+                        "index": project_index,
+                    }
+                )
                 project_index += 1
         else:
             logging.info("No contexts found, assuming single context.")
@@ -745,12 +772,14 @@ class MXDeviceGenerator:
             main_folder = self.work_dir / main_loc
             logging.info("Main folder: %s", main_folder)
 
-            configs.append({
-                "main_path": main_folder / "main.c",
-                "msp_path": main_folder / msp_name,
-                "context": None,
-                "index": project_index
-            })
+            configs.append(
+                {
+                    "main_path": main_folder / "main.c",
+                    "msp_path": main_folder / msp_name,
+                    "context": None,
+                    "index": project_index,
+                }
+            )
 
         for cfg in configs:
             main_path = cfg["main_path"]
@@ -780,8 +809,11 @@ class MXDeviceGenerator:
                     f_out.write("#define MX_DEVICE_VERSION 0x01000000\r\n")
 
                     peripherals = self.get_peripherals(context)
-                    logging.info("  Found %d peripherals: %s",
-                                 len(peripherals), peripherals)
+                    logging.info(
+                        "  Found %d peripherals: %s",
+                        len(peripherals),
+                        peripherals,
+                    )
 
                     # Generate RTE_Components.h
                     logging.info("Generating %s...", rte_file)
@@ -790,10 +822,16 @@ class MXDeviceGenerator:
                     userdefines = self.get_user_defines()
                     if context in userdefines:
                         users_define_list = userdefines[context]
-                        
+
                         for users_define in users_define_list:
-                            f_out.write(f"#define {users_define['name']} {users_define['value']}\r\n")
-                            logging.info("  User define: #define %s %s", users_define['name'], users_define['value'])
+                            f_out.write(
+                                f"#define {users_define['name']} {users_define['value']}\r\n"
+                            )
+                            logging.info(
+                                "  User define: #define %s %s",
+                                users_define["name"],
+                                users_define["value"],
+                            )
 
                     for peripheral in peripherals:
                         logging.info("  Processing peripheral: %s", peripheral)
@@ -807,11 +845,13 @@ class MXDeviceGenerator:
 
                         pins = self.get_pins(msp_path, peripheral)
                         if pins:
-                            logging.info("    Found %d pins for %s",
-                                         len(pins), peripheral)
+                            logging.info(
+                                "    Found %d pins for %s",
+                                len(pins),
+                                peripheral,
+                            )
                         else:
-                            logging.info("    No pins found for %s",
-                                         peripheral)
+                            logging.info("    No pins found for %s", peripheral)
 
                         self.write_peripheral_cfg(
                             f_out, peripheral, vmode, i2c_info, pins
@@ -848,10 +888,15 @@ def validate_file(file_path: str) -> Path:
 def main():
     """Entry point."""
     parser = argparse.ArgumentParser(description="MX_Device_generator")
-    parser.add_argument("ioc", metavar="<STM32CubeMX project file>",
-                        help="<*.ioc>", type=validate_file)
-    parser.add_argument("--logfile", help="Path to the log file",
-                        default="mx_device_gen.log")
+    parser.add_argument(
+        "ioc",
+        metavar="<STM32CubeMX project file>",
+        help="<*.ioc>",
+        type=validate_file,
+    )
+    parser.add_argument(
+        "--logfile", help="Path to the log file", default="mx_device_gen.log"
+    )
 
     args = parser.parse_args()
     setup_logging(args.logfile)
@@ -860,7 +905,7 @@ def main():
     generator.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:

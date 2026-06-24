@@ -50,10 +50,7 @@ def process_file(filepath):
         print(f"Skipping {filepath} (binary or non-utf8)")
         return
 
-    if (
-        "Copyright (c) 2026 "
-        in content
-    ):
+    if "Copyright (c) 2026 " in content:
         print(f"Skipping {filepath} (already has header)")
         return
 

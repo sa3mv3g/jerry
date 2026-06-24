@@ -22,6 +22,9 @@ Examples:
     # Flash with default paths (looks for ELF files in build directory)
     python flash_nucleo.py
 
+    # Target a specific board when multiple are connected
+    python flash_nucleo.py --sn 066EFF303451897067120842
+
     # Flash with custom firmware paths
     python flash_nucleo.py --secure-app path/to/secure.elf --nonsecure-app path/to/app.elf
 
@@ -104,6 +107,7 @@ class STM32Programmer:
         self,
         programmer_path: Optional[str] = None,
         connection: ConnectionType = ConnectionType.SWD,
+        sn: Optional[str] = None,
         dry_run: bool = False,
     ):
         """Initialize the STM32 Programmer wrapper.
@@ -112,10 +116,12 @@ class STM32Programmer:
             programmer_path: Path to STM32_Programmer_CLI executable.
                            If None, searches PATH and common locations.
             connection: Connection type (SWD, JTAG, UART).
+            sn: Specific ST-LINK serial number to connect to.
             dry_run: If True, only print commands without executing.
         """
         self.programmer_path = programmer_path or self._find_programmer()
         self.connection = connection
+        self.sn = sn
         self.dry_run = dry_run
 
         if not self.programmer_path:
@@ -126,6 +132,16 @@ class STM32Programmer:
             )
 
         logger.info("Using programmer: %s", self.programmer_path)
+        if self.sn:
+            logger.info("Targeting ST-LINK SN: %s", self.sn)
+
+    @property
+    def _connect_args(self) -> list[str]:
+        """Generate the base connection arguments, including the serial number if provided."""
+        args = ["-c", f"port={self.connection.value}"]
+        if self.sn:
+            args.append(f"sn={self.sn}")
+        return args
 
     def _find_programmer(self) -> Optional[str]:
         """Find STM32_Programmer_CLI executable.
@@ -143,9 +159,7 @@ class STM32Programmer:
 
         if sys.platform == "win32":
             # Windows paths
-            program_files = os.environ.get(
-                "ProgramFiles", "C:\\Program Files"
-            )
+            program_files = os.environ.get("ProgramFiles", "C:\\Program Files")
             program_files_x86 = os.environ.get(
                 "ProgramFiles(x86)", "C:\\Program Files (x86)"
             )
@@ -192,7 +206,9 @@ class STM32Programmer:
                 [
                     Path("/opt/st/stm32cubeclt/STM32CubeProgrammer/bin")
                     / "STM32_Programmer_CLI",
-                    Path("/usr/local/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin")
+                    Path(
+                        "/usr/local/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin"
+                    )
                     / "STM32_Programmer_CLI",
                     Path.home()
                     / "STM32CubeProgrammer"
@@ -280,9 +296,7 @@ class STM32Programmer:
             FlashError: If connection fails.
         """
         logger.info("Testing connection to target...")
-        result = self._run_command(
-            ["-c", f"port={self.connection.value}"], check=False
-        )
+        result = self._run_command(self._connect_args, check=False)
 
         if result.returncode != 0:
             raise FlashError(
@@ -300,9 +314,7 @@ class STM32Programmer:
             String containing option byte values.
         """
         logger.info("Reading option bytes...")
-        result = self._run_command(
-            ["-c", f"port={self.connection.value}", "-ob", "displ"]
-        )
+        result = self._run_command(self._connect_args + ["-ob", "displ"])
         return result.stdout
 
     def write_option_bytes(self, **kwargs: int) -> None:
@@ -321,10 +333,7 @@ class STM32Programmer:
         ob_str = " ".join(ob_args)
         logger.info("Writing option bytes: %s", ob_str)
 
-        self._run_command(
-            ["-c", f"port={self.connection.value}", "-ob"] + ob_args
-        )
-
+        self._run_command(self._connect_args + ["-ob"] + ob_args)
         logger.info("Option bytes written successfully")
 
     def flash_file(
@@ -350,7 +359,7 @@ class STM32Programmer:
 
         logger.info("Flashing: %s", file_path)
 
-        args = ["-c", f"port={self.connection.value}", "-w", file_path]
+        args = self._connect_args + ["-w", file_path]
 
         if address is not None:
             args.append(f"{address:#x}")
@@ -371,9 +380,7 @@ class STM32Programmer:
             FlashError: If erase fails.
         """
         logger.warning("Performing mass erase...")
-        self._run_command(
-            ["-c", f"port={self.connection.value}", "-e", "all"]
-        )
+        self._run_command(self._connect_args + ["-e", "all"])
         logger.info("Mass erase complete")
 
     def reset_device(self) -> None:
@@ -383,9 +390,7 @@ class STM32Programmer:
             FlashError: If reset fails.
         """
         logger.info("Resetting device...")
-        self._run_command(
-            ["-c", f"port={self.connection.value}", "-rst"]
-        )
+        self._run_command(self._connect_args + ["-rst"])
         logger.info("Device reset complete")
 
 
@@ -562,11 +567,18 @@ def main() -> int:
         epilog="""
 Examples:
   %(prog)s                              # Auto-detect and flash
+  %(prog)s --sn 066EFF303451897067120842 # Target specific board
   %(prog)s --build-dir ./build          # Specify build directory
   %(prog)s --skip-option-bytes          # Skip TrustZone config
   %(prog)s --dry-run                    # Show commands without executing
   %(prog)s --secure-app s.elf --nonsecure-app ns.elf  # Custom paths
         """,
+    )
+
+    parser.add_argument(
+        "--sn",
+        type=str,
+        help="ST-LINK Serial Number (to target a specific board)",
     )
 
     parser.add_argument(
@@ -636,6 +648,7 @@ Examples:
         # Initialize programmer
         programmer = STM32Programmer(
             programmer_path=args.programmer_path,
+            sn=args.sn,
             dry_run=args.dry_run,
         )
 

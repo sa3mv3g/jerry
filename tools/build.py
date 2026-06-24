@@ -107,7 +107,9 @@ def cmake_configure(
     cmake_cache = bdir / "CMakeCache.txt"
 
     if cmake_cache.exists() and not force:
-        print(f"[build.py] CMakeCache.txt exists at {bdir}, skipping configure.")
+        print(
+            f"[build.py] CMakeCache.txt exists at {bdir}, skipping configure."
+        )
         print("[build.py] Use --reconfigure to force re-configure.")
         return 0
 
@@ -231,7 +233,9 @@ def cmd_build(args: argparse.Namespace) -> int:
     # POST-BUILD steps (Release only): MISRA cppcheck + Lizard
     # -------------------------------------------------------------------------
     if is_release:
-        print("\n[build.py] === POST-BUILD: Running MISRA cppcheck (Release) ===")
+        print(
+            "\n[build.py] === POST-BUILD: Running MISRA cppcheck (Release) ==="
+        )
         rc_cppcheck = cmake_build(args.vendor, args.profile, target="cppcheck")
         if rc_cppcheck != 0:
             print(
@@ -282,14 +286,21 @@ def cmd_flash(args: argparse.Namespace) -> int:
     """Flash firmware to the target device using tools/flash_nucleo.py."""
     bdir = build_dir(args.vendor, args.profile)
     flash_script = PROJECT_ROOT / "tools" / "flash_nucleo.py"
-    cmd: list[str] = [sys.executable, str(flash_script), "--build-dir", str(bdir)]
+    cmd: list[str] = [
+        sys.executable,
+        str(flash_script),
+        "--build-dir",
+        str(bdir),
+    ]
     return run(cmd)
 
 
 def cmd_lint(args: argparse.Namespace) -> int:
     """Run all static analysis tools (cppcheck, lizard, pylint, ruff)."""
     extra = _collect_extra_cmake_args(args)
-    rc = cmake_configure(args.vendor, args.profile, extra, force=args.reconfigure)
+    rc = cmake_configure(
+        args.vendor, args.profile, extra, force=args.reconfigure
+    )
     if rc != 0:
         return rc
     return cmake_build(args.vendor, args.profile, target="lint")
@@ -298,7 +309,9 @@ def cmd_lint(args: argparse.Namespace) -> int:
 def cmd_format(args: argparse.Namespace) -> int:
     """Run clang-format on all C/C++ and Python sources."""
     extra = _collect_extra_cmake_args(args)
-    rc = cmake_configure(args.vendor, args.profile, extra, force=args.reconfigure)
+    rc = cmake_configure(
+        args.vendor, args.profile, extra, force=args.reconfigure
+    )
     if rc != 0:
         return rc
     return cmake_build(args.vendor, args.profile, target="format")
@@ -413,7 +426,9 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
 
     # configure
-    p_configure = subparsers.add_parser("configure", help="Run CMake configure only")
+    p_configure = subparsers.add_parser(
+        "configure", help="Run CMake configure only"
+    )
     _add_common_args(p_configure)
 
     # build (default)

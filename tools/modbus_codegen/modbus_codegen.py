@@ -30,15 +30,13 @@ except ImportError as e:
 
 try:
     import jsonschema
+
     HAS_JSONSCHEMA = True
 except ImportError:
     HAS_JSONSCHEMA = False
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s: %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -104,7 +102,9 @@ class ModbusCodeGenerator:
             config = json.load(f)
 
         # Load and validate against schema
-        schema_path = Path(__file__).parent / "schema" / "modbus_registers.schema.json"
+        schema_path = (
+            Path(__file__).parent / "schema" / "modbus_registers.schema.json"
+        )
         if schema_path.exists() and HAS_JSONSCHEMA:
             with open(schema_path, encoding="utf-8") as f:
                 schema = json.load(f)
@@ -150,7 +150,9 @@ class ModbusCodeGenerator:
         stats = {
             "num_coils": len(registers.get("coils", [])),
             "num_discrete_inputs": len(registers.get("discrete_inputs", [])),
-            "num_holding_registers": len(registers.get("holding_registers", [])),
+            "num_holding_registers": len(
+                registers.get("holding_registers", [])
+            ),
             "num_input_registers": len(registers.get("input_registers", [])),
         }
 
@@ -168,12 +170,19 @@ class ModbusCodeGenerator:
                 reg["data_type"] = "uint16"
 
         # Calculate address ranges (accounting for multi-register values)
-        for reg_type in ["coils", "discrete_inputs", "holding_registers", "input_registers"]:
+        for reg_type in [
+            "coils",
+            "discrete_inputs",
+            "holding_registers",
+            "input_registers",
+        ]:
             regs = registers.get(reg_type, [])
             if regs:
                 min_addr = min(r["address"] for r in regs)
                 # For max_addr, account for register size (uint32 takes 2 addresses)
-                max_addr = max(r["address"] + r.get("size", 1) - 1 for r in regs)
+                max_addr = max(
+                    r["address"] + r.get("size", 1) - 1 for r in regs
+                )
                 stats[f"{reg_type}_min_addr"] = min_addr
                 stats[f"{reg_type}_max_addr"] = max_addr
             else:
@@ -193,7 +202,9 @@ class ModbusCodeGenerator:
                     persistent_reg["nvm_offset"] = nvm_offset
                     persistent_registers.append(persistent_reg)
                     # Increment offset by the size in bytes of this register
-                    nvm_offset += self._get_data_type_size(reg.get("data_type", "uint16"))
+                    nvm_offset += self._get_data_type_size(
+                        reg.get("data_type", "uint16")
+                    )
 
         config["persistent_registers"] = persistent_registers
         config["total_nvm_size"] = nvm_offset
@@ -224,7 +235,9 @@ class ModbusCodeGenerator:
 
         # Header (excludes device description to avoid exposing internal info)
         lines.append("=" * 80)
-        lines.append(f"MODBUS REGISTER MAP - {device.get('name', 'Unknown Device').upper()}")
+        lines.append(
+            f"MODBUS REGISTER MAP - {device.get('name', 'Unknown Device').upper()}"
+        )
         lines.append("=" * 80)
         lines.append("")
         lines.append(f"Slave ID:    {device.get('slave_id', 'N/A')}")
@@ -236,9 +249,13 @@ class ModbusCodeGenerator:
         # Coils (Function Code 01/05/15)
         coils = registers.get("coils", [])
         if coils:
-            lines.append("COILS (FC 01 Read / FC 05 Write Single / FC 15 Write Multiple)")
+            lines.append(
+                "COILS (FC 01 Read / FC 05 Write Single / FC 15 Write Multiple)"
+            )
             lines.append("-" * 80)
-            lines.append(f"{'Address':<10} {'Name':<30} {'Access':<12} Description")
+            lines.append(
+                f"{'Address':<10} {'Name':<30} {'Access':<12} Description"
+            )
             lines.append("-" * 80)
             for reg in sorted(coils, key=lambda x: x["address"]):
                 addr = reg["address"]
@@ -253,7 +270,9 @@ class ModbusCodeGenerator:
         if discrete_inputs:
             lines.append("DISCRETE INPUTS (FC 02 Read Only)")
             lines.append("-" * 80)
-            lines.append(f"{'Address':<10} {'Name':<30} {'Group':<15} Description")
+            lines.append(
+                f"{'Address':<10} {'Name':<30} {'Group':<15} Description"
+            )
             lines.append("-" * 80)
             for reg in sorted(discrete_inputs, key=lambda x: x["address"]):
                 addr = reg["address"]
@@ -266,7 +285,9 @@ class ModbusCodeGenerator:
         # Holding Registers (Function Code 03/06/16)
         holding_registers = registers.get("holding_registers", [])
         if holding_registers:
-            lines.append("HOLDING REGISTERS (FC 03 Read / FC 06 Write Single / FC 16 Write Multiple)")
+            lines.append(
+                "HOLDING REGISTERS (FC 03 Read / FC 06 Write Single / FC 16 Write Multiple)"
+            )
             lines.append("-" * 80)
             lines.append(
                 f"{'Address':<10} {'Name':<25} {'Type':<10} {'Size':<6} "
@@ -283,7 +304,9 @@ class ModbusCodeGenerator:
                 # Add range info if available
                 range_info = ""
                 if "min_value" in reg and "max_value" in reg:
-                    range_info = f" [Range: {reg['min_value']}-{reg['max_value']}]"
+                    range_info = (
+                        f" [Range: {reg['min_value']}-{reg['max_value']}]"
+                    )
                 if "unit" in reg:
                     range_info += f" [{reg['unit']}]"
                 lines.append(
@@ -325,9 +348,15 @@ class ModbusCodeGenerator:
         lines.append("STATISTICS")
         lines.append("-" * 80)
         lines.append(f"  Total Coils:             {stats.get('num_coils', 0)}")
-        lines.append(f"  Total Discrete Inputs:   {stats.get('num_discrete_inputs', 0)}")
-        lines.append(f"  Total Holding Registers: {stats.get('num_holding_registers', 0)}")
-        lines.append(f"  Total Input Registers:   {stats.get('num_input_registers', 0)}")
+        lines.append(
+            f"  Total Discrete Inputs:   {stats.get('num_discrete_inputs', 0)}"
+        )
+        lines.append(
+            f"  Total Holding Registers: {stats.get('num_holding_registers', 0)}"
+        )
+        lines.append(
+            f"  Total Input Registers:   {stats.get('num_input_registers', 0)}"
+        )
         lines.append("")
         lines.append("=" * 80)
 
@@ -396,32 +425,31 @@ def main() -> int:
         description="Generate C code from Modbus register JSON configuration"
     )
     parser.add_argument(
-        "config",
-        type=Path,
-        help="Path to JSON configuration file"
+        "config", type=Path, help="Path to JSON configuration file"
     )
     parser.add_argument(
-        "--output-dir", "-o",
+        "--output-dir",
+        "-o",
         type=Path,
         default=Path("generated"),
-        help="Output directory for generated files (default: generated)"
+        help="Output directory for generated files (default: generated)",
     )
     parser.add_argument(
-        "--doc-output-dir", "-d",
+        "--doc-output-dir",
+        "-d",
         type=Path,
         default=None,
-        help="Output directory for documentation files (default: build)"
+        help="Output directory for documentation files (default: build)",
     )
     parser.add_argument(
-        "--template-dir", "-t",
+        "--template-dir",
+        "-t",
         type=Path,
         default=None,
-        help="Directory containing Jinja2 templates"
+        help="Directory containing Jinja2 templates",
     )
     parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Enable verbose output"
+        "--verbose", "-v", action="store_true", help="Enable verbose output"
     )
 
     args = parser.parse_args()

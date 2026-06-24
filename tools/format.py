@@ -22,7 +22,7 @@ def main():
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     config_file = os.path.join(root_dir, "config", ".clang-format")
 
-    exclusive_files_list:list[str] = [
+    exclusive_files_list: list[str] = [
         os.path.join(root_dir, "application/bsp/stm/bsp.c"),
         os.path.join(root_dir, "application/bsp/bsp.h"),
     ]
@@ -32,15 +32,87 @@ def main():
     patterns = [
         os.path.join(root_dir, "application", "src", "**", "*.[ch]"),
         os.path.join(root_dir, "application", "inc", "**", "*.[ch]"),
-        os.path.join(root_dir, "application", "src", "generated", "**", "*.[ch]"),
-        os.path.join(root_dir, "application", "dependencies", "modbus", "src", "**", "*.[ch]"),
-        os.path.join(root_dir, "application", "dependencies", "modbus", "inc", "**", "*.[ch]"),
-        os.path.join(root_dir, "application", "dependencies", "lwip", "port", "stm32h5", "**", "*.[ch]"),
-        os.path.join(root_dir, "application", "dependencies", "lwip", "port", "stm32h5", "arch", "**", "*.[ch]"),
-        os.path.join(root_dir, "application", "dependencies", "adc_filter", "src", "**", "*.[ch]"),
-        os.path.join(root_dir, "application", "dependencies", "adc_filter", "inc", "**", "*.[ch]"),
-        os.path.join(root_dir, "application", "dependencies", "lcd_i2c", "src", "**", "*.[ch]"),
-        os.path.join(root_dir, "application", "dependencies", "lcd_i2c", "inc", "**", "*.[ch]"),
+        os.path.join(
+            root_dir, "application", "bsp", "stm", "bsp_i2c", "**", "*.[ch]"
+        ),
+        os.path.join(
+            root_dir, "application", "src", "generated", "**", "*.[ch]"
+        ),
+        os.path.join(
+            root_dir,
+            "application",
+            "dependencies",
+            "modbus",
+            "src",
+            "**",
+            "*.[ch]",
+        ),
+        os.path.join(
+            root_dir,
+            "application",
+            "dependencies",
+            "modbus",
+            "inc",
+            "**",
+            "*.[ch]",
+        ),
+        os.path.join(
+            root_dir,
+            "application",
+            "dependencies",
+            "lwip",
+            "port",
+            "stm32h5",
+            "**",
+            "*.[ch]",
+        ),
+        os.path.join(
+            root_dir,
+            "application",
+            "dependencies",
+            "lwip",
+            "port",
+            "stm32h5",
+            "arch",
+            "**",
+            "*.[ch]",
+        ),
+        os.path.join(
+            root_dir,
+            "application",
+            "dependencies",
+            "adc_filter",
+            "src",
+            "**",
+            "*.[ch]",
+        ),
+        os.path.join(
+            root_dir,
+            "application",
+            "dependencies",
+            "adc_filter",
+            "inc",
+            "**",
+            "*.[ch]",
+        ),
+        os.path.join(
+            root_dir,
+            "application",
+            "dependencies",
+            "lcd_i2c",
+            "src",
+            "**",
+            "*.[ch]",
+        ),
+        os.path.join(
+            root_dir,
+            "application",
+            "dependencies",
+            "lcd_i2c",
+            "inc",
+            "**",
+            "*.[ch]",
+        ),
     ]
 
     files = []

@@ -62,11 +62,13 @@ def monitor_discrete_inputs(
     client: ModbusTcpClient, interval: float, verbose: bool
 ) -> None:
     """Monitor digital inputs using FC02 (Read Discrete Inputs)."""
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("Monitoring Digital Inputs via FC02 (Read Discrete Inputs)")
-    print(f"Address range: {DI_START_ADDRESS} - {DI_START_ADDRESS + DI_COUNT - 1}")
+    print(
+        f"Address range: {DI_START_ADDRESS} - {DI_START_ADDRESS + DI_COUNT - 1}"
+    )
     print(f"Polling interval: {interval}s")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print("Press Ctrl+C to stop\n")
 
     prev_bits: list[bool] | None = None
@@ -99,7 +101,9 @@ def monitor_discrete_inputs(
                             if bits[i] != prev_bits[i]:
                                 old_state = "ON" if prev_bits[i] else "OFF"
                                 new_state = "ON" if bits[i] else "OFF"
-                                print(f"           DI{i}: {old_state} -> {new_state}")
+                                print(
+                                    f"           DI{i}: {old_state} -> {new_state}"
+                                )
                     else:
                         print(f"[{timestamp}] {status}")
                         if verbose:
@@ -117,14 +121,14 @@ def monitor_coils(
     client: ModbusTcpClient, interval: float, verbose: bool
 ) -> None:
     """Monitor digital inputs using FC01 (Read Coils)."""
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("Monitoring Digital Inputs via FC01 (Read Coils)")
     print(
         f"Address range: {COIL_DI_START_ADDRESS} - "
         f"{COIL_DI_START_ADDRESS + COIL_DI_COUNT - 1}"
     )
     print(f"Polling interval: {interval}s")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print("Press Ctrl+C to stop\n")
 
     prev_bits: list[bool] | None = None
@@ -156,7 +160,9 @@ def monitor_coils(
                             if bits[i] != prev_bits[i]:
                                 old_state = "ON" if prev_bits[i] else "OFF"
                                 new_state = "ON" if bits[i] else "OFF"
-                                print(f"           DI{i}: {old_state} -> {new_state}")
+                                print(
+                                    f"           DI{i}: {old_state} -> {new_state}"
+                                )
                     else:
                         print(f"[{timestamp}] {status}")
                         if verbose:
@@ -172,7 +178,7 @@ def monitor_coils(
 
 def read_once(client: ModbusTcpClient, use_coils: bool) -> int:
     """Read digital inputs once and exit."""
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
 
     if use_coils:
         print("Reading Digital Inputs via FC01 (Read Coils)")
@@ -187,7 +193,7 @@ def read_once(client: ModbusTcpClient, use_coils: bool) -> int:
         )
         count = DI_COUNT
 
-    print(f"{'='*70}\n")
+    print(f"{'=' * 70}\n")
 
     if result.isError():
         print(f"Error: {result}")

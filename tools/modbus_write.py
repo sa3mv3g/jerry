@@ -225,14 +225,18 @@ def write_multiple_registers(
 
     # Verify by reading back
     if verbose:
-        verify = client.read_holding_registers(address=address, count=len(values))
+        verify = client.read_holding_registers(
+            address=address, count=len(values)
+        )
         if not verify.isError():
             print(f"[{timestamp}] Verification:")
             mismatch = False
             for i, val in enumerate(values):
                 actual = verify.registers[i]
                 status = "OK" if actual == val else "MISMATCH"
-                print(f"  Register {address + i}: {actual} (0x{actual:04X}) [{status}]")
+                print(
+                    f"  Register {address + i}: {actual} (0x{actual:04X}) [{status}]"
+                )
                 if actual != val:
                     mismatch = True
             if mismatch:
@@ -284,7 +288,9 @@ def cmd_registers(args: argparse.Namespace, client: ModbusTcpClient) -> int:
         values = [parse_register_value(v) for v in args.values]
         for i, val in enumerate(values):
             if not 0 <= val <= 65535:
-                print(f"Error: Register value must be 0-65535, got {val} at index {i}")
+                print(
+                    f"Error: Register value must be 0-65535, got {val} at index {i}"
+                )
                 return 1
     except ValueError as e:
         print(f"Error: Invalid register value: {e}")
@@ -296,7 +302,9 @@ def cmd_registers(args: argparse.Namespace, client: ModbusTcpClient) -> int:
 def cmd_do(args: argparse.Namespace, client: ModbusTcpClient) -> int:
     """Handle digital output write command (convenience wrapper)."""
     if not 0 <= args.output < COIL_DO_COUNT:
-        print(f"Error: Digital output must be 0-{COIL_DO_COUNT - 1}, got {args.output}")
+        print(
+            f"Error: Digital output must be 0-{COIL_DO_COUNT - 1}, got {args.output}"
+        )
         return 1
 
     try:
@@ -306,13 +314,17 @@ def cmd_do(args: argparse.Namespace, client: ModbusTcpClient) -> int:
         return 1
 
     print(f"Writing digital output DO{args.output}...")
-    return write_single_coil(client, COIL_DO_START + args.output, value, args.verbose)
+    return write_single_coil(
+        client, COIL_DO_START + args.output, value, args.verbose
+    )
 
 
 def cmd_pwm_enable(args: argparse.Namespace, client: ModbusTcpClient) -> int:
     """Handle PWM enable write command (convenience wrapper)."""
     if not 0 <= args.channel < COIL_PWM_COUNT:
-        print(f"Error: PWM channel must be 0-{COIL_PWM_COUNT - 1}, got {args.channel}")
+        print(
+            f"Error: PWM channel must be 0-{COIL_PWM_COUNT - 1}, got {args.channel}"
+        )
         return 1
 
     try:
@@ -322,13 +334,17 @@ def cmd_pwm_enable(args: argparse.Namespace, client: ModbusTcpClient) -> int:
         return 1
 
     print(f"Writing PWM{args.channel} enable...")
-    return write_single_coil(client, COIL_PWM_START + args.channel, value, args.verbose)
+    return write_single_coil(
+        client, COIL_PWM_START + args.channel, value, args.verbose
+    )
 
 
 def cmd_pwm_duty(args: argparse.Namespace, client: ModbusTcpClient) -> int:
     """Handle PWM duty cycle write command (convenience wrapper)."""
     if not 0 <= args.channel < COIL_PWM_COUNT:
-        print(f"Error: PWM channel must be 0-{COIL_PWM_COUNT - 1}, got {args.channel}")
+        print(
+            f"Error: PWM channel must be 0-{COIL_PWM_COUNT - 1}, got {args.channel}"
+        )
         return 1
 
     # Duty cycle is 0-10000 (0.00% - 100.00%)
@@ -340,7 +356,9 @@ def cmd_pwm_duty(args: argparse.Namespace, client: ModbusTcpClient) -> int:
     # Each PWM channel has duty at offset 0, 3, 6, 9 from HR_PWM_START
     address = HR_PWM_START + (args.channel * 3)
 
-    print(f"Writing PWM{args.channel} duty cycle = {args.duty}% ({duty}/10000)...")
+    print(
+        f"Writing PWM{args.channel} duty cycle = {args.duty}% ({duty}/10000)..."
+    )
     return write_single_register(client, address, duty, args.verbose)
 
 
@@ -429,15 +447,13 @@ Register Map (jerry_device):
     )
 
     # Subcommands
-    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
+    subparsers = parser.add_subparsers(
+        dest="command", help="Command to execute"
+    )
 
     # coil: Write single coil
-    coil_parser = subparsers.add_parser(
-        "coil", help="Write single coil (FC05)"
-    )
-    coil_parser.add_argument(
-        "address", type=int, help="Coil address (0-65535)"
-    )
+    coil_parser = subparsers.add_parser("coil", help="Write single coil (FC05)")
+    coil_parser.add_argument("address", type=int, help="Coil address (0-65535)")
     coil_parser.add_argument(
         "value", help="Value to write (0/1, on/off, true/false)"
     )
@@ -447,9 +463,7 @@ Register Map (jerry_device):
     coils_parser = subparsers.add_parser(
         "coils", help="Write multiple coils (FC15)"
     )
-    coils_parser.add_argument(
-        "address", type=int, help="Starting coil address"
-    )
+    coils_parser.add_argument("address", type=int, help="Starting coil address")
     coils_parser.add_argument(
         "values", nargs="+", help="Values to write (0/1, on/off, true/false)"
     )
@@ -475,7 +489,9 @@ Register Map (jerry_device):
         "address", type=int, help="Starting register address"
     )
     registers_parser.add_argument(
-        "values", nargs="+", help="Values to write (0-65535 each, or 0xHHHH for hex)"
+        "values",
+        nargs="+",
+        help="Values to write (0-65535 each, or 0xHHHH for hex)",
     )
     registers_parser.set_defaults(func=cmd_registers)
 

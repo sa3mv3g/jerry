@@ -152,24 +152,21 @@ void vModbusTask(void *pvParameters)
 
     printf("[Modbus] registers initialized\n");
 
-    /* Print calibration values in use after EEPROM load (or defaults on virgin flash) */
+    /* Print calibration values in use after EEPROM load (or defaults on virgin
+     * flash) */
     printf("[Modbus] Calibration values:\n");
     printf("[Modbus]   ADC0: scale=%.6f  offset=%.6f  dead_zone=%.6f\n",
            (double)hrRegs->adc_0_scale_factor,
-           (double)hrRegs->adc_0_offset_term,
-           (double)hrRegs->adc_0_dead_zone);
+           (double)hrRegs->adc_0_offset_term, (double)hrRegs->adc_0_dead_zone);
     printf("[Modbus]   ADC1: scale=%.6f  offset=%.6f  dead_zone=%.6f\n",
            (double)hrRegs->adc_1_scale_factor,
-           (double)hrRegs->adc_1_offset_term,
-           (double)hrRegs->adc_1_dead_zone);
+           (double)hrRegs->adc_1_offset_term, (double)hrRegs->adc_1_dead_zone);
     printf("[Modbus]   ADC2: scale=%.6f  offset=%.6f  dead_zone=%.6f\n",
            (double)hrRegs->adc_2_scale_factor,
-           (double)hrRegs->adc_2_offset_term,
-           (double)hrRegs->adc_2_dead_zone);
+           (double)hrRegs->adc_2_offset_term, (double)hrRegs->adc_2_dead_zone);
     printf("[Modbus]   ADC3: scale=%.6f  offset=%.6f  dead_zone=%.6f\n",
            (double)hrRegs->adc_3_scale_factor,
-           (double)hrRegs->adc_3_offset_term,
-           (double)hrRegs->adc_3_dead_zone);
+           (double)hrRegs->adc_3_offset_term, (double)hrRegs->adc_3_dead_zone);
 
     /* Initialize connection tracking */
     for (uint8_t i = 0U; i < MODBUS_MAX_CONNECTIONS; i++)
