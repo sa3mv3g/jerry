@@ -6,6 +6,7 @@
 #include "app_tasks.h"
 #include "app_version.h"
 #include "bsp.h"
+#include "bsp_i2c.h"
 #include "lcd_i2c.h"
 #include "semphr.h"
 #include "task.h"
@@ -86,8 +87,7 @@ void vLcdManageTask(void* pvParameters)
 int32_t lcdManager_Send(uint8_t i2c_address, const uint8_t* data,
                         uint16_t length, uint32_t timeout_ms)
 {
-    return BSP_I2C_Master_Write(i2c_address, (uint8_t*)data, length,
-                                timeout_ms);
+    return BSP_I2C_LcdWrite(i2c_address, (uint8_t*)data, length, timeout_ms);
 }
 
 void LcdManager_IsLcdReady(SemaphoreHandle_t* isLcdReadySem)

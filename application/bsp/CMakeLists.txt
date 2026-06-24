@@ -2,6 +2,14 @@ if(VENDOR STREQUAL "stm" OR "$ENV{VENDOR}" STREQUAL "stm")
 
     set(APP_SOURCES ${APP_SOURCES}
                     ${BSP_DIR}/stm/bsp.c
+                    ${BSP_DIR}/stm/bsp_i2c/bsp_i2c.c
+                    ${BSP_DIR}/stm/bsp_i2c/bsp_i2c_do/bsp_i2c_do.c
+                    ${BSP_DIR}/stm/bsp_i2c/bsp_i2c_lcd/bsp_i2c_lcd.c
+                    PARENT_SCOPE
+    )
+
+    set(APP_INCLUDE_DIRECTORIES ${APP_INCLUDE_DIRECTORIES}
+                    ${BSP_DIR}/stm/bsp_i2c/
                     PARENT_SCOPE
     )
 

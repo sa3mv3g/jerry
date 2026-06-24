@@ -400,8 +400,6 @@ int main(void)
     I2C_ScanBus();
 #endif
 
-    BSP_I2CDO_init();
-
     xSyncEventGroup = xEventGroupCreateStatic(&xSyncEventGroupBuff);
 
     if (NULL != xSyncEventGroup)

@@ -7,6 +7,10 @@
 #include "arm_math_types.h"
 #include "stm32h5xx_nucleo.h"
 
+/* ===================================================================*/
+/*                 Public Definitions and Macros */
+/* ==================================================================*/
+
 /**
  * @brief BSP Error Codes
  */
@@ -139,11 +143,12 @@ typedef int bsp_error_t;
 #define BSP_ADC1_NUM_CHANNELS 6U
 
 /**
- * @brief Union to access the individual bytes, half-words, or word of a float.
+ * @brief Union to access the individual bytes, half-words, or word of a
+ * float.
  *
- * This union allows type-punning to access the underlying representation of a
- * float as a 32-bit unsigned integer, two 16-bit unsigned integers, or four
- * 8-bit unsigned integers.
+ * This union allows type-punning to access the underlying representation of
+ * a float as a 32-bit unsigned integer, two 16-bit unsigned integers, or
+ * four 8-bit unsigned integers.
  */
 typedef union
 {
@@ -156,17 +161,22 @@ typedef union
 /**
  * @brief Global configuration structure for BSP COM port initialization.
  *
- * This structure holds the configuration parameters (Baud Rate, Word Length,
- * Stop Bits, Parity, etc.) used to initialize the COM port (UART) functionality
- * provided by the Board Support Package.
+ * This structure holds the configuration parameters (Baud Rate, Word
+ * Length, Stop Bits, Parity, etc.) used to initialize the COM port (UART)
+ * functionality provided by the Board Support Package.
  */
 extern COM_InitTypeDef BspCOMInit;
 /**
  * @brief  IWDG (Independent Watchdog) handler declaration
- * @note   The actual definition of this handler is in the BSP implementation
- * file where the IWDG peripheral is initialized and configured
+ * @note   The actual definition of this handler is in the BSP
+ * implementation file where the IWDG peripheral is initialized and
+ * configured
  */
 extern IWDG_HandleTypeDef hiwdg;
+
+/* =================================================================*/
+/*                 Public Functions */
+/* =================================================================*/
 
 /**
  * @brief Initializes the Board Support Package (BSP).
@@ -216,7 +226,8 @@ bsp_error_t BSP_ADC1_Stop(void);
  * sequence of all channels has been converted since the last call to
  * BSP_ADC1_Start() or since the last time this function returned true.
  *
- * @return true if a complete conversion sequence is available, false otherwise.
+ * @return true if a complete conversion sequence is available, false
+ * otherwise.
  */
 bool BSP_ADC1_IsConversionComplete(void);
 
@@ -243,11 +254,13 @@ bsp_error_t BSP_ADC1_GetResults(const uint32_t **results);
 /**
  * @brief Copies ADC1 conversion results to a user buffer.
  *
- * This function copies the current ADC conversion results to a user-provided
- * buffer. This provides a consistent snapshot of all channel values.
+ * This function copies the current ADC conversion results to a
+ * user-provided buffer. This provides a consistent snapshot of all channel
+ * values.
  *
  * @param[out] buffer Pointer to user buffer to store results.
- *                    Must have space for at least BSP_ADC1_NUM_CHANNELS values.
+ *                    Must have space for at least BSP_ADC1_NUM_CHANNELS
+ * values.
  *
  * @return bsp_error_t BSP_OK if copy successful, BSP_INVALID_ARG if buffer
  *         is NULL, BSP_ERROR if ADC is not running.
@@ -339,7 +352,8 @@ void BSP_ADC1_FilterInit(void);
  *         are invalid, BSP_ERROR if filter is not initialized.
  *
  * @note This function returns instantly (no blocking).
- * @note The returned value is normalized to 0.0-1.0 range (0 = 0V, 1.0 = VREF).
+ * @note The returned value is normalized to 0.0-1.0 range (0 = 0V, 1.0 =
+ * VREF).
  * @note Check BSP_ADC1_IsFilterSettled() to ensure filter has settled
  *       after power-on before trusting the values.
  */
@@ -348,14 +362,15 @@ bsp_error_t BSP_ADC1_GetFilteredValue(uint8_t channel, float32_t *value);
 /**
  * @brief Get filtered ADC values for all channels (instant response).
  *
- * Returns the current filtered values for all channels as an atomic snapshot.
+ * Returns the current filtered values for all channels as an atomic
+ * snapshot.
  *
  * @param[out] values Array to store filtered values for all channels.
  *                    Must have space for BSP_ADC1_NUM_CHANNELS float32_t
  * values.
  *
- * @return bsp_error_t BSP_OK if successful, BSP_INVALID_ARG if values is NULL,
- *         BSP_ERROR if filter is not initialized.
+ * @return bsp_error_t BSP_OK if successful, BSP_INVALID_ARG if values is
+ * NULL, BSP_ERROR if filter is not initialized.
  *
  * @note This function returns instantly (no blocking).
  * @note Interrupts are briefly disabled to ensure consistent snapshot.
@@ -386,10 +401,17 @@ uint32_t BSP_ADC1_GetFilterSampleCount(void);
 /** @} */ /* End of BSP_ADC1_Filtered group */
 
 /**
+ * @brief Initializes the I2C controller and all registered I2C devices.
+ * @return bsp_error_t: BSP_OK if initialization of all components succeeds,
+ * otherwise the error code of the first failing component.
+ */
+bsp_error_t BSP_I2C_Init();
+
+/**
  * @brief Initializes the I2C Digital Output (PCF8574/PCF8574A) subsystem.
  *
- * This function initializes the I2C expanders to a known state, typically all
- * outputs set to low.
+ * This function initializes the I2C expanders to a known state, typically
+ * all outputs set to low.
  *
  * @return bsp_error_t BSP_OK if initialization is successful, otherwise an
  * error code.
@@ -402,15 +424,16 @@ bsp_error_t BSP_I2CDO_init();
  * The lower 8 bits of the value are sent to PCF8574, and the upper 8 bits
  * are sent to PCF8574A. This function includes checks for device readiness.
  *
- * @param value A 16-bit mask of ::BSP_I2C_Digital_Output_Masks indicating the
- * desired state of the digital outputs.
+ * @param value A 16-bit mask of ::BSP_I2C_Digital_Output_Masks indicating
+ * the desired state of the digital outputs.
  * @return bsp_error_t BSP_OK if the write is successful, otherwise an error
  * code.
  */
 bsp_error_t BSP_I2CDO_Write(uint16_t value);
 
 /**
- * @brief Reads the current 16-bit state of the I2C Digital Output expanders.
+ * @brief Reads the current 16-bit state of the I2C Digital Output
+ * expanders.
  *
  * This function reads the state from both PCF8574 and PCF8574A and combines
  * them into a single 16-bit value. It includes checks for device readiness.
@@ -460,11 +483,17 @@ bsp_error_t BSP_GPIODI_Read(uint32_t channel, uint32_t *pVal);
 uint8_t BSP_GetDeviceAddress(void);
 
 /**
+ * @brief  Initializes the LCD I2C target state machine.
+ * @return bsp_error_t: BSP_OK upon successful initialization.
+ */
+bsp_error_t BSP_I2C_LcdInit();
+
+/**
  * @brief  Reads data from an I2C slave device.
  * @param  address: The 7-bit I2C device address (left-shifted by 1 for HAL
  * compatibility)
- * @param  buff: Pointer to the buffer that will receive the data read from the
- * device
+ * @param  buff: Pointer to the buffer that will receive the data read from
+ * the device
  * @param  len: Number of bytes to read
  * @param  timeout: Timeout duration in milliseconds
  * @return bsp_error_t: BSP_OK if successful, otherwise an error code:
@@ -473,8 +502,8 @@ uint8_t BSP_GetDeviceAddress(void);
  *         - BSP_TIMEOUT if operation timed out
  *         - BSP_ERROR for other HAL errors
  */
-bsp_error_t BSP_I2C_Master_Read(uint8_t address, uint8_t *buff, uint16_t len,
-                                uint32_t timeout);
+bsp_error_t BSP_I2C_LcdRead(uint8_t address, uint8_t *buff, uint16_t len,
+                            uint32_t timeout);
 
 /**
  * @brief  Writes data to an I2C slave device.
@@ -489,8 +518,8 @@ bsp_error_t BSP_I2C_Master_Read(uint8_t address, uint8_t *buff, uint16_t len,
  *         - BSP_TIMEOUT if operation timed out
  *         - BSP_ERROR for other HAL errors
  */
-bsp_error_t BSP_I2C_Master_Write(uint8_t address, uint8_t *buff, uint16_t len,
-                                 uint32_t timeout);
+bsp_error_t BSP_I2C_LcdWrite(uint8_t address, uint8_t *buff, uint16_t len,
+                             uint32_t timeout);
 
 /**
  * @brief  Provides a delay in microseconds using TIM7.
@@ -499,7 +528,8 @@ bsp_error_t BSP_I2C_Master_Write(uint8_t address, uint8_t *buff, uint16_t len,
  * microsecond delays
  * @note   The delay is approximate and may vary slightly due to interrupt
  * latency
- * @note   Maximum delay is 65535 microseconds (approximately 65.5 milliseconds)
+ * @note   Maximum delay is 65535 microseconds (approximately 65.5
+ * milliseconds)
  * @retval None
  */
 void BSP_Delay_Us(uint32_t us);
@@ -507,8 +537,8 @@ void BSP_Delay_Us(uint32_t us);
 /**
  * @brief  Reads data from the EEPROM emulation.
  * @param  address: Start address to read from
- * @param  pBuff: Pointer to the buffer that will receive the data read from the
- * EEPROM
+ * @param  pBuff: Pointer to the buffer that will receive the data read from
+ * the EEPROM
  * @param  sizeBytes: Number of bytes to read
  * @return bsp_error_t: BSP_OK if successful, otherwise an error code:
  *         - BSP_INVALID_ARG if pBuff is NULL

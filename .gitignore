@@ -81,3 +81,5 @@ application/dependencies/CMSIS-DSP
 *.log
 *.log.txt
 !.vscode/launch.json
+
+.cache/*

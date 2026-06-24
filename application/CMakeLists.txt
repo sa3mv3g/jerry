@@ -58,6 +58,7 @@ include(${CMAKE_SOURCE_DIR}/config/modbus_codegen.cmake)
 file(GLOB_RECURSE APP_SOURCES "src/*.c" "src/*.s")
 file(GLOB_RECURSE APP_HEADERS "inc/*.h")
 set(APP_HEADERS ${APP_HEADERS} bsp/bsp.h)
+set(APP_INCLUDE_DIRECTORIES "")
 
 # Define the base path for your dependencies
 set(DEPS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/")
@@ -255,6 +256,7 @@ target_include_directories(jerry_app PRIVATE
     bsp
     src/generated
     "${CMAKE_BINARY_DIR}/generated"
+    ${APP_INCLUDE_DIRECTORIES}
 )
 
 # Add Modbus generated sources to the application

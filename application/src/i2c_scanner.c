@@ -11,6 +11,9 @@
 #include <stdio.h>
 
 #include "bsp.h"
+#include "bsp_i2c.h"
+
+#define BSP_I2C_READ(A, B, C, D) BSP_I2C_LcdRead(A, B, C, D)
 
 /**
  * @brief I2C address range definitions
@@ -96,8 +99,7 @@ void I2C_ScanBus(void)
         uint8_t addr_8bit = addr << 1;
 
         /* Try to read from the device */
-        result =
-            BSP_I2C_Master_Read(addr_8bit, &dummy_data, 1, I2C_SCAN_TIMEOUT_MS);
+        result = BSP_I2C_READ(addr_8bit, &dummy_data, 1, I2C_SCAN_TIMEOUT_MS);
 
         if (result == BSP_OK)
         {

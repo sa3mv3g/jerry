@@ -152,6 +152,10 @@ void MX_ICACHE_Init(void);
 #define ARD_D1_TX_GPIO_Port GPIOB
 #define ARD_D0_RX_Pin GPIO_PIN_7
 #define ARD_D0_RX_GPIO_Port GPIOB
+#define I2C4_SCL_Pin GPIO_PIN_8
+#define I2C4_SCL_GPIO_Port GPIOB
+#define I2C4_SDA_Pin GPIO_PIN_9
+#define I2C4_SDA_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

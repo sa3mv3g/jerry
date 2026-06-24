@@ -3,22 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "FreeRTOS.h"
 #include "adc_filter.h"
+#include "bsp_i2c/bsp_i2c.h"
 #include "eeprom_emul.h"
-#include "eeprom_emul_conf.h"
 #include "main.h"
-#include "semphr.h"
 #include "stm32h5xx_hal.h"
-
-/** Mutex protecting hi2c4 — shared by BSP_I2CDO_Read/Write and
- *  BSP_I2C_Master_Read/Write (LCD, scanner, etc.) */
-static StaticSemaphore_t  s_i2c4_mutex_buf;
-static SemaphoreHandle_t  s_i2c4_mutex = NULL;
-
-/** Convenience macros — block up to 100 ms waiting for the bus */
-#define I2C4_LOCK()   xSemaphoreTake(s_i2c4_mutex, pdMS_TO_TICKS(100U))
-#define I2C4_UNLOCK() xSemaphoreGive(s_i2c4_mutex)
 
 #define LED_OK       LED2
 #define PWR_FLAG_WUF PWR_WAKEUP_FLAG4
@@ -215,9 +204,6 @@ bsp_error_t BSP_Init(void)
     MX_ETH_Init();
     MX_USB_HCD_Init();
 
-    /* Initialize ADC filter subsystem */
-    BSP_ADC1_FilterInit();
-
     /* Set EEPROM emulation firmware to erase all potentially incompletely
        erased pages if the system came from an asynchronous reset. Conditional
        erase is safe to use if all Flash operations where completed before the
@@ -269,7 +255,14 @@ bsp_error_t BSP_Init(void)
         }
     }
 
+    /* After I2C4 init, init I2C resources */
+    if (BSP_I2C_Init() != BSP_OK)
+    {
+        printf("[BSP] I2C bus error\r\n");
+    }
     HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_1);
+    /* Initialize ADC filter subsystem */
+    BSP_ADC1_FilterInit();
     BSP_ADC1_Start();
 
     return BSP_OK;
@@ -628,160 +621,6 @@ bool BSP_ADC1_IsFilterSettled(void)
 
 uint32_t BSP_ADC1_GetFilterSampleCount(void) { return g_filter_sample_count; }
 
-bsp_error_t BSP_I2CDO_init()
-{
-    bsp_error_t ret = BSP_OK;
-
-    /* Create the I2C4 bus mutex (static allocation — safe before scheduler) */
-    s_i2c4_mutex = xSemaphoreCreateMutexStatic(&s_i2c4_mutex_buf);
-
-    // Set initial state to all low and write to expanders
-    ret = BSP_I2CDO_Write(0x0000U);
-
-    return ret;
-}
-
-bsp_error_t BSP_I2CDO_Write(uint16_t value)
-{
-    HAL_StatusTypeDef status;
-    uint8_t           output_byte;
-    bsp_error_t       ret = BSP_OK;
-
-    if (I2C4_LOCK() != pdTRUE)
-    {
-        printf("[BSP_I2CDO_Write] Failed to acquire I2C4 mutex\r\n");
-        return BSP_BUSY;
-    }
-
-    // Write lower 8 bits to PCF8574
-    output_byte = (uint8_t)(value & 0xFFU);
-    status      = HAL_I2C_Master_Transmit(&hi2c4, BSP_I2CDO_PCF8574_ADDR,
-                                          &output_byte, 1, BSP_I2CDO_TIMEOUT);
-    if (status != HAL_OK)
-    {
-        if (status == HAL_TIMEOUT)
-        {
-            ret = BSP_TIMEOUT;
-        }
-        else
-        {
-            ret = BSP_ERROR;
-        }
-    }
-
-    // Write upper 8 bits to PCF8574A
-    if (ret == BSP_OK)
-    {
-        output_byte = (uint8_t)((value >> 8U) & 0xFFU);
-        status      = HAL_I2C_Master_Transmit(&hi2c4, BSP_I2CDO_PCF8574A_ADDR,
-                                              &output_byte, 1, BSP_I2CDO_TIMEOUT);
-        if (status != HAL_OK)
-        {
-            if (status == HAL_TIMEOUT)
-            {
-                ret = BSP_TIMEOUT;
-            }
-            else
-            {
-                ret = BSP_ERROR;
-            }
-        }
-    }
-
-    I2C4_UNLOCK();
-    return ret;
-}
-
-bsp_error_t BSP_I2CDO_Read(uint16_t *value)
-{
-    HAL_StatusTypeDef status;
-    uint8_t           read_byte_pcf8574;
-    uint8_t           read_byte_pcf8574a;
-    bsp_error_t       ret = BSP_OK;
-
-    if (value == NULL)
-    {
-        return BSP_INVALID_ARG;
-    }
-
-    if (I2C4_LOCK() != pdTRUE)
-    {
-        printf("[BSP_I2CDO_Read] Failed to acquire I2C4 mutex\r\n");
-        return BSP_BUSY;
-    }
-
-    // Read from PCF8574
-    status = HAL_I2C_Master_Receive(&hi2c4, BSP_I2CDO_PCF8574_ADDR,
-                                    &read_byte_pcf8574, 1, BSP_I2CDO_TIMEOUT);
-    if (status != HAL_OK)
-    {
-        uint32_t hal_err = HAL_I2C_GetError(&hi2c4);
-        if (status == HAL_TIMEOUT)
-        {
-            ret = BSP_TIMEOUT;
-            printf("[BSP_I2CDO_Read] PCF8574 (addr=0x%02X) TIMEOUT"
-                   " hal_err=0x%08lX\r\n",
-                   (unsigned)BSP_I2CDO_PCF8574_ADDR, hal_err);
-        }
-        else if (status == HAL_BUSY)
-        {
-            ret = BSP_ERROR;
-            printf("[BSP_I2CDO_Read] PCF8574 (addr=0x%02X) HAL_BUSY"
-                   " — I2C bus in use by another task\r\n",
-                   (unsigned)BSP_I2CDO_PCF8574_ADDR);
-        }
-        else
-        {
-            ret = BSP_ERROR;
-            printf("[BSP_I2CDO_Read] PCF8574 (addr=0x%02X) HAL_ERROR"
-                   " hal_err=0x%08lX (NACK/ARLO/BERR)\r\n",
-                   (unsigned)BSP_I2CDO_PCF8574_ADDR, hal_err);
-        }
-    }
-
-    // Read from PCF8574A
-    if (ret == BSP_OK)
-    {
-        status =
-            HAL_I2C_Master_Receive(&hi2c4, BSP_I2CDO_PCF8574A_ADDR,
-                                   &read_byte_pcf8574a, 1, BSP_I2CDO_TIMEOUT);
-        if (status != HAL_OK)
-        {
-            uint32_t hal_err = HAL_I2C_GetError(&hi2c4);
-            if (status == HAL_TIMEOUT)
-            {
-                ret = BSP_TIMEOUT;
-                printf("[BSP_I2CDO_Read] PCF8574A (addr=0x%02X) TIMEOUT"
-                       " hal_err=0x%08lX\r\n",
-                       (unsigned)BSP_I2CDO_PCF8574A_ADDR, hal_err);
-            }
-            else if (status == HAL_BUSY)
-            {
-                ret = BSP_ERROR;
-                printf("[BSP_I2CDO_Read] PCF8574A (addr=0x%02X) HAL_BUSY"
-                       " — I2C bus in use by another task\r\n",
-                       (unsigned)BSP_I2CDO_PCF8574A_ADDR);
-            }
-            else
-            {
-                ret = BSP_ERROR;
-                printf("[BSP_I2CDO_Read] PCF8574A (addr=0x%02X) HAL_ERROR"
-                       " hal_err=0x%08lX (NACK/ARLO/BERR)\r\n",
-                       (unsigned)BSP_I2CDO_PCF8574A_ADDR, hal_err);
-            }
-        }
-    }
-
-    if (ret == BSP_OK)
-    {
-        *value =
-            (uint16_t)read_byte_pcf8574 | ((uint16_t)read_byte_pcf8574a << 8U);
-    }
-
-    I2C4_UNLOCK();
-    return ret;
-}
-
 bsp_error_t BSP_GPIODI_Read(uint32_t channel, uint32_t *pVal)
 {
     bsp_error_t retval;
@@ -867,90 +706,6 @@ uint8_t BSP_GetDeviceAddress(void)
     }
 
     return address;
-}
-
-bsp_error_t BSP_I2C_Master_Read(uint8_t address, uint8_t *buff, uint16_t len,
-                                uint32_t timeout)
-{
-    HAL_StatusTypeDef status;
-    bsp_error_t       retVal;
-
-    if (NULL == buff)
-    {
-        return BSP_INVALID_ARG;
-    }
-
-    if (I2C4_LOCK() != pdTRUE)
-    {
-        return BSP_BUSY;
-    }
-
-    status = HAL_I2C_Master_Receive(&hi2c4, address, buff, len, timeout);
-    if (HAL_OK == status)
-    {
-        retVal = BSP_OK;
-    }
-    else
-    {
-        switch (status)
-        {
-            case HAL_BUSY:
-                retVal = BSP_BUSY;
-                break;
-            case HAL_TIMEOUT:
-                retVal = BSP_TIMEOUT;
-                break;
-            default:
-            case HAL_ERROR:
-                retVal = BSP_ERROR;
-                break;
-        }
-    }
-
-    I2C4_UNLOCK();
-    return retVal;
-}
-
-bsp_error_t BSP_I2C_Master_Write(uint8_t address, uint8_t *buff, uint16_t len,
-                                 uint32_t timeout)
-{
-    HAL_StatusTypeDef status;
-    bsp_error_t       retVal;
-
-    if (NULL == buff)
-    {
-        return BSP_INVALID_ARG;
-    }
-
-    if (I2C4_LOCK() != pdTRUE)
-    {
-        return BSP_BUSY;
-    }
-
-    status = HAL_I2C_Master_Transmit(&hi2c4, address, buff, len, timeout);
-    if (HAL_OK == status)
-    {
-        retVal = BSP_OK;
-    }
-    else
-    {
-        switch (status)
-        {
-            case HAL_BUSY:
-                retVal = BSP_BUSY;
-                break;
-            case HAL_TIMEOUT:
-                retVal = BSP_TIMEOUT;
-                break;
-            default:
-            case HAL_ERROR:
-                retVal = BSP_ERROR;
-                break;
-        }
-    }
-
-    I2C4_UNLOCK();
-    return retVal;
 }
 
 bsp_error_t BSP_EEPROM_Read(uint32_t address, uint8_t *pBuff,

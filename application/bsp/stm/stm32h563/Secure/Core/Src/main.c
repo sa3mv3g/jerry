@@ -264,7 +264,7 @@ void MX_GPIO_Init(void)
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOB, GPIO_PIN_1|RMII_TXD1_Pin|ARD_D1_TX_Pin|ARD_D0_RX_Pin
-                          |GPIO_PIN_8|GPIO_PIN_9, GPIO_PIN_NSEC);
+                          |I2C4_SCL_Pin|I2C4_SDA_Pin, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOG, DI7_Pin|EN_AMPLIFIER_Pin|RMII_TXT_EN_Pin|RMI_TXD0_Pin
