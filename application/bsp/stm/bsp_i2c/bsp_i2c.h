@@ -25,14 +25,10 @@ extern "C"
  * @brief Represents the current operational state of a device on the I2C bus.
  * @{
  */
-#define BSP_I2C_TARGET_STATE_UNCONFIG \
-    (0U) /**< Target memory allocated but parameters not set */
-#define BSP_I2C_TARGET_STATE_INIT \
-    (1U) /**< Target initialized but connection unverified */
-#define BSP_I2C_TARGET_STATE_CONN \
-    (2U) /**< Target actively responding on the I2C bus */
-#define BSP_I2C_TARGET_STATE_DISCON \
-    (3U) /**< Target failed to respond or was explicitly disconnected */
+#define BSP_I2C_TARGET_STATE_UNCONFIG (0U)
+#define BSP_I2C_TARGET_STATE_INIT     (1U)
+#define BSP_I2C_TARGET_STATE_CONN     (2U)
+#define BSP_I2C_TARGET_STATE_DISCON   (3U)
     /** @} */
 
     /* ==========================================================================
@@ -51,11 +47,11 @@ extern "C"
             presentState; /**< Current lifecycle state (e.g., CONN, DISCON) */
     } BSP_I2C_Target_State_t;
 
-    /* ==========================================================================
-     */
+    /* ====================================================================*/
     /*                 Public Functions */
-    /* ==========================================================================
-     */
+    /* ====================================================================*/
+
+    uint32_t BSP_I2C_GetBusStatus();
 
     /**
      * @name I2C Controller Shared Bus Management

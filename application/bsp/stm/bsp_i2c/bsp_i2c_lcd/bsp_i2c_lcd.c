@@ -4,6 +4,7 @@
 /* ========================================================================== */
 /*                 Private Definitions and Macros                             */
 /* ========================================================================== */
+#define RETRY_COUNTS (3U)
 
 /* ========================================================================== */
 /*                 Private Typedefs                                           */
@@ -26,6 +27,16 @@ static BSP_I2C_Target_State_t gLcdConnState;
 bsp_error_t BSP_I2C_LcdInit()
 {
     BSP_I2C_Target_Init(&gLcdConnState);
+
+    if (HAL_I2C_IsDeviceReady(&hi2c4, BSP_I2CLCD_ADDRESS, RETRY_COUNTS,
+                              BSP_I2CLCD_TIMEOUT) == HAL_OK)
+    {
+        BSP_I2C_Target_Connect(&gLcdConnState);
+    }
+    else
+    {
+        BSP_I2C_Target_Disconnect(&gLcdConnState);
+    }
 
     return BSP_OK;
 }

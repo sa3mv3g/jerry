@@ -23,8 +23,9 @@
 /* ========================================================================== */
 /*                 Private Variable Declaration                               */
 /* ========================================================================== */
-static SemaphoreHandle_t gI2C4Mutex = NULL;
-static StaticSemaphore_t gI2C4MutexBuf;
+static SemaphoreHandle_t      gI2C4Mutex = NULL;
+static StaticSemaphore_t      gI2C4MutexBuf;
+static BSP_I2C_Target_State_t gI2C4BusStatus;
 
 /* ========================================================================== */
 /*                 Public Functions                                           */
@@ -130,6 +131,8 @@ bsp_error_t BSP_I2C_Init()
     GPIO_PinState sclState;
     GPIO_PinState sdaState;
 
+    BSP_I2C_Target_Init(&gI2C4BusStatus);
+
     /* Manually check if SDA/SCL are HIGH (idle)
        If they are LOW, the bus is grounded or damaged.
     */
@@ -137,10 +140,12 @@ bsp_error_t BSP_I2C_Init()
     sdaState = HAL_GPIO_ReadPin(I2C4_SDA_GPIO_Port, I2C4_SDA_Pin);
     if ((sclState == GPIO_PIN_RESET) || (sdaState == GPIO_PIN_RESET))
     {
+        BSP_I2C_Target_Disconnect(&gI2C4BusStatus);
         ret = BSP_ERROR;  // Bus is pulled low (shorted)
     }
     else
     {
+        BSP_I2C_Target_Connect(&gI2C4BusStatus);
         BSP_I2C_Controller_MutexInit();
         ret = BSP_I2CDO_init();
         if (ret == BSP_OK)
@@ -149,5 +154,12 @@ bsp_error_t BSP_I2C_Init()
         }
     }
 
+    return ret;
+}
+
+uint32_t BSP_I2C_GetBusStatus()
+{
+    uint32_t ret = 0;
+    BSP_I2C_Target_GetState(&gI2C4BusStatus, &ret);
     return ret;
 }

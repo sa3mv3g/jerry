@@ -4,7 +4,6 @@
 /* ========================================================================== */
 /*                 Private Definitions and Macros                             */
 /* ========================================================================== */
-#define TIMEOUT_MS   (100U)
 #define RETRY_COUNTS (3U)
 
 /* ========================================================================== */
@@ -37,13 +36,13 @@ bsp_error_t BSP_I2CDO_init(void)
     BSP_I2C_Target_Init(&gPCF8574AConnState);
 
     if (HAL_I2C_IsDeviceReady(&hi2c4, BSP_I2CDO_PCF8574_ADDR, RETRY_COUNTS,
-                              TIMEOUT_MS) == HAL_OK)
+                              BSP_I2CDO_TIMEOUT) == HAL_OK)
     {
         BSP_I2C_Target_Connect(&gPCF8574ConnState);
         pcfcon = true;
 
         if (HAL_I2C_IsDeviceReady(&hi2c4, BSP_I2CDO_PCF8574A_ADDR, RETRY_COUNTS,
-                                  TIMEOUT_MS) == HAL_OK)
+                                  BSP_I2CDO_TIMEOUT) == HAL_OK)
         {
             BSP_I2C_Target_Connect(&gPCF8574AConnState);
             pcfacon = true;
