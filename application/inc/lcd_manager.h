@@ -35,9 +35,11 @@ void LcdManager_ShowVersionSplash(uint16_t version_major,
                                   uint16_t version_patch, uint32_t build_number,
                                   const char *git_hash, uint32_t display_ms);
 
-void LcdManager_UpdateIpv4Address(char ipv4[]);
+void LcdManager_UpdateIpv4Address(const char *ipv4);
 void LcdManager_UpdateModbusDeviceAddress(uint8_t address);
 void LcdManager_UpdateDigitalOutputStatus(uint8_t channel, bool value);
 void LcdManager_UpdateDigitalInputStatus(uint8_t channel, bool value);
+void LcdManager_UpdateAnalogInput(uint8_t channel, float value);
+void LcdManager_UpdateAnalogOutput(uint8_t channel, uint16_t value);
 
 #endif  // LCD_MANAGER_H

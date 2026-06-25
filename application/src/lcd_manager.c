@@ -1,6 +1,8 @@
 #include "lcd_manager.h"
 
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "FreeRTOS.h"
 #include "app_tasks.h"
@@ -25,12 +27,71 @@ static char gLcdStrings[LCD_MANAGER_ROWS_MAX][LCD_MANAGER_COLS_MAX + 1];
 static SemaphoreHandle_t gUdpateLcdSem;
 static StaticSemaphore_t gUdpateLcdSemBuff;
 
+static uint8_t gIpLastOctet = 0;
+static uint8_t gModbusAddress = 0;
+static uint8_t gDigitalInput = 0;
+
+static uint16_t gDigitalOutput = 0;
+static uint16_t gAnalogOutput[4] = {0};
+
+static float gAnalogInput[4] = {0.0f};
+
 /* Forward declaration */
 static int32_t lcdManager_Send(uint8_t i2c_address, const uint8_t* data,
                                uint16_t length, uint32_t timeout_ms);
 
 /* Application-managed LCD handle (static allocation) */
 static LcdI2cHandle lcd_handle;
+
+static void update_row_0(void) {
+    snprintf(gLcdStrings[0], LCD_MANAGER_COLS_MAX + 1, "%02X %02X %02X %04X       ", gIpLastOctet, gModbusAddress, gDigitalInput, gDigitalOutput);
+    if (gUdpateLcdSem != NULL) {
+        xSemaphoreGive(gUdpateLcdSem);
+    }
+}
+
+static void update_row_1(void) {
+    snprintf(gLcdStrings[1], LCD_MANAGER_COLS_MAX + 1, "%04X %04X %04X %04X ", gAnalogOutput[0], gAnalogOutput[1], gAnalogOutput[2], gAnalogOutput[3]);
+    if (gUdpateLcdSem != NULL) {
+        xSemaphoreGive(gUdpateLcdSem);
+    }
+}
+
+static void format_ai(char* buf, float val)
+{
+    char temp[16];
+    int len = snprintf(temp, sizeof(temp), "%.3f", val);
+    if (len > 9) {
+        len = snprintf(temp, sizeof(temp), "%.2f", val);
+    }
+    if (len > 9) {
+        len = snprintf(temp, sizeof(temp), "%.1f", val);
+    }
+    if (len > 9) {
+        (void)snprintf(temp, sizeof(temp), "%.0f", val);
+    }
+    (void)snprintf(buf, 10, "%-9.9s", temp);
+}
+
+static void update_row_2(void) {
+    char ai0[10], ai1[10];
+    format_ai(ai0, gAnalogInput[0]);
+    format_ai(ai1, gAnalogInput[1]);
+    snprintf(gLcdStrings[2], LCD_MANAGER_COLS_MAX + 1, "%s %s ", ai0, ai1);
+    if (gUdpateLcdSem != NULL) {
+        xSemaphoreGive(gUdpateLcdSem);
+    }
+}
+
+static void update_row_3(void) {
+    char ai2[10], ai3[10];
+    format_ai(ai2, gAnalogInput[2]);
+    format_ai(ai3, gAnalogInput[3]);
+    snprintf(gLcdStrings[3], LCD_MANAGER_COLS_MAX + 1, "%s %s ", ai2, ai3);
+    if (gUdpateLcdSem != NULL) {
+        xSemaphoreGive(gUdpateLcdSem);
+    }
+}
 
 void vLcdManageTask(void* pvParameters)
 {
@@ -43,6 +104,11 @@ void vLcdManageTask(void* pvParameters)
     {
         gLcdStrings[lcdRow][LCD_MANAGER_COLS_MAX] = 0;
     }
+    
+    update_row_0();
+    update_row_1();
+    update_row_2();
+    update_row_3();
 
     /* Configure LCD */
     LcdI2cConfig config = {.i2c_address       = LCD_MANAGER_ADDRESS_8BIT,
@@ -98,83 +164,77 @@ void LcdManager_IsLcdReady(SemaphoreHandle_t* isLcdReadySem)
     }
 }
 
-void LcdManager_UpdateIpv4Address(char ip[])
+void LcdManager_UpdateIpv4Address(const char *ip)
 {
-    if (NULL != gUdpateLcdSem)
+    if (ip != NULL)
     {
-        snprintf(gLcdStrings[LCD_MANAGER_IPV4_ADDR_ROW_ID],
-                 LCD_MANAGER_COLS_MAX, "IPv4:%s", ip);
-        xSemaphoreGive(gUdpateLcdSem);
+        const char *last_dot = strrchr(ip, '.');
+        if (last_dot) {
+            gIpLastOctet = (uint8_t)atoi(last_dot + 1);
+        } else {
+            gIpLastOctet = (uint8_t)atoi(ip);
+        }
+        update_row_0();
     }
 }
 
 void LcdManager_UpdateModbusDeviceAddress(uint8_t address)
 {
-    if (NULL != gUdpateLcdSem)
-    {
-        char* row = gLcdStrings[LCD_MANAGER_MODBUS_DEVICE_ADDR_ROW_ID];
-
-        /* Manual conversion to avoid null terminator in the middle of buffer */
-        if (address >= 100)
-        {
-            row[0] = '0' + (address / 100);
-            row[1] = '0' + ((address / 10) % 10);
-            row[2] = '0' + (address % 10);
-        }
-        else if (address >= 10)
-        {
-            row[0] = '0' + (address / 10);
-            row[1] = '0' + (address % 10);
-            row[2] = ' '; /* Preserve space padding */
-        }
-        else
-        {
-            row[0] = '0' + address;
-            row[1] = ' '; /* Preserve space padding */
-            row[2] = ' '; /* Preserve space padding */
-        }
-
-        xSemaphoreGive(gUdpateLcdSem);
-    }
+    gModbusAddress = address;
+    update_row_0();
 }
 
 void LcdManager_UpdateDigitalOutputStatus(uint8_t channel, bool value)
 {
-    if (NULL != gUdpateLcdSem)
+    if (channel < 16)
     {
-        if (channel < 16)
+        if (value)
         {
-            if (value)
-            {
-                gLcdStrings[LCD_MANAGER_DIGITAL_OUTPUT_ROW_ID][channel] = '1';
-            }
-            else
-            {
-                gLcdStrings[LCD_MANAGER_DIGITAL_OUTPUT_ROW_ID][channel] = '0';
-            }
-            xSemaphoreGive(gUdpateLcdSem);
+            gDigitalOutput |= (1U << channel);
         }
+        else
+        {
+            gDigitalOutput &= ~(1U << channel);
+        }
+        update_row_1();
     }
 }
 
 void LcdManager_UpdateDigitalInputStatus(uint8_t channel, bool value)
 {
-    if (NULL != gUdpateLcdSem)
+    if (channel < 8)
     {
-        if (channel < 8)
+        if (value)
         {
-            if (value)
-            {
-                gLcdStrings[LCD_MANAGER_DIGITAL_INPUT_ROW_ID]
-                           [LCD_MANAGER_COLS_MAX + channel - 8] = '1';
-            }
-            else
-            {
-                gLcdStrings[LCD_MANAGER_DIGITAL_INPUT_ROW_ID]
-                           [LCD_MANAGER_COLS_MAX + channel - 8] = '0';
-            }
-            xSemaphoreGive(gUdpateLcdSem);
+            gDigitalInput |= (1U << channel);
         }
+        else
+        {
+            gDigitalInput &= ~(1U << channel);
+        }
+        update_row_0();
+    }
+}
+
+void LcdManager_UpdateAnalogInput(uint8_t channel, float value)
+{
+    if (channel < 4)
+    {
+        gAnalogInput[channel] = value;
+        if (channel < 2) {
+            update_row_2();
+        } else {
+            update_row_3();
+        }
+    }
+}
+
+void LcdManager_UpdateAnalogOutput(uint8_t channel, uint16_t value)
+{
+    if (channel < 4)
+    {
+        gAnalogOutput[channel] = value;
+        update_row_1();
     }
 }
 

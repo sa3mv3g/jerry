@@ -10,6 +10,7 @@
 #include "app_tasks.h"
 #include "bsp.h"
 #include "task.h"
+#include "lcd_manager.h"
 
 /* LwIP includes for memory stats */
 #include "lwip/stats.h"
@@ -129,6 +130,7 @@ static void print_adc_values(void)
             /* Convert to millivolts (assuming 3.3V reference) */
             uint32_t mv = (uint32_t)(adc_values[ch] * 3300.0f);
             (void)printf("CH%u:%4umV ", (unsigned int)ch, (unsigned int)mv);
+            LcdManager_UpdateAnalogInput(ch, adc_values[ch] * 3300.0f);
         }
         (void)printf("\n");
     }
@@ -151,6 +153,10 @@ static void print_digital_inputs(void)
         if (BSP_GPIODI_Read(i, &di_values[i]) != BSP_OK)
         {
             di_values[i] = 0xFFU; /* Mark as error */
+        }
+        else
+        {
+            LcdManager_UpdateDigitalInputStatus(i, di_values[i] > 0);
         }
     }
 
