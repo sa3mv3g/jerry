@@ -199,16 +199,12 @@ static inline bsp_error_t update_calibration(uint32_t address, float newValue)
 
     err = BSP_EEPROM_Read(address, (uint8_t *)&oldVal, sizeof(oldVal));
 
-    if (err == BSP_OK)
+    if (err == BSP_OK && oldVal == newValue)
     {
-        if (oldVal != newValue)
-        {
-            err = BSP_EEPROM_Write(address, (uint8_t *)&newValue,
-                                   sizeof(newValue));
-        }
+        return BSP_OK;
     }
 
-    return err;
+    return BSP_EEPROM_Write(address, (uint8_t *)&newValue, sizeof(newValue));
 }
 
 /* ==========================================================================
