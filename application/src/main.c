@@ -11,6 +11,7 @@
 #include "FreeRTOS.h"
 #include "app_tasks.h"
 #include "bsp.h"
+#include "digital_output.h"
 #include "lcd_manager.h"
 #include "task.h"
 #include "timers.h"
@@ -138,7 +139,7 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName)
     taskDISABLE_INTERRUPTS();
     for (;;)
     {
-        /* Infinite loop to halt execution */
+        /* Infinite loop */
     }
 }
 
@@ -165,7 +166,7 @@ void vApplicationMallocFailedHook(void)
     taskDISABLE_INTERRUPTS();
     for (;;)
     {
-        /* Infinite loop to halt execution */
+        /* Infinite loop */
     }
 }
 
@@ -394,6 +395,9 @@ int main(void)
 {
     /* Initialize Hardware (BSP) */
     BSP_Init();
+
+    /* Initialize Digital Output Module */
+    (void)DigitalOutput_Init();
 
 #ifdef ENABLE_I2C_DEVICE_SCAN
     /* Scan I2C bus for connected devices (optional feature) */

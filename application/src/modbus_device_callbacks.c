@@ -19,6 +19,7 @@
 #include "FreeRTOS.h"
 #include "app_version.h"
 #include "bsp.h"
+#include "digital_output.h"
 #include "jerry_device_registers.h"
 #include "lcd_manager.h"
 #include "modbus_callbacks.h"
@@ -153,64 +154,6 @@ static void update_system_tick_registers(jerry_device_holding_registers_t *regs)
 }
 
 /**
- * @brief Update a digital output via I2C and sync the coil register
- *
- * Reads the current I2C expander state, modifies the specified channel bit,
- * writes the new state back, and updates the coil register field on success.
- *
- * @param[in]  channel Channel index (BSP_I2CDO_INDEX_D0 to BSP_I2CDO_INDEX_D15)
- * @param[in]  val     New output value (true = ON, false = OFF)
- * @param[out] pCoil   Pointer to coil register field to update (can be NULL)
- *
- * @note The coil register is only updated if the I2C write succeeds
- */
-static void update_digital_output(uint16_t channel, bool val, bool *pCoil)
-{
-    if (channel < 16U)
-    {
-        uint16_t    initVal = 0U;
-        bsp_error_t err     = BSP_I2CDO_Read(&initVal);
-
-        if (BSP_OK == err)
-        {
-            uint16_t mask     = BSP_I2CDO_CONSTRUCT_MASK(channel);
-            uint16_t finalVal = 0;
-
-            if (val == true)
-            {
-                finalVal = initVal | mask;
-            }
-            else
-            {
-                finalVal = initVal & (~mask);
-            }
-
-            err = BSP_I2CDO_Write(finalVal);
-
-            printf("[DO] Channel %d value %d; ", channel, (unsigned int)val);
-            if ((BSP_OK == err))
-            {
-                if ((NULL != pCoil))
-                {
-                    *pCoil = val;
-                }
-                LcdManager_UpdateDigitalOutputStatus(channel, val);
-                printf(" ok\r\n");
-            }
-            else
-            {
-                printf(" fail\r\n");
-            }
-        }
-        else
-        {
-            printf("[DO] Channel %d I2C read fail (bsp_err=%d tick=%lu)\r\n",
-                   channel, (int)err, (unsigned long)xTaskGetTickCount());
-        }
-    }
-}
-
-/**
  * @brief Read a GPIO digital input and update coil/discrete input registers
  *
  * Reads the current state of the specified GPIO digital input channel using
@@ -306,52 +249,116 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
         switch (addr)
         {
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_0:
-                value = coils->digital_output_0;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D0, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_1:
-                value = coils->digital_output_1;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D1, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_2:
-                value = coils->digital_output_2;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D2, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_3:
-                value = coils->digital_output_3;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D3, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_4:
-                value = coils->digital_output_4;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D4, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_5:
-                value = coils->digital_output_5;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D5, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_6:
-                value = coils->digital_output_6;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D6, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_7:
-                value = coils->digital_output_7;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D7, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_8:
-                value = coils->digital_output_8;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D8, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_9:
-                value = coils->digital_output_9;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D9, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_10:
-                value = coils->digital_output_10;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D10, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_11:
-                value = coils->digital_output_11;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D11, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_12:
-                value = coils->digital_output_12;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D12, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_13:
-                value = coils->digital_output_13;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D13, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_14:
-                value = coils->digital_output_14;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D14, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_15:
-                value = coils->digital_output_15;
+                if (BSP_OK !=
+                    DigitalOutput_GetChannel(BSP_I2CDO_INDEX_D15, &value))
+                {
+                    return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
+                }
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_INPUT_0:
                 if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_0,
@@ -468,9 +475,13 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
         /* Pack bit into output buffer */
         byte_index = i / 8U;
         bit_index  = i % 8U;
-        if (value)
+        if (value != 0)
         {
             coil_values[byte_index] |= (uint8_t)(1U << bit_index);
+        }
+        else
+        {
+            coil_values[byte_index] &= ~(uint8_t)(1U << bit_index);
         }
     }
 
@@ -483,72 +494,121 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
 modbus_exception_t modbus_cb_write_single_coil(uint16_t address, bool value)
 {
     jerry_device_coils_t *coils = jerry_device_get_coils();
+    bsp_error_t           doErr = BSP_OK;
 
     switch (address)
     {
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_0:
-            update_digital_output(BSP_I2CDO_INDEX_D0, value,
-                                  &(coils->digital_output_0));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D0, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_0 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_1:
-            update_digital_output(BSP_I2CDO_INDEX_D1, value,
-                                  &(coils->digital_output_1));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D1, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_1 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_2:
-            update_digital_output(BSP_I2CDO_INDEX_D2, value,
-                                  &(coils->digital_output_2));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D2, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_2 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_3:
-            update_digital_output(BSP_I2CDO_INDEX_D3, value,
-                                  &(coils->digital_output_3));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D3, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_3 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_4:
-            update_digital_output(BSP_I2CDO_INDEX_D4, value,
-                                  &(coils->digital_output_4));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D4, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_4 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_5:
-            update_digital_output(BSP_I2CDO_INDEX_D5, value,
-                                  &(coils->digital_output_5));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D5, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_5 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_6:
-            update_digital_output(BSP_I2CDO_INDEX_D6, value,
-                                  &(coils->digital_output_6));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D6, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_6 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_7:
-            update_digital_output(BSP_I2CDO_INDEX_D7, value,
-                                  &(coils->digital_output_7));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D7, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_7 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_8:
-            update_digital_output(BSP_I2CDO_INDEX_D8, value,
-                                  &(coils->digital_output_8));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D8, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_8 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_9:
-            update_digital_output(BSP_I2CDO_INDEX_D9, value,
-                                  &(coils->digital_output_9));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D9, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_9 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_10:
-            update_digital_output(BSP_I2CDO_INDEX_D10, value,
-                                  &(coils->digital_output_10));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D10, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_10 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_11:
-            update_digital_output(BSP_I2CDO_INDEX_D11, value,
-                                  &(coils->digital_output_11));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D11, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_11 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_12:
-            update_digital_output(BSP_I2CDO_INDEX_D12, value,
-                                  &(coils->digital_output_12));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D12, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_12 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_13:
-            update_digital_output(BSP_I2CDO_INDEX_D13, value,
-                                  &(coils->digital_output_13));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D13, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_13 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_14:
-            update_digital_output(BSP_I2CDO_INDEX_D14, value,
-                                  &(coils->digital_output_14));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D14, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_14 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_15:
-            update_digital_output(BSP_I2CDO_INDEX_D15, value,
-                                  &(coils->digital_output_15));
+            doErr = DigitalOutput_SetChannel(BSP_I2CDO_INDEX_D15, value);
+            if (BSP_OK == doErr)
+            {
+                coils->digital_output_15 = value;
+            }
             break;
         case JERRY_DEVICE_COIL_PWM_0_ENABLE:
             coils->pwm_0_enable = value;
@@ -564,6 +624,11 @@ modbus_exception_t modbus_cb_write_single_coil(uint16_t address, bool value)
             break;
         default:
             return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+    }
+
+    if (BSP_OK != doErr)
+    {
+        return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
     }
 
     return MODBUS_EXCEPTION_NONE;
