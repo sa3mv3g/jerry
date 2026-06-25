@@ -86,4 +86,16 @@ bsp_error_t DigitalOutput_ReadHardware(uint16_t channel, bool *value);
  */
 bsp_error_t DigitalOutput_WriteAll(uint16_t mask);
 
+/**
+ * @brief Synchronize the LCD display with the current shadow register state.
+ *
+ * Iterates over all 16 digital output channels and calls
+ * LcdManager_UpdateDigitalOutputStatus() for each one, using the
+ * current shadow register value.
+ *
+ * Must be called after the LCD manager task is initialized and the
+ * sync event group barrier has been passed.
+ */
+void DigitalOutput_SyncLcd(void);
+
 #endif /* DIGITAL_OUTPUT_H */

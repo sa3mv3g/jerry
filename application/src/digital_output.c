@@ -45,11 +45,6 @@ bsp_error_t DigitalOutput_Init(void)
     {
         g_shadow = 0x0000U; /* Initialize shadow register to match hardware */
 
-        /* Update LCD for all channels to ensure initial state is displayed */
-        for (uint16_t i = 0U; i < DIGITAL_OUTPUT_NUM_CHANNELS; i++)
-        {
-            LcdManager_UpdateDigitalOutputStatus(i, false);
-        }
         printf("[DO] Module initialized; all outputs OFF\r\n");
     }
     else
@@ -60,6 +55,20 @@ bsp_error_t DigitalOutput_Init(void)
 
     return err;
 }
+
+void DigitalOutput_SyncLcd(void)
+{
+    for (uint16_t i = 0U; i < DIGITAL_OUTPUT_NUM_CHANNELS; i++)
+    {
+        bool val = ((g_shadow >> i) & 0x01U) != 0U;
+        LcdManager_UpdateDigitalOutputStatus(i, val);
+    }
+    printf("[DO] LCD synced to shadow register 0x%04X\r\n", g_shadow);
+}
+
+/* ==========================================================================
+ * Public Function Implementations
+ * ========================================================================== */
 
 bsp_error_t DigitalOutput_SetChannel(uint16_t channel, bool value)
 {

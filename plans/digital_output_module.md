@@ -19,6 +19,7 @@ Extract the `update_digital_output()` function from `application/src/modbus_devi
 | 9 | Read split | `GetChannel` reads shadow; `ReadHardware` reads I2C for diagnostics |
 | 10 | Channel constant | `DIGITAL_OUTPUT_NUM_CHANNELS (16U)` defined in header |
 | 11 | CMake | Auto-picked up by `GLOB_RECURSE` — no CMake changes needed |
+| 12 | Init vs LCD ordering | Two-phase init: `Init` does hardware-only pre-scheduler; `SyncLcd` updates LCD post-sync-barrier |
 
 ## Architecture
 
@@ -121,7 +122,8 @@ static uint16_t g_shadow = 0x0000U;  /* Tracks the last successfully written val
 
 | Function | I2C Read | I2C Write | Shadow Update | LCD Update | Returns |
 |----------|----------|-----------|---------------|------------|---------|
-| `Init` | No | Yes (0x0000) | Yes (= 0) | Yes (all 16 channels off) | `bsp_error_t` |
+| `Init` | No | Yes (0x0000) | Yes (= 0) | No | `bsp_error_t` |
+| `SyncLcd` | No | No | No | Yes (all 16 channels) | `void` |
 | `SetChannel` | No | Yes | Yes (on success) | Yes (on success) | `bsp_error_t` |
 | `GetChannel` | No | No | No | No | `bsp_error_t` |
 | `ReadHardware` | Yes | No | No | No | `bsp_error_t` |

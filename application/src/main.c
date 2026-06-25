@@ -461,6 +461,9 @@ void vMainTask(void* pvParameters)
     xEventGroupSync(xSyncEventGroup, APPTASK_MAIN_TASK_EVENT_MASK,
                     APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
 
+    /* Sync digital output LCD state now that LCD task is ready */
+    DigitalOutput_SyncLcd();
+
     for (;;)
     {
         /* Main loop */
