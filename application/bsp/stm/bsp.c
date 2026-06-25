@@ -727,6 +727,7 @@ bsp_error_t BSP_EEPROM_Read(uint32_t address, uint8_t *pBuff,
                 EE_ReadVariable8bits((uint16_t)(address + i), &pBuff[i]);
             if (ee_status != EE_OK)
             {
+                printf("[BSP] EEPROM read error %d at address %u\n", (int)ee_status, (unsigned int)(address + i));
                 ret = BSP_ERROR;
                 break;
             }
@@ -755,6 +756,7 @@ bsp_error_t BSP_EEPROM_Write(uint32_t address, uint8_t *pBuff,
                 EE_WriteVariable8bits((uint16_t)(address + i), pBuff[i]);
             if (ee_status != EE_OK)
             {
+                printf("[BSP] EEPROM write error %d at address %u\n", (int)ee_status, (unsigned int)(address + i));
                 ret = BSP_ERROR;
                 break;
             }

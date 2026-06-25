@@ -114,8 +114,16 @@ void vModbusTask(void *pvParameters)
     hrRegs = jerry_device_get_holding_registers();
     do
     {
-        BSP_EEPROM_READ(MODBUS_NVM_ADC_0_SCALE_FACTOR,
-                        (uint8_t *)&hrRegs->adc_0_scale_factor, sizeof(float));
+        err = BSP_EEPROM_Read(MODBUS_NVM_ADC_0_SCALE_FACTOR,
+                              (uint8_t *)&hrRegs->adc_0_scale_factor, sizeof(float));
+        if (err != BSP_OK)
+        {
+            printf("[Modbus] Virgin MCU detected (EEPROM uninitialized). Using default calibration.\n");
+            /* Reset err to OK so we don't print the generic failure message below */
+            err = BSP_OK;
+            break;
+        }
+
         BSP_EEPROM_READ(MODBUS_NVM_ADC_0_OFFSET_TERM,
                         (uint8_t *)&hrRegs->adc_0_offset_term, sizeof(float));
         BSP_EEPROM_READ(MODBUS_NVM_ADC_0_DEAD_ZONE,
@@ -147,7 +155,7 @@ void vModbusTask(void *pvParameters)
 
     if (BSP_OK != err)
     {
-        printf("[Modbus] Failed to read calibration data from EEPROM!!");
+        printf("[Modbus] Failed to read calibration data from EEPROM!!\n");
     }
 
     printf("[Modbus] registers initialized\n");
