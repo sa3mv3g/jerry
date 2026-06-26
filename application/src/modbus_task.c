@@ -16,6 +16,7 @@
 #include "bsp.h"
 #include "jerry_device_registers.h"
 #include "lcd_manager.h"
+#include "log.h"
 #include "lwip/api.h"
 #include "lwip/err.h"
 #include "lwip/netbuf.h"
@@ -98,15 +99,15 @@ void vModbusTask(void *pvParameters)
     jerry_device_holding_registers_t *hrRegs;
     bsp_error_t                       err;
 
-    printf("[Modbus] Task Started\n");
+    LOG_INF("[Modbus] Task Started");
 
     /* Read device address from DEVADDR pins and set Modbus unit ID */
     err              = BSP_ERROR;
     dev_addr         = BSP_GetDeviceAddress();
     s_modbus_unit_id = MODBUS_UNIT_ID_BASE + dev_addr;
 
-    printf("[Modbus] Device address from DEVADDR pins: %u, Unit ID: %u\n",
-           dev_addr, s_modbus_unit_id);
+    LOG_INF("[Modbus] Device address from DEVADDR pins: %u, Unit ID: %u",
+            dev_addr, s_modbus_unit_id);
 
     /* Initialize register data structures */
     jerry_device_registers_init();
@@ -115,11 +116,15 @@ void vModbusTask(void *pvParameters)
     do
     {
         err = BSP_EEPROM_Read(MODBUS_NVM_ADC_0_SCALE_FACTOR,
-                              (uint8_t *)&hrRegs->adc_0_scale_factor, sizeof(float));
+                              (uint8_t *)&hrRegs->adc_0_scale_factor,
+                              sizeof(float));
         if (err != BSP_OK)
         {
-            printf("[Modbus] Virgin MCU detected (EEPROM uninitialized). Using default calibration.\n");
-            /* Reset err to OK so we don't print the generic failure message below */
+            LOG_INF(
+                "[Modbus] Virgin MCU detected (EEPROM uninitialized). Using "
+                "default calibration.");
+            /* Reset err to OK so we don't print the generic failure message
+             * below */
             err = BSP_OK;
             break;
         }
@@ -155,26 +160,26 @@ void vModbusTask(void *pvParameters)
 
     if (BSP_OK != err)
     {
-        printf("[Modbus] Failed to read calibration data from EEPROM!!\n");
+        LOG_ERR("[Modbus] Failed to read calibration data from EEPROM!!");
     }
 
-    printf("[Modbus] registers initialized\n");
+    LOG_INF("[Modbus] registers initialized");
 
     /* Print calibration values in use after EEPROM load (or defaults on virgin
      * flash) */
-    printf("[Modbus] Calibration values:\n");
-    printf("[Modbus]   ADC0: scale=%.6f  offset=%.6f  dead_zone=%.6f\n",
-           (double)hrRegs->adc_0_scale_factor,
-           (double)hrRegs->adc_0_offset_term, (double)hrRegs->adc_0_dead_zone);
-    printf("[Modbus]   ADC1: scale=%.6f  offset=%.6f  dead_zone=%.6f\n",
-           (double)hrRegs->adc_1_scale_factor,
-           (double)hrRegs->adc_1_offset_term, (double)hrRegs->adc_1_dead_zone);
-    printf("[Modbus]   ADC2: scale=%.6f  offset=%.6f  dead_zone=%.6f\n",
-           (double)hrRegs->adc_2_scale_factor,
-           (double)hrRegs->adc_2_offset_term, (double)hrRegs->adc_2_dead_zone);
-    printf("[Modbus]   ADC3: scale=%.6f  offset=%.6f  dead_zone=%.6f\n",
-           (double)hrRegs->adc_3_scale_factor,
-           (double)hrRegs->adc_3_offset_term, (double)hrRegs->adc_3_dead_zone);
+    LOG_INF("[Modbus] Calibration values:");
+    LOG_INF("[Modbus]   ADC0: scale=%.6f  offset=%.6f  dead_zone=%.6f",
+            (double)hrRegs->adc_0_scale_factor,
+            (double)hrRegs->adc_0_offset_term, (double)hrRegs->adc_0_dead_zone);
+    LOG_INF("[Modbus]   ADC1: scale=%.6f  offset=%.6f  dead_zone=%.6f",
+            (double)hrRegs->adc_1_scale_factor,
+            (double)hrRegs->adc_1_offset_term, (double)hrRegs->adc_1_dead_zone);
+    LOG_INF("[Modbus]   ADC2: scale=%.6f  offset=%.6f  dead_zone=%.6f",
+            (double)hrRegs->adc_2_scale_factor,
+            (double)hrRegs->adc_2_offset_term, (double)hrRegs->adc_2_dead_zone);
+    LOG_INF("[Modbus]   ADC3: scale=%.6f  offset=%.6f  dead_zone=%.6f",
+            (double)hrRegs->adc_3_scale_factor,
+            (double)hrRegs->adc_3_offset_term, (double)hrRegs->adc_3_dead_zone);
 
     /* Initialize connection tracking */
     for (uint8_t i = 0U; i < MODBUS_MAX_CONNECTIONS; i++)
@@ -222,13 +227,13 @@ static void modbus_tcp_server_thread(void *arg)
 
     (void)arg;
 
-    printf("[Modbus]: Available netconns: %d\n",
-           lwip_stats.memp[MEMP_NETCONN]->avail);
+    LOG_INF("[Modbus]: Available netconns: %d",
+            lwip_stats.memp[MEMP_NETCONN]->avail);
     /* Create a new TCP connection handle */
     listen_conn = netconn_new(NETCONN_TCP);
     if (listen_conn == NULL)
     {
-        printf("[Modbus]: Failed to create connection\n");
+        LOG_INF("[Modbus]: Failed to create connection");
         return;
     }
 
@@ -236,8 +241,8 @@ static void modbus_tcp_server_thread(void *arg)
     err = netconn_bind(listen_conn, IP_ADDR_ANY, MODBUS_TCP_PORT);
     if (err != ERR_OK)
     {
-        printf("[Modbus]: Failed to bind to port %u: %d\n", MODBUS_TCP_PORT,
-               err);
+        LOG_INF("[Modbus]: Failed to bind to port %u: %d", MODBUS_TCP_PORT,
+                err);
         netconn_delete(listen_conn);
         return;
     }
@@ -246,12 +251,12 @@ static void modbus_tcp_server_thread(void *arg)
     err = netconn_listen(listen_conn);
     if (err != ERR_OK)
     {
-        printf("[Modbus]: Failed to listen: %d\n", err);
+        LOG_INF("[Modbus]: Failed to listen: %d", err);
         netconn_delete(listen_conn);
         return;
     }
 
-    printf("[Modbus] TCP Server listening on port %u\n", MODBUS_TCP_PORT);
+    LOG_INF("[Modbus] TCP Server listening on port %u", MODBUS_TCP_PORT);
 
     /* Main server loop */
     while (1)
@@ -260,7 +265,7 @@ static void modbus_tcp_server_thread(void *arg)
         err = netconn_accept(listen_conn, &new_conn);
         if (err == ERR_OK)
         {
-            printf("[Modbus]: New connection accepted\n");
+            LOG_INF("[Modbus]: New connection accepted");
 
             /* Set receive timeout */
             netconn_set_recvtimeout(new_conn, MODBUS_RECV_TIMEOUT_MS);
@@ -271,11 +276,11 @@ static void modbus_tcp_server_thread(void *arg)
             /* Clean up */
             netconn_close(new_conn);
             netconn_delete(new_conn);
-            printf("[Modbus]: Connection closed\n");
+            LOG_INF("[Modbus]: Connection closed");
         }
         else
         {
-            printf("[Modbus]: Accept error: %d\n", err);
+            LOG_INF("[Modbus]: Accept error: %d", err);
             vTaskDelay(pdMS_TO_TICKS(100));
         }
     }
@@ -325,13 +330,13 @@ static void modbus_handle_connection(struct netconn *conn)
                                             NETCONN_COPY);
                         if (err != ERR_OK)
                         {
-                            printf("[Modbus]: Write error: %d\n", err);
+                            LOG_ERR("[Modbus]: Write error: %d", err);
                         }
                     }
                 }
                 else
                 {
-                    printf("[Modbus]: Process error: %d\n", (int)modbus_err);
+                    LOG_ERR("[Modbus]: Process error: %d", (int)modbus_err);
                 }
             }
 
@@ -344,7 +349,7 @@ static void modbus_handle_connection(struct netconn *conn)
         else
         {
             /* Connection error - exit */
-            printf("[Modbus]: Receive error: %d\n", err);
+            LOG_ERR("[Modbus]: Receive error: %d", err);
             break;
         }
     }
@@ -368,7 +373,7 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
     err = modbus_tcp_parse_frame(request, request_len, &request_adu);
     if (err != MODBUS_OK)
     {
-        printf("[Modbus]: Frame parse error: %d\n", (int)err);
+        LOG_ERR("[Modbus]: Frame parse error: %d", (int)err);
         return err;
     }
 

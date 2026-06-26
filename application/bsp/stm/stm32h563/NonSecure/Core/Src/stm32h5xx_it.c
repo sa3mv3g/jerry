@@ -1,3 +1,4 @@
+#include "log.h"
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
@@ -78,8 +79,8 @@ extern TIM_HandleTypeDef htim6;
 void MemManage_Handler(void)
 {
   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
-  printf("\r\n!!! MemManage_Handler !!!\r\n");
-  printf("CFSR=0x%08lX, MMFAR=0x%08lX\r\n",
+  LOG_ERR("!!! MemManage_Handler !!!");
+  LOG_ERR("CFSR=0x%08lX, MMFAR=0x%08lX",
          SCB->CFSR, SCB->MMFAR);
   /* USER CODE END MemoryManagement_IRQn 0 */
   while (1)
@@ -95,8 +96,8 @@ void MemManage_Handler(void)
 void UsageFault_Handler(void)
 {
   /* USER CODE BEGIN UsageFault_IRQn 0 */
-  printf("\r\n!!! UsageFault_Handler !!!\r\n");
-  printf("CFSR=0x%08lX\r\n", SCB->CFSR);
+  LOG_ERR("!!! UsageFault_Handler !!!");
+  LOG_ERR("CFSR=0x%08lX", SCB->CFSR);
   /* USER CODE END UsageFault_IRQn 0 */
   while (1)
   {

@@ -10,11 +10,11 @@
  * @copyright Copyright (c) 2026
  */
 
-#include "digital_output.h"
-
 #include <stdio.h>
 
 #include "bsp.h"
+#include "log.h"
+#include "digital_output.h"
 #include "lcd_manager.h"
 
 /* ==========================================================================
@@ -45,12 +45,12 @@ bsp_error_t DigitalOutput_Init(void)
     {
         g_shadow = 0x0000U; /* Initialize shadow register to match hardware */
 
-        printf("[DO] Module initialized; all outputs OFF\r\n");
+        LOG_INF("[DO] Module initialized; all outputs OFF");
     }
     else
     {
-        printf("[DO] Module initialization failed: I2C write error %d\r\n",
-               (int)err);
+        LOG_INF("[DO] Module initialization failed: I2C write error %d",
+                (int)err);
     }
 
     return err;
@@ -63,7 +63,7 @@ void DigitalOutput_SyncLcd(void)
         bool val = ((g_shadow >> i) & 0x01U) != 0U;
         LcdManager_UpdateDigitalOutputStatus(i, val);
     }
-    printf("[DO] LCD synced to shadow register 0x%04X\r\n", g_shadow);
+    LOG_INF("[DO] LCD synced to shadow register 0x%04X", g_shadow);
 }
 
 /* ==========================================================================
@@ -99,19 +99,19 @@ bsp_error_t DigitalOutput_SetChannel(uint16_t channel, bool value)
         {
             g_shadow = newShadow;
             LcdManager_UpdateDigitalOutputStatus(channel, value);
-            printf("[DO] Channel %d set to %d: OK\r\n", channel, (int)value);
+            LOG_INF("[DO] Channel %d set to %d: OK", channel, (int)value);
         }
         else
         {
-            printf("[DO] Channel %d set to %d: FAILED (I2C error %d)\r\n",
-                   channel, (int)value, (int)err);
+            LOG_ERR("[DO] Channel %d set to %d: FAILED (I2C error %d)",
+                    channel, (int)value, (int)err);
         }
     }
     else
     {
         /* No change needed, state already matches */
-        printf("[DO] Channel %d already %d, no action taken\r\n", channel,
-               (int)value);
+        LOG_INF("[DO] Channel %d already %d, no action taken", channel,
+                (int)value);
     }
 
     return err;
@@ -150,8 +150,8 @@ bsp_error_t DigitalOutput_ReadHardware(uint16_t channel, bool *value)
     }
     else
     {
-        printf("[DO] ReadHardware channel %d: FAILED (I2C error %d)\r\n",
-               channel, (int)err);
+        LOG_ERR("[DO] ReadHardware channel %d: FAILED (I2C error %d)",
+                channel, (int)err);
     }
 
     return err;
@@ -181,17 +181,17 @@ bsp_error_t DigitalOutput_WriteAll(uint16_t mask)
                     LcdManager_UpdateDigitalOutputStatus(i, newVal);
                 }
             }
-            printf("[DO] WriteAll to 0x%04X: OK\r\n", newShadow);
+            LOG_INF("[DO] WriteAll to 0x%04X: OK", newShadow);
         }
         else
         {
-            printf("[DO] WriteAll to 0x%04X: FAILED (I2C error %d)\r\n",
-                   newShadow, (int)err);
+            LOG_ERR("[DO] WriteAll to 0x%04X: FAILED (I2C error %d)",
+                    newShadow, (int)err);
         }
     }
     else
     {
-        printf("[DO] WriteAll to 0x%04X: No change needed\r\n", newShadow);
+        LOG_INF("[DO] WriteAll to 0x%04X: No change needed", newShadow);
     }
 
     return err;

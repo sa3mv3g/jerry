@@ -153,12 +153,22 @@ FetchContent_Declare(
 )
 
 # 4. Download CMSIS-DSP from official ARM GitHub repository
-message(STATUS "[4/4] Declaring CMSIS-DSP (v1.16.2)...")
+message(STATUS "[4/5] Declaring CMSIS-DSP (v1.16.2)...")
 FetchContent_Declare(
     FCD_cmsis_dsp
     GIT_REPOSITORY https://github.com/ARM-software/CMSIS-DSP.git
     GIT_TAG        v1.16.2
     SOURCE_DIR     "${DEPS_PATH}/CMSIS-DSP"
+    GIT_PROGRESS   TRUE
+)
+
+# 5. Download embedded-log
+message(STATUS "[5/5] Declaring embedded-log (master)...")
+FetchContent_Declare(
+    FCD_embedded_log
+    GIT_REPOSITORY https://github.com/to9/embedded-log.git
+    GIT_TAG        master
+    SOURCE_DIR     "${DEPS_PATH}/embedded-log"
     GIT_PROGRESS   TRUE
 )
 
@@ -169,8 +179,18 @@ message(STATUS "  - STM32 LwIP Middleware: ${LWIP_DEPS_PATH}/stm32-mw-lwip")
 message(STATUS "  - FreeRTOS-Kernel: ${DEPS_PATH}/FreeRTOS-Kernel")
 message(STATUS "  - CMSIS_6: ${DEPS_PATH}/CMSIS_6")
 message(STATUS "  - CMSIS-DSP: ${DEPS_PATH}/CMSIS-DSP")
+message(STATUS "  - embedded-log: ${DEPS_PATH}/embedded-log")
 message(STATUS "")
+
+# Since embedded-log doesn't have a CMakeLists.txt, we populate it separately if we don't want CMake to try add_subdirectory
 FetchContent_MakeAvailable(FCD_stm32_mw_lwip FCD_freertos_kernel FCD_cmsis_6 FCD_cmsis_dsp)
+FetchContent_GetProperties(FCD_embedded_log)
+if(NOT fcd_embedded_log_POPULATED)
+    FetchContent_Populate(FCD_embedded_log)
+    # Remove default log_cfg.h so our application/inc/log_cfg.h is used
+    file(REMOVE "${fcd_embedded_log_SOURCE_DIR}/src/log_cfg.h")
+endif()
+
 message(STATUS "")
 message(STATUS "=== Dependencies fetched successfully ===")
 message(STATUS "")
@@ -216,11 +236,22 @@ set(FREERTOS_PORT "GCC_ARM_CM33_NTZ_NONSECURE" CACHE STRING "FreeRTOS Port")
 message(STATUS "[1] Adding FreeRTOS-Kernel...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/FreeRTOS-Kernel)
 
+message(STATUS "[1.5] Adding embedded-log library...")
+add_library(embedded_log STATIC "${fcd_embedded_log_SOURCE_DIR}/src/log.c")
+target_include_directories(embedded_log PUBLIC "${fcd_embedded_log_SOURCE_DIR}/src")
+# Allow overriding log_cfg.h from application/inc
+target_include_directories(embedded_log BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/inc")
+
+# Propagate includes to BSP and FreeRTOS which use log macros
+target_link_libraries(freertos_kernel PUBLIC embedded_log)
+
 message(STATUS "[2] Adding LwIP stack...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lwip)
+target_link_libraries(lwip_stack PUBLIC embedded_log)
 
 message(STATUS "[3] Adding Modbus stack...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/modbus)
+target_link_libraries(modbus_stack PUBLIC embedded_log)
 
 message(STATUS "[4] Adding ADC Filter library...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/adc_filter)
@@ -230,6 +261,10 @@ add_subdirectory(${BSP_DIR})
 
 message(STATUS "[6] Adding I2C LCD library...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lcd_i2c)
+
+# Propagate includes to BSP which uses log macros
+target_link_libraries(stm32h563_bsp PUBLIC embedded_log)
+target_link_libraries(jerry_secure_app PUBLIC embedded_log)
 
 message(STATUS "=== Libraries configured ===")
 message(STATUS "")
@@ -288,6 +323,7 @@ target_link_libraries(jerry_app
         freertos_kernel
         adc_filter
         lcd_i2c
+        embedded_log
 )
 
 # ==========================================================================

@@ -48,6 +48,8 @@ typedef struct
   uint8_t month;
   uint8_t year;
   uint8_t weekday;
+  uint32_t subseconds;
+  uint32_t second_fraction;
 } App_RTC_TimeTypeDef;
 
 /* Exported constants --------------------------------------------------------*/

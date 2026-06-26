@@ -1,5 +1,6 @@
 #include "bsp.h"
 #include "bsp_i2c.h"
+#include "log.h"
 
 /* ========================================================================== */
 /*                 Private Definitions and Macros                             */
@@ -77,7 +78,7 @@ bsp_error_t BSP_I2CDO_Write(uint16_t value)
 
     if (BSP_I2C_Controller_MutexLock() != pdTRUE)
     {
-        printf("[BSP_I2CDO_Write] Failed to acquire I2C4 mutex\r\n");
+        LOG_ERR("[BSP_I2CDO_Write] Failed to acquire I2C4 mutex");
         ret = BSP_BUSY;
     }
     else
@@ -141,7 +142,7 @@ bsp_error_t BSP_I2CDO_Read(uint16_t *value)
     }
     else if (BSP_I2C_Controller_MutexLock() != pdTRUE)
     {
-        printf("[BSP_I2CDO_Read] Failed to acquire I2C4 mutex\r\n");
+        LOG_ERR("[BSP_I2CDO_Read] Failed to acquire I2C4 mutex");
         ret = BSP_BUSY;
     }
     else

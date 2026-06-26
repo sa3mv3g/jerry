@@ -6,12 +6,12 @@
  * All rights reserved.
  */
 
-#include "i2c_scanner.h"
-
 #include <stdio.h>
 
 #include "bsp.h"
 #include "bsp_i2c.h"
+#include "log.h"
+#include "i2c_scanner.h"
 
 #define BSP_I2C_READ(A, B, C, D) BSP_I2C_LcdRead(A, B, C, D)
 
@@ -84,13 +84,13 @@ void I2C_ScanBus(void)
     bsp_error_t result;
     const char *device_desc;
 
-    printf("\n");
-    printf("========================================\n");
-    printf("I2C Bus Scanner\n");
-    printf("========================================\n");
-    printf("Scanning I2C bus (0x%02X to 0x%02X)...\n", I2C_SCAN_START_ADDR,
-           I2C_SCAN_END_ADDR);
-    printf("\n");
+    LOG_INF("\n");
+    LOG_INF("========================================\n");
+    LOG_INF("I2C Bus Scanner\n");
+    LOG_INF("========================================\n");
+    LOG_INF("Scanning I2C bus (0x%02X to 0x%02X)...\n", I2C_SCAN_START_ADDR,
+            I2C_SCAN_END_ADDR);
+    LOG_INF("\n");
 
     /* Scan all valid 7-bit I2C addresses */
     for (uint8_t addr = I2C_SCAN_START_ADDR; addr <= I2C_SCAN_END_ADDR; addr++)
@@ -108,19 +108,19 @@ void I2C_ScanBus(void)
 
             if (device_desc != NULL)
             {
-                printf("Device found at address 0x%02X (%s)\n", addr,
-                       device_desc);
+                LOG_INF("Device found at address 0x%02X (%s)\n", addr,
+                        device_desc);
             }
             else
             {
-                printf("Device found at address 0x%02X (Unknown device)\n",
-                       addr);
+                LOG_INF("Device found at address 0x%02X (Unknown device)\n",
+                        addr);
             }
         }
     }
 
-    printf("\n");
-    printf("Scan complete. Found %u device(s).\n", device_count);
-    printf("========================================\n");
-    printf("\n");
+    LOG_INF("\n");
+    LOG_INF("Scan complete. Found %u device(s).\n", device_count);
+    LOG_INF("========================================\n");
+    LOG_INF("\n");
 }

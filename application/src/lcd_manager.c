@@ -1,8 +1,8 @@
 #include "lcd_manager.h"
 
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "FreeRTOS.h"
 #include "app_tasks.h"
@@ -10,6 +10,7 @@
 #include "bsp.h"
 #include "bsp_i2c.h"
 #include "lcd_i2c.h"
+#include "log.h"
 #include "semphr.h"
 #include "task.h"
 
@@ -27,15 +28,15 @@ static char gLcdStrings[LCD_MANAGER_ROWS_MAX][LCD_MANAGER_COLS_MAX + 1];
 static SemaphoreHandle_t gUdpateLcdSem;
 static StaticSemaphore_t gUdpateLcdSemBuff;
 
-static uint8_t gIpLastOctet = 0;
+static uint8_t gIpLastOctet   = 0;
 static uint8_t gModbusAddress = 0;
-static uint8_t gDigitalInput = 0;
+static uint8_t gDigitalInput  = 0;
 
-static uint8_t gRtcHours = 0;
+static uint8_t gRtcHours   = 0;
 static uint8_t gRtcMinutes = 0;
 static uint8_t gRtcSeconds = 0;
 
-static uint16_t gDigitalOutput = 0;
+static uint16_t gDigitalOutput   = 0;
 static uint16_t gAnalogOutput[4] = {0};
 
 static float gAnalogInput[4] = {0.0f};
@@ -47,22 +48,30 @@ static int32_t lcdManager_Send(uint8_t i2c_address, const uint8_t* data,
 /* Application-managed LCD handle (static allocation) */
 static LcdI2cHandle lcd_handle;
 
-static void update_row_0(void) {
+static void update_row_0(void)
+{
     char temp[32];
-    snprintf(temp, sizeof(temp), "IP:%02X MB:%02X %02u:%02u:%02u", gIpLastOctet, gModbusAddress, gRtcHours % 100U, gRtcMinutes % 100U, gRtcSeconds % 100U);
+    snprintf(temp, sizeof(temp), "IP:%02X MB:%02X %02u:%02u:%02u", gIpLastOctet,
+             gModbusAddress, gRtcHours % 100U, gRtcMinutes % 100U,
+             gRtcSeconds % 100U);
     strncpy(gLcdStrings[0], temp, LCD_MANAGER_COLS_MAX);
     gLcdStrings[0][LCD_MANAGER_COLS_MAX] = '\0';
-    if (gUdpateLcdSem != NULL) {
+    if (gUdpateLcdSem != NULL)
+    {
         xSemaphoreGive(gUdpateLcdSem);
     }
 }
 
-static void update_row_1(void) {
+static void update_row_1(void)
+{
     char temp[32];
-    snprintf(temp, sizeof(temp), "%02X %04X %05u %05u ", gDigitalInput, gDigitalOutput, gAnalogOutput[0] % 100000U, gAnalogOutput[1] % 100000U);
+    snprintf(temp, sizeof(temp), "%02X %04X %05u %05u ", gDigitalInput,
+             gDigitalOutput, gAnalogOutput[0] % 100000U,
+             gAnalogOutput[1] % 100000U);
     strncpy(gLcdStrings[1], temp, LCD_MANAGER_COLS_MAX);
     gLcdStrings[1][LCD_MANAGER_COLS_MAX] = '\0';
-    if (gUdpateLcdSem != NULL) {
+    if (gUdpateLcdSem != NULL)
+    {
         xSemaphoreGive(gUdpateLcdSem);
     }
 }
@@ -70,35 +79,42 @@ static void update_row_1(void) {
 static void format_ai(char* buf, float val)
 {
     char temp[16];
-    int len = snprintf(temp, sizeof(temp), "%.3f", val);
-    if (len > 9) {
+    int  len = snprintf(temp, sizeof(temp), "%.3f", val);
+    if (len > 9)
+    {
         len = snprintf(temp, sizeof(temp), "%.2f", val);
     }
-    if (len > 9) {
+    if (len > 9)
+    {
         len = snprintf(temp, sizeof(temp), "%.1f", val);
     }
-    if (len > 9) {
+    if (len > 9)
+    {
         (void)snprintf(temp, sizeof(temp), "%.0f", val);
     }
     (void)snprintf(buf, 10, "%-9.9s", temp);
 }
 
-static void update_row_2(void) {
+static void update_row_2(void)
+{
     char ai0[10], ai1[10];
     format_ai(ai0, gAnalogInput[0]);
     format_ai(ai1, gAnalogInput[1]);
     snprintf(gLcdStrings[2], LCD_MANAGER_COLS_MAX + 1, "%s %s ", ai0, ai1);
-    if (gUdpateLcdSem != NULL) {
+    if (gUdpateLcdSem != NULL)
+    {
         xSemaphoreGive(gUdpateLcdSem);
     }
 }
 
-static void update_row_3(void) {
+static void update_row_3(void)
+{
     char ai2[10], ai3[10];
     format_ai(ai2, gAnalogInput[2]);
     format_ai(ai3, gAnalogInput[3]);
     snprintf(gLcdStrings[3], LCD_MANAGER_COLS_MAX + 1, "%s %s ", ai2, ai3);
-    if (gUdpateLcdSem != NULL) {
+    if (gUdpateLcdSem != NULL)
+    {
         xSemaphoreGive(gUdpateLcdSem);
     }
 }
@@ -114,7 +130,7 @@ void vLcdManageTask(void* pvParameters)
     {
         gLcdStrings[lcdRow][LCD_MANAGER_COLS_MAX] = 0;
     }
-    
+
     update_row_0();
     update_row_1();
     update_row_2();
@@ -174,14 +190,17 @@ void LcdManager_IsLcdReady(SemaphoreHandle_t* isLcdReadySem)
     }
 }
 
-void LcdManager_UpdateIpv4Address(const char *ip)
+void LcdManager_UpdateIpv4Address(const char* ip)
 {
     if (ip != NULL)
     {
-        const char *last_dot = strrchr(ip, '.');
-        if (last_dot) {
+        const char* last_dot = strrchr(ip, '.');
+        if (last_dot)
+        {
             gIpLastOctet = (uint8_t)atoi(last_dot + 1);
-        } else {
+        }
+        else
+        {
             gIpLastOctet = (uint8_t)atoi(ip);
         }
         update_row_0();
@@ -228,7 +247,7 @@ void LcdManager_UpdateDigitalInputStatus(uint8_t channel, bool value)
 
 void LcdManager_UpdateTime(uint8_t hours, uint8_t minutes, uint8_t seconds)
 {
-    gRtcHours = hours;
+    gRtcHours   = hours;
     gRtcMinutes = minutes;
     gRtcSeconds = seconds;
     update_row_0();
@@ -239,9 +258,12 @@ void LcdManager_UpdateAnalogInput(uint8_t channel, float value)
     if (channel < 4)
     {
         gAnalogInput[channel] = value;
-        if (channel < 2) {
+        if (channel < 2)
+        {
             update_row_2();
-        } else {
+        }
+        else
+        {
             update_row_3();
         }
     }

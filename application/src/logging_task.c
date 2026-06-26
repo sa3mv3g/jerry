@@ -5,8 +5,8 @@
 
 #include "FreeRTOS.h"
 #include "app_tasks.h"
-#include "task.h"
 #include "rtc_manager.h"
+#include "task.h"
 
 /* Logging Task */
 void vLoggingTask(void* pvParameters)
@@ -22,6 +22,5 @@ void vLoggingTask(void* pvParameters)
     {
         /* Process log queue and send over UART */
         vTaskDelay(pdMS_TO_TICKS(1000));
-        RTC_Manager_PrintCurrentTime();
     }
 }
