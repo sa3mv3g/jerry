@@ -83,3 +83,4 @@ application/dependencies/CMSIS-DSP
 !.vscode/launch.json
 
 .cache/*
+application/dependencies/embedded-log/
