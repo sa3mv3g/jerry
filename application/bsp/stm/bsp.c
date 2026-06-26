@@ -6,6 +6,7 @@
 #include "adc_filter.h"
 #include "bsp_i2c/bsp_i2c.h"
 #include "eeprom_emul.h"
+#include "log.h"
 #include "main.h"
 #include "stm32h5xx_hal.h"
 
@@ -210,7 +211,7 @@ bsp_error_t BSP_Init(void)
     if (__HAL_PWR_GET_FLAG(PWR_FLAG_SBF) == RESET)
     {
         /* Blink LED_OK (Green) twice at startup */
-        printf("[BSP] POR\r\n");
+        LOG_INF("[BSP] POR\r\n");
         BSP_LED_On(LED_OK);
         HAL_Delay(100);
         BSP_LED_Off(LED_OK);
@@ -229,7 +230,7 @@ bsp_error_t BSP_Init(void)
     }
     else
     {
-        printf("[BSP] Wakeup\r\n");
+        LOG_INF("[BSP] Wakeup\r\n");
 
         /* Blink LED_OK (Green) upon wakeup */
         BSP_LED_On(LED_OK);
@@ -257,7 +258,7 @@ bsp_error_t BSP_Init(void)
     /* After I2C4 init, init I2C resources */
     if (BSP_I2C_Init() != BSP_OK)
     {
-        printf("[BSP] I2C bus error\r\n");
+        LOG_ERR("[BSP] I2C bus error\r\n");
     }
     HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_1);
     /* Initialize ADC filter subsystem */
@@ -726,7 +727,8 @@ bsp_error_t BSP_EEPROM_Read(uint32_t address, uint8_t *pBuff,
                 EE_ReadVariable8bits((uint16_t)(address + i), &pBuff[i]);
             if (ee_status != EE_OK)
             {
-                printf("[BSP] EEPROM read error %d at address %u\n", (int)ee_status, (unsigned int)(address + i));
+                LOG_ERR("[BSP] EEPROM read error %d at address %u\n",
+                        (int)ee_status, (unsigned int)(address + i));
                 ret = BSP_ERROR;
                 break;
             }
@@ -755,7 +757,8 @@ bsp_error_t BSP_EEPROM_Write(uint32_t address, uint8_t *pBuff,
                 EE_WriteVariable8bits((uint16_t)(address + i), pBuff[i]);
             if (ee_status != EE_OK)
             {
-                printf("[BSP] EEPROM write error %d at address %u\n", (int)ee_status, (unsigned int)(address + i));
+                LOG_ERR("[BSP] EEPROM write error %d at address %u\n",
+                        (int)ee_status, (unsigned int)(address + i));
                 ret = BSP_ERROR;
                 break;
             }

@@ -1,5 +1,8 @@
 #include "rtc_manager.h"
+
 #include <stdio.h>
+
+#include "log.h"
 
 void RTC_Manager_Init(void)
 {
@@ -13,8 +16,26 @@ bool RTC_Manager_GetTimeAndDate(App_RTC_TimeTypeDef *pTimeDate)
     {
         return false;
     }
-    
+
     return true;
+}
+
+uint32_t RTC_Manager_GetTimeWithMs(App_RTC_TimeTypeDef *pTimeDate)
+{
+    if (RTC_Manager_GetTimeAndDate(pTimeDate))
+    {
+        /* Calculate milliseconds from subseconds */
+        /* Formula: ms = ((SecondFraction - SubSeconds) * 1000) /
+         * (SecondFraction + 1) */
+        if (pTimeDate->second_fraction > 0)
+        {
+            uint32_t ms =
+                ((pTimeDate->second_fraction - pTimeDate->subseconds) * 1000U) /
+                (pTimeDate->second_fraction + 1U);
+            return ms;
+        }
+    }
+    return 0;
 }
 
 bool RTC_Manager_SetTimeAndDate(const App_RTC_TimeTypeDef *pTimeDate)
@@ -23,7 +44,7 @@ bool RTC_Manager_SetTimeAndDate(const App_RTC_TimeTypeDef *pTimeDate)
     {
         return false;
     }
-    
+
     return true;
 }
 
@@ -33,12 +54,12 @@ void RTC_Manager_PrintCurrentTime(void)
 
     if (RTC_Manager_GetTimeAndDate(&timeDate))
     {
-        printf("Current Time: %02d:%02d:%02d Date: %02d/%02d/%04d\n", 
-                timeDate.hours, timeDate.minutes, timeDate.seconds, 
+        LOG_INF("Current Time: %02d:%02d:%02d Date: %02d/%02d/%04d",
+                timeDate.hours, timeDate.minutes, timeDate.seconds,
                 timeDate.date, timeDate.month, 2000 + timeDate.year);
     }
     else
     {
-        printf("Error reading RTC\n");
+        LOG_ERR("Error reading RTC");
     }
 }

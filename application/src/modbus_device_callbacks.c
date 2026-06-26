@@ -626,14 +626,17 @@ modbus_exception_t modbus_cb_write_single_coil(uint16_t address, bool value)
             coils->rtc_commit = value;
             if (value)
             {
-                jerry_device_holding_registers_t *hrRegs = jerry_device_get_holding_registers();
+                jerry_device_holding_registers_t *hrRegs =
+                    jerry_device_get_holding_registers();
                 App_RTC_TimeTypeDef timeDate = {
-                    .hours = (uint8_t)hrRegs->rtc_hour,
+                    .hours   = (uint8_t)hrRegs->rtc_hour,
                     .minutes = (uint8_t)hrRegs->rtc_minute,
                     .seconds = (uint8_t)hrRegs->rtc_second,
-                    .date = (uint8_t)hrRegs->rtc_day,
-                    .month = (uint8_t)hrRegs->rtc_month,
-                    .year = hrRegs->rtc_year >= 2000 ? (uint8_t)(hrRegs->rtc_year - 2000) : 0,
+                    .date    = (uint8_t)hrRegs->rtc_day,
+                    .month   = (uint8_t)hrRegs->rtc_month,
+                    .year    = hrRegs->rtc_year >= 2000
+                                   ? (uint8_t)(hrRegs->rtc_year - 2000)
+                                   : 0,
                     .weekday = 1 /* default weekday */
                 };
                 RTC_Manager_SetTimeAndDate(&timeDate);
@@ -844,17 +847,20 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t  start_address,
     }
 
     /* Update RTC struct fields if the read range includes RTC registers */
-    if (ADDR_IN_RANGE_NONZERO(JERRY_DEVICE_HR_RTC_YEAR, start_address, end_address) ||
-        ADDR_IN_RANGE_NONZERO(JERRY_DEVICE_HR_RTC_SECOND, start_address, end_address) ||
-        (start_address <= JERRY_DEVICE_HR_RTC_YEAR && end_address >= JERRY_DEVICE_HR_RTC_SECOND))
+    if (ADDR_IN_RANGE_NONZERO(JERRY_DEVICE_HR_RTC_YEAR, start_address,
+                              end_address) ||
+        ADDR_IN_RANGE_NONZERO(JERRY_DEVICE_HR_RTC_SECOND, start_address,
+                              end_address) ||
+        (start_address <= JERRY_DEVICE_HR_RTC_YEAR &&
+         end_address >= JERRY_DEVICE_HR_RTC_SECOND))
     {
         App_RTC_TimeTypeDef timeDate;
         if (RTC_Manager_GetTimeAndDate(&timeDate))
         {
-            regs->rtc_year = 2000U + timeDate.year;
-            regs->rtc_month = timeDate.month;
-            regs->rtc_day = timeDate.date;
-            regs->rtc_hour = timeDate.hours;
+            regs->rtc_year   = 2000U + timeDate.year;
+            regs->rtc_month  = timeDate.month;
+            regs->rtc_day    = timeDate.date;
+            regs->rtc_hour   = timeDate.hours;
             regs->rtc_minute = timeDate.minutes;
             regs->rtc_second = timeDate.seconds;
         }

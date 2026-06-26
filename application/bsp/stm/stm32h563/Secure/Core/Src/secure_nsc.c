@@ -101,6 +101,8 @@ CMSE_NS_ENTRY uint32_t SECURE_RTC_GetTimeDate(App_RTC_TimeTypeDef *pTimeDate)
   pTimeDate->month = sDate.Month;
   pTimeDate->year = sDate.Year;
   pTimeDate->weekday = sDate.WeekDay;
+  pTimeDate->subseconds = sTime.SubSeconds;
+  pTimeDate->second_fraction = sTime.SecondFraction;
 
   return 0; /* OK */
 }

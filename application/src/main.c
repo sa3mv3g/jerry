@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2026
  * All rights reserved.
@@ -13,6 +14,8 @@
 #include "bsp.h"
 #include "digital_output.h"
 #include "lcd_manager.h"
+#include "log.h"
+#include "logging_port.h"
 #include "task.h"
 #include "timers.h"
 
@@ -124,16 +127,13 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName)
     (void)xTask;
 
     /* CRITICAL: Stack overflow detected! */
-    (void)printf("\n\n");
-    (void)printf(
-        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-    (void)printf("!!! STACK OVERFLOW DETECTED !!!\n");
-    (void)printf(
-        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-    (void)printf("Task Name: %s\n", pcTaskName);
-    (void)printf(
-        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-    (void)printf("\n");
+    LOG_ERR("");
+    LOG_ERR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    LOG_ERR("!!! STACK OVERFLOW DETECTED !!!");
+    LOG_ERR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    LOG_ERR("Task Name: %s", pcTaskName);
+    LOG_ERR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    LOG_ERR("");
 
     /* Halt the system - in production, you might want to reset */
     taskDISABLE_INTERRUPTS();
@@ -151,17 +151,14 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName)
  */
 void vApplicationMallocFailedHook(void)
 {
-    (void)printf("\n\n");
-    (void)printf(
-        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-    (void)printf("!!! MALLOC FAILED !!!\n");
-    (void)printf(
-        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-    (void)printf("FreeRTOS heap allocation failed!\n");
-    (void)printf("This should not happen with static allocation.\n");
-    (void)printf(
-        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-    (void)printf("\n");
+    LOG_ERR("");
+    LOG_ERR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    LOG_ERR("!!! MALLOC FAILED !!!");
+    LOG_ERR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    LOG_ERR("FreeRTOS heap allocation failed!");
+    LOG_ERR("This should not happen with static allocation.");
+    LOG_ERR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    LOG_ERR("");
 
     taskDISABLE_INTERRUPTS();
     for (;;)
@@ -188,77 +185,77 @@ void vApplicationTickHook(void) { /* Called every tick interrupt */ }
  */
 void print_lwip_memory_stats(void)
 {
-    (void)printf("\n=== LwIP Memory Statistics ===\n");
+    LOG_INF("=== LwIP Memory Statistics ===");
 
 #if MEM_STATS
-    (void)printf("Heap Memory:\n");
-    (void)printf("  Available: %u bytes\n", (unsigned int)lwip_stats.mem.avail);
-    (void)printf("  Used:      %u bytes\n", (unsigned int)lwip_stats.mem.used);
-    (void)printf("  Max Used:  %u bytes\n", (unsigned int)lwip_stats.mem.max);
-    (void)printf("  Errors:    %u\n", (unsigned int)lwip_stats.mem.err);
+    LOG_INF("Heap Memory:");
+    LOG_INF("  Available: %u bytes", (unsigned int)lwip_stats.mem.avail);
+    LOG_INF("  Used:      %u bytes", (unsigned int)lwip_stats.mem.used);
+    LOG_INF("  Max Used:  %u bytes", (unsigned int)lwip_stats.mem.max);
+    LOG_INF("  Errors:    %u", (unsigned int)lwip_stats.mem.err);
     if (lwip_stats.mem.err > 0)
     {
-        (void)printf("  !!! MEMORY ALLOCATION ERRORS DETECTED !!!\n");
+        LOG_INF("  !!! MEMORY ALLOCATION ERRORS DETECTED !!!");
     }
 #endif
 
 #if MEMP_STATS
-    (void)printf("\nMemory Pools:\n");
+    LOG_INF("\nMemory Pools:");
 
     /* PBUF pool - check for NULL before accessing */
     if (lwip_stats.memp[MEMP_PBUF] != NULL)
     {
-        (void)printf("  PBUF Pool:\n");
-        (void)printf("    Available: %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_PBUF]->avail);
-        (void)printf("    Used:      %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_PBUF]->used);
-        (void)printf("    Max Used:  %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_PBUF]->max);
-        (void)printf("    Errors:    %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_PBUF]->err);
+        LOG_INF("  PBUF Pool:");
+        LOG_INF("    Available: %u",
+                (unsigned int)lwip_stats.memp[MEMP_PBUF]->avail);
+        LOG_INF("    Used:      %u",
+                (unsigned int)lwip_stats.memp[MEMP_PBUF]->used);
+        LOG_INF("    Max Used:  %u",
+                (unsigned int)lwip_stats.memp[MEMP_PBUF]->max);
+        LOG_INF("    Errors:    %u",
+                (unsigned int)lwip_stats.memp[MEMP_PBUF]->err);
     }
 
     /* TCP_SEG pool - critical for diagnosing memory leaks with NETCONN_COPY */
     if (lwip_stats.memp[MEMP_TCP_SEG] != NULL)
     {
-        (void)printf("  TCP_SEG Pool:\n");
-        (void)printf("    Available: %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_TCP_SEG]->avail);
-        (void)printf("    Used:      %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_TCP_SEG]->used);
-        (void)printf("    Max Used:  %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_TCP_SEG]->max);
-        (void)printf("    Errors:    %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_TCP_SEG]->err);
+        LOG_INF("  TCP_SEG Pool:");
+        LOG_INF("    Available: %u",
+                (unsigned int)lwip_stats.memp[MEMP_TCP_SEG]->avail);
+        LOG_INF("    Used:      %u",
+                (unsigned int)lwip_stats.memp[MEMP_TCP_SEG]->used);
+        LOG_INF("    Max Used:  %u",
+                (unsigned int)lwip_stats.memp[MEMP_TCP_SEG]->max);
+        LOG_INF("    Errors:    %u",
+                (unsigned int)lwip_stats.memp[MEMP_TCP_SEG]->err);
     }
 
     /* TCP PCB pool - check for NULL before accessing */
     if (lwip_stats.memp[MEMP_TCP_PCB] != NULL)
     {
-        (void)printf("  TCP_PCB Pool:\n");
-        (void)printf("    Available: %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_TCP_PCB]->avail);
-        (void)printf("    Used:      %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_TCP_PCB]->used);
-        (void)printf("    Max Used:  %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_TCP_PCB]->max);
-        (void)printf("    Errors:    %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_TCP_PCB]->err);
+        LOG_INF("  TCP_PCB Pool:");
+        LOG_INF("    Available: %u",
+                (unsigned int)lwip_stats.memp[MEMP_TCP_PCB]->avail);
+        LOG_INF("    Used:      %u",
+                (unsigned int)lwip_stats.memp[MEMP_TCP_PCB]->used);
+        LOG_INF("    Max Used:  %u",
+                (unsigned int)lwip_stats.memp[MEMP_TCP_PCB]->max);
+        LOG_INF("    Errors:    %u",
+                (unsigned int)lwip_stats.memp[MEMP_TCP_PCB]->err);
     }
 
     /* NETCONN pool - check for NULL before accessing */
     if (lwip_stats.memp[MEMP_NETCONN] != NULL)
     {
-        (void)printf("  NETCONN Pool:\n");
-        (void)printf("    Available: %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_NETCONN]->avail);
-        (void)printf("    Used:      %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_NETCONN]->used);
-        (void)printf("    Max Used:  %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_NETCONN]->max);
-        (void)printf("    Errors:    %u\n",
-                     (unsigned int)lwip_stats.memp[MEMP_NETCONN]->err);
+        LOG_INF("  NETCONN Pool:");
+        LOG_INF("    Available: %u",
+                (unsigned int)lwip_stats.memp[MEMP_NETCONN]->avail);
+        LOG_INF("    Used:      %u",
+                (unsigned int)lwip_stats.memp[MEMP_NETCONN]->used);
+        LOG_INF("    Max Used:  %u",
+                (unsigned int)lwip_stats.memp[MEMP_NETCONN]->max);
+        LOG_INF("    Errors:    %u",
+                (unsigned int)lwip_stats.memp[MEMP_NETCONN]->err);
     }
 
     /* Check for errors - with NULL checks and explicit parentheses (MISRA 12.1)
@@ -272,11 +269,11 @@ void print_lwip_memory_stats(void)
         ((lwip_stats.memp[MEMP_NETCONN] != NULL) &&
          (lwip_stats.memp[MEMP_NETCONN]->err > 0)))
     {
-        (void)printf("\n  !!! MEMORY POOL EXHAUSTION DETECTED !!!\n");
+        LOG_ERR("  !!! MEMORY POOL EXHAUSTION DETECTED !!!");
     }
 #endif
 
-    (void)printf("==============================\n\n");
+    LOG_INF("==============================");
 }
 
 /**
@@ -295,8 +292,8 @@ bool check_lwip_memory_critical(void)
             (lwip_stats.mem.used * 100U) / lwip_stats.mem.avail;
         if (usage_percent > 90U)
         {
-            (void)printf("WARNING: LwIP heap usage at %u%%\n",
-                         (unsigned int)usage_percent);
+            LOG_WRN("WARNING: LwIP heap usage at %u%%",
+                    (unsigned int)usage_percent);
             critical = true;
         }
     }
@@ -304,8 +301,8 @@ bool check_lwip_memory_critical(void)
     /* Check for allocation errors */
     if (lwip_stats.mem.err > 0)
     {
-        (void)printf("ERROR: LwIP heap allocation errors: %u\n",
-                     (unsigned int)lwip_stats.mem.err);
+        LOG_ERR("ERROR: LwIP heap allocation errors: %u",
+                (unsigned int)lwip_stats.mem.err);
         critical = true;
     }
 #endif
@@ -316,8 +313,8 @@ bool check_lwip_memory_critical(void)
     if ((lwip_stats.memp[MEMP_PBUF] != NULL) &&
         (lwip_stats.memp[MEMP_PBUF]->err > 0))
     {
-        (void)printf("ERROR: PBUF pool exhausted %u times\n",
-                     (unsigned int)lwip_stats.memp[MEMP_PBUF]->err);
+        LOG_ERR("ERROR: PBUF pool exhausted %u times",
+                (unsigned int)lwip_stats.memp[MEMP_PBUF]->err);
         critical = true;
     }
 
@@ -326,8 +323,8 @@ bool check_lwip_memory_critical(void)
     if ((lwip_stats.memp[MEMP_TCP_PCB] != NULL) &&
         (lwip_stats.memp[MEMP_TCP_PCB]->err > 0))
     {
-        (void)printf("ERROR: TCP_PCB pool exhausted %u times\n",
-                     (unsigned int)lwip_stats.memp[MEMP_TCP_PCB]->err);
+        LOG_ERR("ERROR: TCP_PCB pool exhausted %u times",
+                (unsigned int)lwip_stats.memp[MEMP_TCP_PCB]->err);
         critical = true;
     }
 
@@ -336,8 +333,8 @@ bool check_lwip_memory_critical(void)
     if ((lwip_stats.memp[MEMP_NETCONN] != NULL) &&
         (lwip_stats.memp[MEMP_NETCONN]->err > 0))
     {
-        (void)printf("ERROR: NETCONN pool exhausted %u times\n",
-                     (unsigned int)lwip_stats.memp[MEMP_NETCONN]->err);
+        LOG_ERR("ERROR: NETCONN pool exhausted %u times",
+                (unsigned int)lwip_stats.memp[MEMP_NETCONN]->err);
         critical = true;
     }
 #endif
@@ -358,9 +355,9 @@ bool check_lwip_memory_critical(void)
  */
 void print_task_stack_usage(void)
 {
-    (void)printf("\n=== Task Stack Usage ===\n");
-    (void)printf("Task Name       Stack High Water Mark (words)\n");
-    (void)printf("------------------------------------------------\n");
+    LOG_INF("=== Task Stack Usage ===");
+    LOG_INF("Task Name       Stack High Water Mark (words)");
+    LOG_INF("------------------------------------------------");
 
     /* Get stack high water mark for each task */
     TaskHandle_t task_handles[] = {
@@ -377,17 +374,17 @@ void print_task_stack_usage(void)
         if (task_handles[i] != NULL)
         {
             UBaseType_t hwm = uxTaskGetStackHighWaterMark(task_handles[i]);
-            (void)printf("%-15s %u\n", task_names[i], (unsigned int)hwm);
+            LOG_INF("%-15s %u", task_names[i], (unsigned int)hwm);
 
             /* Warn if stack is getting low (less than 50 words remaining) */
             if (hwm < 50U)
             {
-                (void)printf("  !!! WARNING: Stack critically low !!!\n");
+                LOG_INF("  !!! WARNING: Stack critically low !!!");
             }
         }
     }
 
-    (void)printf("================================================\n\n");
+    LOG_INF("================================================");
 }
 
 /* Main Entry Point */
@@ -395,6 +392,9 @@ int main(void)
 {
     /* Initialize Hardware (BSP) */
     BSP_Init();
+
+    /* Initialize Logging */
+    Logging_Init();
 
     /* Initialize Digital Output Module */
     (void)DigitalOutput_Init();

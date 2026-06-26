@@ -1,8 +1,9 @@
 #ifndef RTC_MANAGER_H
 #define RTC_MANAGER_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+
 #include "secure_nsc.h"
 
 /**
@@ -17,18 +18,26 @@ void RTC_Manager_PrintCurrentTime(void);
 
 /**
  * @brief Get the current RTC time and date from hardware
- * 
+ *
  * @param pTimeDate Pointer to App_RTC_TimeTypeDef struct
  * @return true if successful, false otherwise
  */
 bool RTC_Manager_GetTimeAndDate(App_RTC_TimeTypeDef *pTimeDate);
 
 /**
+ * @brief Get the current RTC time and date, along with calculated milliseconds
+ *
+ * @param pTimeDate Pointer to App_RTC_TimeTypeDef struct
+ * @return Milliseconds part of the current time (0-999)
+ */
+uint32_t RTC_Manager_GetTimeWithMs(App_RTC_TimeTypeDef *pTimeDate);
+
+/**
  * @brief Set the RTC time and date in hardware
- * 
+ *
  * @param pTimeDate Pointer to App_RTC_TimeTypeDef struct
  * @return true if successful, false otherwise
  */
 bool RTC_Manager_SetTimeAndDate(const App_RTC_TimeTypeDef *pTimeDate);
 
-#endif // RTC_MANAGER_H
+#endif  // RTC_MANAGER_H

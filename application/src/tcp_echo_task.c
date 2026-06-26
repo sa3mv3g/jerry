@@ -11,6 +11,7 @@
 #include "bsp.h"
 #include "ethernetif.h"
 #include "lcd_manager.h"
+#include "log.h"
 #include "lwip/api.h"
 #include "lwip/dhcp.h"
 #include "lwip/netif.h"
@@ -77,10 +78,10 @@ static void vEthernetTask(void *pvParameters)
         if (count >= 500)
         { /* 5 seconds */
             count = 0;
-            (void)printf("Stats - RX: %d, TX: %d, DROP: %d, RX_INT: %u\n",
-                         (int)lwip_stats.link.recv, (int)lwip_stats.link.xmit,
-                         (int)lwip_stats.link.drop,
-                         (unsigned int)ethernetif_get_rx_int_count());
+            LOG_INF("Stats - RX: %d, TX: %d, DROP: %d, RX_INT: %u",
+                    (int)lwip_stats.link.recv, (int)lwip_stats.link.xmit,
+                    (int)lwip_stats.link.drop,
+                    (unsigned int)ethernetif_get_rx_int_count());
         }
 
         vTaskDelay(pdMS_TO_TICKS(10));
@@ -92,12 +93,12 @@ static void link_callback(struct netif *netif)
 {
     if (netif_is_link_up(netif))
     {
-        printf("Link status changed: UP\n");
+        LOG_INF("Link status changed: UP");
         /* Optional: Re-trigger DHCP or other actions if needed */
     }
     else
     {
-        printf("Link status changed: DOWN\n");
+        LOG_INF("Link status changed: DOWN");
     }
 }
 #endif
@@ -120,7 +121,7 @@ static void tcp_echo_thread(void *arg)
         {
             /* Tell connection to go into listening mode */
             netconn_listen(conn);
-            printf("TCP Echo Server listening on port 7\n");
+            LOG_INF("TCP Echo Server listening on port 7");
 
             while (1)
             {
@@ -130,7 +131,7 @@ static void tcp_echo_thread(void *arg)
                 /* Process the new connection. */
                 if (err == ERR_OK)
                 {
-                    printf("New connection accepted\n");
+                    LOG_INF("New connection accepted");
                     struct netbuf *buf;
                     void          *data;
                     u16_t          len;
@@ -148,26 +149,26 @@ static void tcp_echo_thread(void *arg)
                     /* Close connection and discard connection identifier. */
                     netconn_close(newconn);
                     netconn_delete(newconn);
-                    printf("Connection closed\n");
+                    LOG_INF("Connection closed");
                 }
             }
         }
         else
         {
-            printf("Failed to bind connection: %d\n", err);
+            LOG_ERR("Failed to bind connection: %d", err);
             netconn_delete(conn);
         }
     }
     else
     {
-        printf("Failed to create new connection\n");
+        LOG_ERR("Failed to create new connection");
     }
 }
 
 static void tcpip_init_done_callback(void *arg)
 {
     (void)arg;
-    printf("*** tcpip_thread is running! ***\n");
+    LOG_INF("*** tcpip_thread is running! ***");
 }
 
 void vTcpEchoTask(void *pvParameters)
@@ -178,10 +179,10 @@ void vTcpEchoTask(void *pvParameters)
 
     (void)pvParameters;
 
-    printf("TCP Echo Task Started\n");
+    LOG_INF("TCP Echo Task Started");
 
     /* Initialize the LwIP stack */
-    printf("Initializing LwIP...\n");
+    LOG_INF("Initializing LwIP...");
     tcpip_init(tcpip_init_done_callback, NULL);
 
 #if USE_DHCP
@@ -194,9 +195,9 @@ void vTcpEchoTask(void *pvParameters)
     uint8_t dev_addr     = BSP_GetDeviceAddress();
     uint8_t ip_last_byte = STATIC_IP_ADDR3_BASE + dev_addr;
 
-    printf("Network: Device address from DEVADDR pins: %u\n", dev_addr);
-    printf("Network: IP last octet: %u (base %u + DEVADDR %u)\n", ip_last_byte,
-           STATIC_IP_ADDR3_BASE, dev_addr);
+    LOG_INF("Network: Device address from DEVADDR pins: %u", dev_addr);
+    LOG_INF("Network: IP last octet: %u (base %u + DEVADDR %u)", ip_last_byte,
+            STATIC_IP_ADDR3_BASE, dev_addr);
 
     /* Use static IP configuration with DEVADDR-based last octet */
     IP4_ADDR(&ipaddr, STATIC_IP_ADDR0, STATIC_IP_ADDR1, STATIC_IP_ADDR2,
@@ -208,7 +209,7 @@ void vTcpEchoTask(void *pvParameters)
 #endif /* USE_DHCP */
 
     /* Add the network interface */
-    printf("Adding Network Interface...\n");
+    LOG_INF("Adding Network Interface...");
     netif_add(&gnetif, &ipaddr, &netmask, &gw, NULL, &ethernetif_init,
               &tcpip_input);
 
@@ -230,32 +231,32 @@ void vTcpEchoTask(void *pvParameters)
 
     if (netif_is_link_up(&gnetif))
     {
-        printf("Initial Link status: UP\n");
+        LOG_INF("Initial Link status: UP");
     }
     else
     {
-        printf("Initial Link status: DOWN\n");
+        LOG_INF("Initial Link status: DOWN");
     }
 
     /* Print initial netif configuration */
-    printf("=== Network Interface Configuration ===\n");
-    printf("MAC Address: %02X:%02X:%02X:%02X:%02X:%02X\n", gnetif.hwaddr[0],
-           gnetif.hwaddr[1], gnetif.hwaddr[2], gnetif.hwaddr[3],
-           gnetif.hwaddr[4], gnetif.hwaddr[5]);
-    printf("MTU: %u\n", gnetif.mtu);
-    printf("Flags: 0x%02X (UP=%d, LINK_UP=%d, ETHARP=%d, BCAST=%d)\n",
-           gnetif.flags, (gnetif.flags & NETIF_FLAG_UP) ? 1 : 0,
-           (gnetif.flags & NETIF_FLAG_LINK_UP) ? 1 : 0,
-           (gnetif.flags & NETIF_FLAG_ETHARP) ? 1 : 0,
-           (gnetif.flags & NETIF_FLAG_BROADCAST) ? 1 : 0);
+    LOG_INF("=== Network Interface Configuration ===");
+    LOG_INF("MAC Address: %02X:%02X:%02X:%02X:%02X:%02X", gnetif.hwaddr[0],
+            gnetif.hwaddr[1], gnetif.hwaddr[2], gnetif.hwaddr[3],
+            gnetif.hwaddr[4], gnetif.hwaddr[5]);
+    LOG_INF("MTU: %u", gnetif.mtu);
+    LOG_INF("Flags: 0x%02X (UP=%d, LINK_UP=%d, ETHARP=%d, BCAST=%d)",
+            gnetif.flags, (gnetif.flags & NETIF_FLAG_UP) ? 1 : 0,
+            (gnetif.flags & NETIF_FLAG_LINK_UP) ? 1 : 0,
+            (gnetif.flags & NETIF_FLAG_ETHARP) ? 1 : 0,
+            (gnetif.flags & NETIF_FLAG_BROADCAST) ? 1 : 0);
 
 #if USE_DHCP
     /* Start DHCP to obtain IP address automatically */
-    printf("Starting DHCP...\n");
+    LOG_INF("Starting DHCP...");
     dhcp_start(&gnetif);
 
     /* Wait for DHCP to obtain an IP address */
-    printf("Waiting for DHCP to obtain IP address...\n");
+    LOG_INF("Waiting for DHCP to obtain IP address...");
     uint32_t dhcp_timeout = 0;
     while (!dhcp_supplied_address(&gnetif))
     {
@@ -263,24 +264,24 @@ void vTcpEchoTask(void *pvParameters)
         dhcp_timeout++;
         if (dhcp_timeout >= 300)
         { /* 30 seconds timeout */
-            printf("DHCP timeout! Using link-local address.\n");
+            LOG_INF("DHCP timeout! Using link-local address.");
             break;
         }
     }
 
     /* Print obtained IP address */
-    printf("=== DHCP Complete ===\n");
-    printf("IP Address: %s\n", ip4addr_ntoa(netif_ip4_addr(&gnetif)));
-    printf("Netmask: %s\n", ip4addr_ntoa(netif_ip4_netmask(&gnetif)));
-    printf("Gateway: %s\n", ip4addr_ntoa(netif_ip4_gw(&gnetif)));
-    printf("=====================\n");
+    LOG_INF("=== DHCP Complete ===");
+    LOG_INF("IP Address: %s", ip4addr_ntoa(netif_ip4_addr(&gnetif)));
+    LOG_INF("Netmask: %s", ip4addr_ntoa(netif_ip4_netmask(&gnetif)));
+    LOG_INF("Gateway: %s", ip4addr_ntoa(netif_ip4_gw(&gnetif)));
+    LOG_INF("=====================");
 #else
     /* Print static IP configuration */
-    printf("=== Static IP Configuration ===\n");
-    printf("IP Address: %s\n", ip4addr_ntoa(netif_ip4_addr(&gnetif)));
-    printf("Netmask: %s\n", ip4addr_ntoa(netif_ip4_netmask(&gnetif)));
-    printf("Gateway: %s\n", ip4addr_ntoa(netif_ip4_gw(&gnetif)));
-    printf("===============================\n");
+    LOG_INF("=== Static IP Configuration ===");
+    LOG_INF("IP Address: %s", ip4addr_ntoa(netif_ip4_addr(&gnetif)));
+    LOG_INF("Netmask: %s", ip4addr_ntoa(netif_ip4_netmask(&gnetif)));
+    LOG_INF("Gateway: %s", ip4addr_ntoa(netif_ip4_gw(&gnetif)));
+    LOG_INF("===============================");
 
     LcdManager_UpdateIpv4Address(ip4addr_ntoa(netif_ip4_addr(&gnetif)));
 #endif /* USE_DHCP */
