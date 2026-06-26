@@ -67,6 +67,83 @@ CMSE_NS_ENTRY void SECURE_RegisterCallback(SECURE_CallbackIDTypeDef CallbackId, 
   }
 }
 
+extern RTC_HandleTypeDef hrtc;
+
+/**
+  * @brief  Get RTC Time and Date from Secure world.
+  */
+CMSE_NS_ENTRY uint32_t SECURE_RTC_GetTimeDate(App_RTC_TimeTypeDef *pTimeDate)
+{
+  RTC_TimeTypeDef sTime = {0};
+  RTC_DateTypeDef sDate = {0};
+
+  if (pTimeDate == NULL)
+  {
+    return 1; /* Error: Invalid argument */
+  }
+
+  /* Get Time */
+  if (HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    return 1; /* Error */
+  }
+
+  /* Get Date (Unlocks shadow registers) */
+  if (HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    return 1; /* Error */
+  }
+
+  pTimeDate->hours = sTime.Hours;
+  pTimeDate->minutes = sTime.Minutes;
+  pTimeDate->seconds = sTime.Seconds;
+  pTimeDate->date = sDate.Date;
+  pTimeDate->month = sDate.Month;
+  pTimeDate->year = sDate.Year;
+  pTimeDate->weekday = sDate.WeekDay;
+
+  return 0; /* OK */
+}
+
+/**
+  * @brief  Set RTC Time and Date from Secure world.
+  */
+CMSE_NS_ENTRY uint32_t SECURE_RTC_SetTimeDate(const App_RTC_TimeTypeDef *pTimeDate)
+{
+  RTC_TimeTypeDef sTime = {0};
+  RTC_DateTypeDef sDate = {0};
+
+  if (pTimeDate == NULL)
+  {
+    return 1; /* Error: Invalid argument */
+  }
+  
+  sTime.Hours = pTimeDate->hours;
+  sTime.Minutes = pTimeDate->minutes;
+  sTime.Seconds = pTimeDate->seconds;
+  sTime.TimeFormat = RTC_HOURFORMAT_24;
+  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
+  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
+
+  sDate.Date = pTimeDate->date;
+  sDate.Month = pTimeDate->month;
+  sDate.Year = pTimeDate->year;
+  sDate.WeekDay = pTimeDate->weekday;
+
+  /* Set Time first, then Date */
+  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    return 1; /* Error */
+  }
+
+  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    return 1; /* Error */
+  }
+
+  return 0; /* OK */
+}
+
 /**
   * @}
   */

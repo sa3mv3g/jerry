@@ -32,13 +32,13 @@ set(STM32_Drivers_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_ll_utils.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_ll_exti.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_cortex.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_dma.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_dma_ex.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_rcc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_rcc_ex.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_flash.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_flash_ex.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_gpio.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_dma.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_dma_ex.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_pwr.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_pwr_ex.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal.c
@@ -46,6 +46,8 @@ set(STM32_Drivers_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_ll_rcc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_gtzc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_icache.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_rtc.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_rtc_ex.c
 )
 
 # Drivers Midllewares
@@ -58,6 +60,7 @@ set(MX_LINK_DIRS
 set (MX_LINK_LIBS 
     STM32_Drivers
     ${TOOLCHAIN_LINK_LIBRARIES}
+    
     
 )
 # Interface library for includes and symbols
@@ -82,6 +85,8 @@ target_link_libraries(${CMAKE_PROJECT_NAME} ${MX_LINK_LIBS})
 
 # Add the map file to the list of files to be removed with 'clean' target
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES ADDITIONAL_CLEAN_FILES ${CMAKE_PROJECT_NAME}.map)
+
+
 
 
 # Validate that STM32CubeMX code is compatible with C standard

@@ -37,6 +37,7 @@ void LcdManager_ShowVersionSplash(uint16_t version_major,
 
 void LcdManager_UpdateIpv4Address(const char *ipv4);
 void LcdManager_UpdateModbusDeviceAddress(uint8_t address);
+void LcdManager_UpdateTime(uint8_t hours, uint8_t minutes, uint8_t seconds);
 void LcdManager_UpdateDigitalOutputStatus(uint8_t channel, bool value);
 void LcdManager_UpdateDigitalInputStatus(uint8_t channel, bool value);
 void LcdManager_UpdateAnalogInput(uint8_t channel, float value);
