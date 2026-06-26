@@ -81,6 +81,7 @@ void MX_IWDG_Init(void);
 void MX_I2C4_Init(void);
 void MX_TIM7_Init(void);
 void MX_CRC_Init(void);
+void MX_RTC_Init(void);
 
 /* USER CODE BEGIN EFP */
 void ethernetif_get_mac_addr(uint8_t *mac_addr);

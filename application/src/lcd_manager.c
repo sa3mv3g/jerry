@@ -31,6 +31,10 @@ static uint8_t gIpLastOctet = 0;
 static uint8_t gModbusAddress = 0;
 static uint8_t gDigitalInput = 0;
 
+static uint8_t gRtcHours = 0;
+static uint8_t gRtcMinutes = 0;
+static uint8_t gRtcSeconds = 0;
+
 static uint16_t gDigitalOutput = 0;
 static uint16_t gAnalogOutput[4] = {0};
 
@@ -44,14 +48,20 @@ static int32_t lcdManager_Send(uint8_t i2c_address, const uint8_t* data,
 static LcdI2cHandle lcd_handle;
 
 static void update_row_0(void) {
-    snprintf(gLcdStrings[0], LCD_MANAGER_COLS_MAX + 1, "%02X %02X %02X %04X       ", gIpLastOctet, gModbusAddress, gDigitalInput, gDigitalOutput);
+    char temp[32];
+    snprintf(temp, sizeof(temp), "IP:%02X MB:%02X %02u:%02u:%02u", gIpLastOctet, gModbusAddress, gRtcHours % 100U, gRtcMinutes % 100U, gRtcSeconds % 100U);
+    strncpy(gLcdStrings[0], temp, LCD_MANAGER_COLS_MAX);
+    gLcdStrings[0][LCD_MANAGER_COLS_MAX] = '\0';
     if (gUdpateLcdSem != NULL) {
         xSemaphoreGive(gUdpateLcdSem);
     }
 }
 
 static void update_row_1(void) {
-    snprintf(gLcdStrings[1], LCD_MANAGER_COLS_MAX + 1, "%04X %04X %04X %04X ", gAnalogOutput[0], gAnalogOutput[1], gAnalogOutput[2], gAnalogOutput[3]);
+    char temp[32];
+    snprintf(temp, sizeof(temp), "%02X %04X %05u %05u ", gDigitalInput, gDigitalOutput, gAnalogOutput[0] % 100000U, gAnalogOutput[1] % 100000U);
+    strncpy(gLcdStrings[1], temp, LCD_MANAGER_COLS_MAX);
+    gLcdStrings[1][LCD_MANAGER_COLS_MAX] = '\0';
     if (gUdpateLcdSem != NULL) {
         xSemaphoreGive(gUdpateLcdSem);
     }
@@ -212,8 +222,16 @@ void LcdManager_UpdateDigitalInputStatus(uint8_t channel, bool value)
         {
             gDigitalInput &= ~(1U << channel);
         }
-        update_row_0();
+        update_row_1();
     }
+}
+
+void LcdManager_UpdateTime(uint8_t hours, uint8_t minutes, uint8_t seconds)
+{
+    gRtcHours = hours;
+    gRtcMinutes = minutes;
+    gRtcSeconds = seconds;
+    update_row_0();
 }
 
 void LcdManager_UpdateAnalogInput(uint8_t channel, float value)

@@ -156,7 +156,6 @@ bsp_error_t BSP_Init(void)
     /* Configure MPU for Ethernet DMA */
     MPU_Config();
 
-    SystemClock_Config();
     MX_GTZC_NS_Init();
 
     /* Initialize all configured peripherals */

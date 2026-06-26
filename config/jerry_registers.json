@@ -231,6 +231,14 @@
         "default_value": false,
         "group": "pwm_control",
         "access": "read_write"
+      },
+      {
+        "name": "rtc_commit",
+        "address": 30,
+        "description": "Write 1 to commit the cached RTC holding registers to the hardware RTC",
+        "default_value": false,
+        "group": "date_time",
+        "access": "read_write"
       }
     ],
     "discrete_inputs": [

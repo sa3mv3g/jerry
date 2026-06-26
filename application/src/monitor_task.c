@@ -11,6 +11,8 @@
 #include "bsp.h"
 #include "task.h"
 #include "lcd_manager.h"
+#include "rtc_manager.h"
+#include "jerry_device_registers.h"
 
 /* LwIP includes for memory stats */
 #include "lwip/stats.h"
@@ -168,6 +170,22 @@ static void print_digital_inputs(void)
         (unsigned int)di_values[6], (unsigned int)di_values[7]);
 }
 
+/**
+ * @brief Update Time and Analog Outputs on LCD
+ */
+static void update_time_and_ao(void)
+{
+    App_RTC_TimeTypeDef timeDate;
+    if (RTC_Manager_GetTimeAndDate(&timeDate))
+    {
+        LcdManager_UpdateTime(timeDate.hours, timeDate.minutes, timeDate.seconds);
+    }
+
+    jerry_device_holding_registers_t *regs = jerry_device_get_holding_registers();
+    LcdManager_UpdateAnalogOutput(0, (uint16_t)regs->pwm_0_duty_cycle);
+    LcdManager_UpdateAnalogOutput(1, (uint16_t)regs->pwm_1_duty_cycle);
+}
+
 /* Stack Monitor Task */
 void vMonitorTask(void* pvParameters)
 {
@@ -195,6 +213,9 @@ void vMonitorTask(void* pvParameters)
 
         /* Print ADC values every interval */
         print_adc_values();
+
+        /* Update Time and AO every interval */
+        update_time_and_ao();
 
         /* Print full statistics periodically */
         stats_counter++;
