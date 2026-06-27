@@ -2,12 +2,9 @@
 
 #include <stdio.h>
 
-#include "rtc_manager.h"
-
-#ifndef BSP_USING_RTOS
 #include "FreeRTOS.h"
+#include "rtc_manager.h"
 #include "task.h"
-#endif
 
 /* Buffer for log module */
 static char log_buffer[512];
@@ -36,12 +33,8 @@ static void log_hook_with_timestamp(const char *str)
     else
     {
         /* Fallback if RTC fails */
-#ifdef BSP_USING_RTOS
         uint32_t ticks = xTaskGetTickCount();
-#else
-        uint32_t ticks = 0;  // HAL_GetTick();
-#endif
-        int ts_len =
+        int      ts_len =
             snprintf(ts_buf, sizeof(ts_buf), "[%lu] ", (unsigned long)ticks);
         _write(1, ts_buf, ts_len);
     }

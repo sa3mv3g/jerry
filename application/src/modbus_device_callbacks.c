@@ -281,11 +281,15 @@ static inline bsp_error_t update_calibration(uint32_t address, float newValue)
 modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                                         uint16_t quantity, uint8_t *coil_values)
 {
-    jerry_device_coils_t *coils       = jerry_device_get_coils();
-    uint16_t              end_address = start_address + quantity - 1U;
-    uint16_t              byte_index;
-    uint16_t              bit_index;
-    bool                  value;
+    jerry_device_coils_t *coils = jerry_device_get_coils();
+    if (quantity == 0)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+    uint16_t end_address = start_address + quantity - 1U;
+    uint16_t byte_index;
+    uint16_t bit_index;
+    bool     value;
 
     /* Validate address range */
     if (!ADDR_IN_RANGE_FROM_ZERO(start_address, JERRY_DEVICE_COIL_MAX_ADDR) ||
@@ -773,10 +777,14 @@ modbus_exception_t modbus_cb_read_discrete_inputs(uint16_t start_address,
                                                   uint8_t *input_values)
 {
     jerry_device_discrete_inputs_t *inputs = jerry_device_get_discrete_inputs();
-    uint16_t                        end_address = start_address + quantity - 1U;
-    uint16_t                        byte_index;
-    uint16_t                        bit_index;
-    bool                            value;
+    if (quantity == 0)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+    uint16_t end_address = start_address + quantity - 1U;
+    uint16_t byte_index;
+    uint16_t bit_index;
+    bool     value;
 
     /* Validate address range */
     if (!ADDR_IN_RANGE_FROM_ZERO(start_address, JERRY_DEVICE_DI_MAX_ADDR) ||
@@ -916,6 +924,10 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t  start_address,
 {
     jerry_device_holding_registers_t *regs =
         jerry_device_get_holding_registers();
+    if (quantity == 0)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
     uint16_t end_address = start_address + quantity - 1U;
 
     /* Validate address range */
@@ -1537,6 +1549,10 @@ modbus_exception_t modbus_cb_read_input_registers(uint16_t  start_address,
     jerry_device_input_registers_t   *regs = jerry_device_get_input_registers();
     jerry_device_holding_registers_t *hrRegs =
         jerry_device_get_holding_registers();
+    if (quantity == 0)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
     uint16_t end_address = start_address + quantity - 1U;
 
     /* Validate address range */

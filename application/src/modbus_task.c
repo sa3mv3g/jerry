@@ -235,6 +235,13 @@ static void modbus_tcp_server_thread(void *arg)
 
     while (1)
     {
+#if LWIP_STATS && MEMP_STATS
+        if (lwip_stats.memp[MEMP_NETCONN] != NULL)
+        {
+            LOG_INF("[Modbus]: Available netconns: %u",
+                    (unsigned int)lwip_stats.memp[MEMP_NETCONN]->avail);
+        }
+#endif
         struct netconn *listen_conn = netconn_new(NETCONN_TCP);
         if (listen_conn == NULL)
         {
@@ -397,6 +404,10 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
                                              uint8_t       *response,
                                              uint16_t      *response_len)
 {
+    /* These static variables are used to avoid large stack allocations. This is
+     * only safe because the server is single-threaded and handles one
+     * connection at a time. If multi-threaded connection handling is added,
+     * these must be allocated per-connection. */
     static modbus_adu_t request_adu;
     static modbus_adu_t response_adu;
     static modbus_pdu_t response_pdu;
