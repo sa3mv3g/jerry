@@ -197,11 +197,19 @@ void vModbusTask(void *pvParameters)
 
     LcdManager_UpdateModbusDeviceAddress(s_modbus_unit_id);
     initDigitalOutputCoilsValues = 0x0;
-
     if (BSP_OK == BSP_I2CDO_Read(&initDigitalOutputCoilsValues))
     {
-        modbus_cb_write_multiple_coils(
-            0, 16, (const uint8_t *)&initDigitalOutputCoilsValues);
+        /*
+         * Corrects endianness issue N-02.
+         * The 16-bit value from the I2C I/O expander is explicitly
+         * unpacked into a 2-byte array to match the Modbus coil packing
+         * order (little-endian: byte 0 = coils 0-7, byte 1 = coils 8-15).
+         * This avoids an undefined-behavior pointer cast and makes the
+         * byte order explicit.
+         */
+        uint8_t coils[2] = {(uint8_t)(initDigitalOutputCoilsValues & 0xFFU),
+                            (uint8_t)(initDigitalOutputCoilsValues >> 8)};
+        modbus_cb_write_multiple_coils(0, 16, coils);
     }
 
     /* Start the Modbus TCP server */
