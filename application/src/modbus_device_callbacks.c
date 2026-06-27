@@ -272,6 +272,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_0 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_1:
                 if (BSP_OK !=
@@ -279,6 +280,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_1 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_2:
                 if (BSP_OK !=
@@ -286,6 +288,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_2 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_3:
                 if (BSP_OK !=
@@ -293,6 +296,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_3 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_4:
                 if (BSP_OK !=
@@ -300,6 +304,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_4 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_5:
                 if (BSP_OK !=
@@ -307,6 +312,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_5 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_6:
                 if (BSP_OK !=
@@ -314,6 +320,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_6 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_7:
                 if (BSP_OK !=
@@ -321,6 +328,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_7 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_8:
                 if (BSP_OK !=
@@ -328,6 +336,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_8 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_9:
                 if (BSP_OK !=
@@ -335,6 +344,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_9 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_10:
                 if (BSP_OK !=
@@ -342,6 +352,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_10 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_11:
                 if (BSP_OK !=
@@ -349,6 +360,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_11 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_12:
                 if (BSP_OK !=
@@ -356,6 +368,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_12 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_13:
                 if (BSP_OK !=
@@ -363,6 +376,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_13 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_14:
                 if (BSP_OK !=
@@ -370,6 +384,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_14 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_15:
                 if (BSP_OK !=
@@ -377,6 +392,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_15 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_INPUT_0:
                 if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_0,
