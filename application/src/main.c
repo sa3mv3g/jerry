@@ -33,9 +33,9 @@
 
 /* Stack size for the tasks */
 #define MAIN_TASK_STACK_SIZE       512U
-#define LOG_TASK_STACK_SIZE        512U
+#define LOG_TASK_STACK_SIZE        configMINIMAL_STACK_SIZE
 #define MODBUS_TASK_STACK_SIZE     1024U
-#define FOTA_TASK_STACK_SIZE       512U
+#define FOTA_TASK_STACK_SIZE       configMINIMAL_STACK_SIZE
 #define MONITOR_TASK_STACK_SIZE    512U
 #define TCP_ECHO_TASK_STACK_SIZE   1024U
 #define LCD_MANAGE_TASK_STACK_SIZE 1024U
@@ -471,27 +471,29 @@ void vMainTask(void* pvParameters)
 
     /* Initialize sub-systems */
     (void)xTaskCreateStatic(vLoggingTask, "Log", LOG_TASK_STACK_SIZE, NULL,
-                            tskIDLE_PRIORITY + 1, xLogTaskStack, &xLogTaskTCB);
+                            (UBaseType_t)(tskIDLE_PRIORITY + 1U), xLogTaskStack,
+                            &xLogTaskTCB);
 
     (void)xTaskCreateStatic(vModbusTask, "Modbus", MODBUS_TASK_STACK_SIZE, NULL,
-                            tskIDLE_PRIORITY + 2, xModbusTaskStack,
-                            &xModbusTaskTCB);
+                            (UBaseType_t)(tskIDLE_PRIORITY + 2U),
+                            xModbusTaskStack, &xModbusTaskTCB);
 
     (void)xTaskCreateStatic(vFotaTask, "Fota", FOTA_TASK_STACK_SIZE, NULL,
-                            tskIDLE_PRIORITY + 1, xFotaTaskStack,
-                            &xFotaTaskTCB);
+                            (UBaseType_t)(tskIDLE_PRIORITY + 1U),
+                            xFotaTaskStack, &xFotaTaskTCB);
 
     (void)xTaskCreateStatic(vMonitorTask, "Monitor", MONITOR_TASK_STACK_SIZE,
-                            NULL, tskIDLE_PRIORITY + 1, xMonitorTaskStack,
-                            &xMonitorTaskTCB);
+                            NULL, (UBaseType_t)(tskIDLE_PRIORITY + 1U),
+                            xMonitorTaskStack, &xMonitorTaskTCB);
 
     (void)xTaskCreateStatic(vTcpEchoTask, "TcpEcho", TCP_ECHO_TASK_STACK_SIZE,
-                            NULL, tskIDLE_PRIORITY + 1, xTcpEchoTaskStack,
-                            &xTcpEchoTaskTCB);
+                            NULL, (UBaseType_t)(tskIDLE_PRIORITY + 1U),
+                            xTcpEchoTaskStack, &xTcpEchoTaskTCB);
 
-    (void)xTaskCreateStatic(
-        vLcdManageTask, "LCDMan", LCD_MANAGE_TASK_STACK_SIZE, NULL,
-        tskIDLE_PRIORITY + 1, xLcdManageTaskStack, &xLcdManageTaskTCB);
+    (void)xTaskCreateStatic(vLcdManageTask, "LCDMan",
+                            LCD_MANAGE_TASK_STACK_SIZE, NULL,
+                            (UBaseType_t)(tskIDLE_PRIORITY + 1U),
+                            xLcdManageTaskStack, &xLcdManageTaskTCB);
 
     xEventGroupSync(xSyncEventGroup, APPTASK_MAIN_TASK_EVENT_MASK,
                     APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);

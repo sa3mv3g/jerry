@@ -7,8 +7,6 @@
 #include "app_tasks.h"
 #include "task.h"
 
-#define CONST 10000
-
 /* FOTA Task */
 void vFotaTask(void* pvParameters)
 {

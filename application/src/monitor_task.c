@@ -88,7 +88,7 @@ static void check_lwip_errors(void)
     if ((lwip_stats.memp[MEMP_NETCONN] != NULL) &&
         (lwip_stats.memp[MEMP_NETCONN]->err > s_last_netconn_err))
     {
-        LOG_INF("!!! NEW NETCONN POOL ERROR !!! (total: %u)",
+        LOG_ERR("!!! NEW NETCONN POOL ERROR !!! (total: %u)",
                 (unsigned int)lwip_stats.memp[MEMP_NETCONN]->err);
         s_last_netconn_err = lwip_stats.memp[MEMP_NETCONN]->err;
     }
