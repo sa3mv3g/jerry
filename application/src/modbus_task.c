@@ -25,6 +25,7 @@
 #include "lwip/sys.h"
 #include "modbus_callbacks.h"
 #include "modbus_internal.h"
+#include "register_lock.h"
 #include "task.h"
 
 /* ==========================================================================
@@ -109,8 +110,9 @@ void vModbusTask(void *pvParameters)
     LOG_INF("[Modbus] Device address from DEVADDR pins: %u, Unit ID: %u",
             dev_addr, s_modbus_unit_id);
 
-    /* Initialize register data structures */
+    /* Initialize register data structures and the mutex guarding them */
     jerry_device_registers_init();
+    RegisterLock_Init();
     /* Read parameters from EEPROM */
     hrRegs = jerry_device_get_holding_registers();
     do
@@ -389,6 +391,10 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
     /* Initialize response PDU */
     (void)memset(&response_pdu, 0, sizeof(response_pdu));
 
+    /* Guard all shared register access performed by the callbacks below
+     * (BUG-04). The lock is released on every exit path from here on. */
+    RegisterLock_Acquire();
+
     /* Process based on function code */
     switch (request_adu.pdu.function_code)
     {
@@ -576,6 +582,9 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
         err = modbus_pdu_encode_exception(
             &response_pdu, request_adu.pdu.function_code, exception);
     }
+
+    /* Done touching shared register data — release the lock. */
+    RegisterLock_Release();
 
     if (err != MODBUS_OK)
     {

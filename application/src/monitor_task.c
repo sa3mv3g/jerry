@@ -12,6 +12,7 @@
 #include "jerry_device_registers.h"
 #include "lcd_manager.h"
 #include "log.h"
+#include "register_lock.h"
 #include "rtc_manager.h"
 #include "task.h"
 
@@ -183,8 +184,16 @@ static void update_time_and_ao(void)
 
     jerry_device_holding_registers_t* regs =
         jerry_device_get_holding_registers();
-    LcdManager_UpdateAnalogOutput(0, (uint16_t)regs->pwm_0_duty_cycle);
-    LcdManager_UpdateAnalogOutput(1, (uint16_t)regs->pwm_1_duty_cycle);
+
+    /* Snapshot the shared register fields under the lock (BUG-04), then use
+     * the local copies outside the lock for the LCD update. */
+    RegisterLock_Acquire();
+    uint16_t pwm_0_duty = (uint16_t)regs->pwm_0_duty_cycle;
+    uint16_t pwm_1_duty = (uint16_t)regs->pwm_1_duty_cycle;
+    RegisterLock_Release();
+
+    LcdManager_UpdateAnalogOutput(0, pwm_0_duty);
+    LcdManager_UpdateAnalogOutput(1, pwm_1_duty);
 }
 
 /* Stack Monitor Task */
