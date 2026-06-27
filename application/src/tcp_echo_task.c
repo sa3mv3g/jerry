@@ -113,6 +113,13 @@ static void tcp_echo_thread(void *arg)
                             netbuf_data(buf, &data, &len);
                             err =
                                 netconn_write(newconn, data, len, NETCONN_COPY);
+                            if (err != ERR_OK)
+                            {
+                                LOG_ERR("TCP echo write error: %d", err);
+                                /* Assume connection is broken, break inner loop
+                                 */
+                                break;
+                            }
                         } while (netbuf_next(buf) >= 0);
                         netbuf_delete(buf);
                     }
