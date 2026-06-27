@@ -1,5 +1,6 @@
 #include "lcd_manager.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -118,21 +119,56 @@ static void update_row_1(void)
 
 static void format_ai(char* buf, float val)
 {
-    char temp[16];
-    int  len = snprintf(temp, sizeof(temp), "%.3f", val);
-    if (len > 9)
+    if (isnan(val))
     {
-        len = snprintf(temp, sizeof(temp), "%.2f", val);
+        snprintf(buf, 10, "%-9.9s", "NaN");
+        return;
     }
-    if (len > 9)
+    if (isinf(val))
+    {
+        snprintf(buf, 10, "%-9.9s", (val > 0) ? "+Inf" : "-Inf");
+        return;
+    }
+
+    /* Clamp to a range that can be displayed in 9 chars with sign and . */
+    if (val > 99999.999f)
+    {
+        val = 99999.999f;
+    }
+    else if (val < -9999.999f)
+    {
+        val = -9999.999f;
+    }
+
+    char temp[16];
+    int  len;
+
+    if (val >= 10000.0f || val <= -1000.0f)
+    {
+        len = snprintf(temp, sizeof(temp), "%.0f", val);
+    }
+    else if (val >= 1000.0f || val <= -100.0f)
     {
         len = snprintf(temp, sizeof(temp), "%.1f", val);
     }
-    if (len > 9)
+    else if (val >= 100.0f || val <= -10.0f)
     {
-        (void)snprintf(temp, sizeof(temp), "%.0f", val);
+        len = snprintf(temp, sizeof(temp), "%.2f", val);
     }
-    (void)snprintf(buf, 10, "%-9.9s", temp);
+    else
+    {
+        len = snprintf(temp, sizeof(temp), "%.3f", val);
+    }
+
+    /* Final check to prevent overflow, though clamping should prevent this. */
+    if (len >= 10)
+    {
+        snprintf(buf, 10, "%-9.9s", "OVF");
+    }
+    else
+    {
+        snprintf(buf, 10, "%-9.9s", temp);
+    }
 }
 
 static void update_row_2(void)
