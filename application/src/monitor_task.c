@@ -134,7 +134,6 @@ static void print_adc_values(void)
             /* Convert to millivolts (assuming 3.3V reference) */
             uint32_t mv = (uint32_t)(adc_values[ch] * 3300.0f);
             LOG_INF("CH%u:%4umV ", (unsigned int)ch, (unsigned int)mv);
-            LcdManager_UpdateAnalogInput(ch, adc_values[ch] * 3300.0f);
         }
     }
     else
@@ -150,16 +149,13 @@ static void print_digital_inputs(void)
 {
     uint32_t di_values[8];
 
-    /* Read all digital inputs */
+    /* Read all digital inputs (for logging only; LCD updates are owned by Main
+     * task to avoid lost-update races — see N-01). */
     for (uint8_t i = 0; i < 8U; i++)
     {
         if (BSP_GPIODI_Read(i, &di_values[i]) != BSP_OK)
         {
             di_values[i] = 0xFFU; /* Mark as error */
-        }
-        else
-        {
-            LcdManager_UpdateDigitalInputStatus(i, di_values[i] > 0);
         }
     }
 
@@ -175,25 +171,26 @@ static void print_digital_inputs(void)
  */
 static void update_time_and_ao(void)
 {
+    /* Logging only; LCD updates are owned by Main task to avoid lost-update
+     * races — see N-01. */
     App_RTC_TimeTypeDef timeDate;
     if (RTC_Manager_GetTimeAndDate(&timeDate))
     {
-        LcdManager_UpdateTime(timeDate.hours, timeDate.minutes,
-                              timeDate.seconds);
+        LOG_INF("[RTC] %02u:%02u:%02u", (unsigned int)timeDate.hours,
+                (unsigned int)timeDate.minutes, (unsigned int)timeDate.seconds);
     }
 
     jerry_device_holding_registers_t* regs =
         jerry_device_get_holding_registers();
 
-    /* Snapshot the shared register fields under the lock (BUG-04), then use
-     * the local copies outside the lock for the LCD update. */
+    /* Snapshot the shared register fields under the lock (BUG-04). */
     RegisterLock_Acquire();
     uint16_t pwm_0_duty = (uint16_t)regs->pwm_0_duty_cycle;
     uint16_t pwm_1_duty = (uint16_t)regs->pwm_1_duty_cycle;
     RegisterLock_Release();
 
-    LcdManager_UpdateAnalogOutput(0, pwm_0_duty);
-    LcdManager_UpdateAnalogOutput(1, pwm_1_duty);
+    LOG_INF("[AO] PWM0:%u PWM1:%u", (unsigned int)pwm_0_duty,
+            (unsigned int)pwm_1_duty);
 }
 
 /* Stack Monitor Task */

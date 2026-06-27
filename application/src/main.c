@@ -13,9 +13,12 @@
 #include "app_tasks.h"
 #include "bsp.h"
 #include "digital_output.h"
+#include "jerry_device_registers.h"
 #include "lcd_manager.h"
 #include "log.h"
 #include "logging_port.h"
+#include "register_lock.h"
+#include "rtc_manager.h"
 #include "task.h"
 #include "timers.h"
 
@@ -496,11 +499,15 @@ void vMainTask(void* pvParameters)
     /* Sync digital output LCD state now that LCD task is ready */
     DigitalOutput_SyncLcd();
 
+    /* Counter for sub-interval updates (ADC/AO every 3 s = 6 × 500 ms) */
+    uint32_t update_counter = 0U;
+
     for (;;)
     {
-        /* Main loop */
+        /* Main loop: 500 ms interval */
         vTaskDelay(pdMS_TO_TICKS(500));
 
+        /* Digital inputs: every loop (500 ms) */
         for (uint8_t digitalInputChannelIndex = BSP_GPIODI_INDEX_0;
              digitalInputChannelIndex <= BSP_GPIODI_INDEX_7;
              digitalInputChannelIndex++)
@@ -508,17 +515,57 @@ void vMainTask(void* pvParameters)
             uint32_t digitalInputValue;
             bool     digitalInputStatus;
 
-            BSP_GPIODI_Read(digitalInputChannelIndex, &digitalInputValue);
-            if (digitalInputValue == GPIO_PIN_SET)
+            if (BSP_GPIODI_Read(digitalInputChannelIndex, &digitalInputValue) ==
+                BSP_OK)
             {
-                digitalInputStatus = true;
+                if (digitalInputValue == GPIO_PIN_SET)
+                {
+                    digitalInputStatus = true;
+                }
+                else
+                {
+                    digitalInputStatus = false;
+                }
+                LcdManager_UpdateDigitalInputStatus(digitalInputChannelIndex,
+                                                    digitalInputStatus);
             }
-            else
+        }
+
+        /* RTC time: every loop (500 ms) */
+        App_RTC_TimeTypeDef timeDate;
+        if (RTC_Manager_GetTimeAndDate(&timeDate))
+        {
+            LcdManager_UpdateTime(timeDate.hours, timeDate.minutes,
+                                  timeDate.seconds);
+        }
+
+        /* Analog inputs (ADC) and outputs (AO): every 3 s (6 × 500 ms) */
+        update_counter++;
+        if (update_counter >= 6U)
+        {
+            update_counter = 0U;
+
+            /* Update analog inputs (ADC) on LCD */
+            float32_t adc_values[BSP_ADC1_NUM_CHANNELS];
+            if (BSP_ADC1_IsFilterSettled() &&
+                (BSP_ADC1_GetFilteredValuesAll(adc_values) == BSP_OK))
             {
-                digitalInputStatus = false;
+                for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
+                {
+                    LcdManager_UpdateAnalogInput(ch, adc_values[ch] * 3300.0f);
+                }
             }
-            LcdManager_UpdateDigitalInputStatus(digitalInputChannelIndex,
-                                                digitalInputStatus);
+
+            /* Update analog outputs (PWM duty cycles) on LCD */
+            jerry_device_holding_registers_t* regs =
+                jerry_device_get_holding_registers();
+            RegisterLock_Acquire();
+            uint16_t pwm_0_duty = (uint16_t)regs->pwm_0_duty_cycle;
+            uint16_t pwm_1_duty = (uint16_t)regs->pwm_1_duty_cycle;
+            RegisterLock_Release();
+
+            LcdManager_UpdateAnalogOutput(0, pwm_0_duty);
+            LcdManager_UpdateAnalogOutput(1, pwm_1_duty);
         }
     }
 }
