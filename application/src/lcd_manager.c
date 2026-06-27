@@ -98,9 +98,17 @@ static LcdI2cHandle lcd_handle;
 static void update_row_0(void)
 {
     char temp[32];
-    snprintf(temp, sizeof(temp), "IP:%02X MB:%02X %02u:%02u:%02u", gIpLastOctet,
-             gModbusAddress, gRtcHours % 100U, gRtcMinutes % 100U,
-             gRtcSeconds % 100U);
+    if (gRtcHours >= 24 || gRtcMinutes >= 60 || gRtcSeconds >= 60)
+    {
+        snprintf(temp, sizeof(temp), "IP:%02X MB:%02X --:--:--", gIpLastOctet,
+                 gModbusAddress);
+    }
+    else
+    {
+        snprintf(temp, sizeof(temp), "IP:%02X MB:%02X %02u:%02u:%02u",
+                 gIpLastOctet, gModbusAddress, (unsigned)gRtcHours,
+                 (unsigned)gRtcMinutes, (unsigned)gRtcSeconds);
+    }
     strncpy(gLcdStrings[0], temp, LCD_MANAGER_COLS_MAX);
     gLcdStrings[0][LCD_MANAGER_COLS_MAX] = '\0';
     lcdManager_MarkRowDirty(0U);

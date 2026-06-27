@@ -231,68 +231,63 @@ void vModbusTask(void *pvParameters)
  */
 static void modbus_tcp_server_thread(void *arg)
 {
-    struct netconn *listen_conn;
-    struct netconn *new_conn;
-    err_t           err;
-
     (void)arg;
 
-    LOG_INF("[Modbus]: Available netconns: %d",
-            lwip_stats.memp[MEMP_NETCONN]->avail);
-    /* Create a new TCP connection handle */
-    listen_conn = netconn_new(NETCONN_TCP);
-    if (listen_conn == NULL)
-    {
-        LOG_INF("[Modbus]: Failed to create connection");
-        return;
-    }
-
-    /* Bind to Modbus TCP port */
-    err = netconn_bind(listen_conn, IP_ADDR_ANY, MODBUS_TCP_PORT);
-    if (err != ERR_OK)
-    {
-        LOG_INF("[Modbus]: Failed to bind to port %u: %d", MODBUS_TCP_PORT,
-                err);
-        netconn_delete(listen_conn);
-        return;
-    }
-
-    /* Start listening */
-    err = netconn_listen(listen_conn);
-    if (err != ERR_OK)
-    {
-        LOG_INF("[Modbus]: Failed to listen: %d", err);
-        netconn_delete(listen_conn);
-        return;
-    }
-
-    LOG_INF("[Modbus] TCP Server listening on port %u", MODBUS_TCP_PORT);
-
-    /* Main server loop */
     while (1)
     {
-        /* Accept new connections */
-        err = netconn_accept(listen_conn, &new_conn);
-        if (err == ERR_OK)
+        struct netconn *listen_conn = netconn_new(NETCONN_TCP);
+        if (listen_conn == NULL)
         {
-            LOG_INF("[Modbus]: New connection accepted");
-
-            /* Set receive timeout */
-            netconn_set_recvtimeout(new_conn, MODBUS_RECV_TIMEOUT_MS);
-
-            /* Handle the connection (blocking) */
-            modbus_handle_connection(new_conn);
-
-            /* Clean up */
-            netconn_close(new_conn);
-            netconn_delete(new_conn);
-            LOG_INF("[Modbus]: Connection closed");
+            LOG_ERR(
+                "[Modbus] Failed to create listen connection. Retrying in 5s.");
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            continue;
         }
-        else
+
+        err_t err = netconn_bind(listen_conn, IP_ADDR_ANY, MODBUS_TCP_PORT);
+        if (err != ERR_OK)
         {
-            LOG_INF("[Modbus]: Accept error: %d", err);
-            vTaskDelay(pdMS_TO_TICKS(100));
+            LOG_ERR("[Modbus] Failed to bind to port %u: %d. Retrying in 5s.",
+                    MODBUS_TCP_PORT, err);
+            netconn_delete(listen_conn);
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            continue;
         }
+
+        err = netconn_listen(listen_conn);
+        if (err != ERR_OK)
+        {
+            LOG_ERR("[Modbus] Failed to listen: %d. Retrying in 5s.", err);
+            netconn_delete(listen_conn);
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            continue;
+        }
+
+        LOG_INF("[Modbus] TCP Server listening on port %u", MODBUS_TCP_PORT);
+
+        while (1)
+        {
+            struct netconn *new_conn;
+            err = netconn_accept(listen_conn, &new_conn);
+
+            if (err == ERR_OK)
+            {
+                LOG_INF("[Modbus] New connection accepted");
+                netconn_set_recvtimeout(new_conn, MODBUS_RECV_TIMEOUT_MS);
+                modbus_handle_connection(new_conn);
+                netconn_close(new_conn);
+                netconn_delete(new_conn);
+                LOG_INF("[Modbus] Connection closed");
+            }
+            else
+            {
+                LOG_ERR("[Modbus] Accept error: %d. Resetting listener.", err);
+                break; /* Break inner loop to re-create listen_conn */
+            }
+        }
+
+        netconn_close(listen_conn);
+        netconn_delete(listen_conn);
     }
 }
 

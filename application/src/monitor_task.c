@@ -147,7 +147,8 @@ static void print_adc_values(void)
  */
 static void print_digital_inputs(void)
 {
-    uint32_t di_values[8];
+    static char log_buf[128];
+    uint32_t    di_values[8];
 
     /* Read all digital inputs (for logging only; LCD updates are owned by Main
      * task to avoid lost-update races — see N-01). */
@@ -159,11 +160,26 @@ static void print_digital_inputs(void)
         }
     }
 
-    LOG_INF("[DI] DI0=%u DI1=%u DI2=%u DI3=%u DI4=%u DI5=%u DI6=%u DI7=%u",
-            (unsigned int)di_values[0], (unsigned int)di_values[1],
-            (unsigned int)di_values[2], (unsigned int)di_values[3],
-            (unsigned int)di_values[4], (unsigned int)di_values[5],
-            (unsigned int)di_values[6], (unsigned int)di_values[7]);
+    int offset = snprintf(log_buf, sizeof(log_buf), "[DI] ");
+    for (uint8_t i = 0; i < 8U; i++)
+    {
+        if (offset < (int)sizeof(log_buf))
+        {
+            if (di_values[i] == 0xFFU)
+            {
+                offset +=
+                    snprintf(&log_buf[offset], sizeof(log_buf) - (size_t)offset,
+                             "DI%u=ERR ", i);
+            }
+            else
+            {
+                offset +=
+                    snprintf(&log_buf[offset], sizeof(log_buf) - (size_t)offset,
+                             "DI%u=%u ", i, (unsigned int)di_values[i]);
+            }
+        }
+    }
+    LOG_INF("%s", log_buf);
 }
 
 /**
