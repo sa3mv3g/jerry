@@ -41,25 +41,87 @@
 #define KEY1_UNLOCK_VALUE (0x5555U)
 #define KEY2_UNLOCK_VALUE (0xDDDDU)
 
-static inline void f32_to_u16(float val, uint16_t *register_values)
+/**
+ * @brief Write one 16-bit word of a 32-bit float into a Modbus register slot.
+ *
+ * A 32-bit float spans two consecutive Modbus registers. When reading, the
+ * response encoder consumes the output buffer by relative position @c i, so
+ * each word must be written to ``&register_values[i]`` — never to the float's
+ * absolute register address. @p word_index selects which half of the float to
+ * emit (0 = first word, 1 = second word), matching the word order used by the
+ * write path (``num.u16[address - base]``).
+ *
+ * @param[in]  val           The float value to read from.
+ * @param[in]  word_index    0 for the first register of the pair, 1 for the
+ *                           second.
+ * @param[out] register_slot Destination register slot
+ * (``&register_values[i]``).
+ */
+static inline void f32_word_to_reg(float val, uint16_t word_index,
+                                   uint16_t *register_slot)
 {
     unpack_float_t num;
-    num.f32 = val;
-    memcpy(register_values, num.u16, sizeof(num.u16));
+    num.f32        = val;
+    *register_slot = num.u16[word_index & 1U];
 }
 
 /**
- * @brief Update a Modbus register with a filtered ADC value in millivolts
+ * @brief Emit one 16-bit word of a frozen 32-bit unsigned value.
+ *
+ * A 32-bit uint32 spans two consecutive Modbus registers. When reading, the
+ * response encoder consumes the output buffer by relative position @c i, so
+ * each word must be written to ``&register_values[i]`` — never to the uint32's
+ * absolute register address. @p word_index selects which half of the uint32 to
+ * emit (0 = first word, 1 = second word), matching the word order used by the
+ * write path (high word first via ``>>16``, then low word via ``&0xFFFF``).
+ *
+ * @param[in]  val           The uint32 value to read from.
+ * @param[in]  word_index    0 for the first register of the pair, 1 for the
+ *                           second.
+ * @param[out] register_slot Destination register slot
+ * (``&register_values[i]``).
+ *
+ * @note Word order (high-word-first) differs from f32_word_to_reg (memory
+ * order). Do not unify — preserve each convention to avoid breaking existing
+ * masters.
+ */
+static inline void u32_word_to_reg(uint32_t val, uint16_t word_index,
+                                   uint16_t *register_slot)
+{
+    *register_slot =
+        (word_index & 1U) ? (uint16_t)(val & 0xFFFFU) : (uint16_t)(val >> 16U);
+}
+
+/**
+ * @brief Check if a 2-register span [lo, hi] overlaps the requested range
+ * [start, end].
+ *
+ * Used to gate snapshot-stage computation: only compute a 32-bit value if the
+ * requested read range includes at least one of its two registers.
+ *
+ * @param start Start address of the requested range (inclusive).
+ * @param end   End address of the requested range (inclusive).
+ * @param lo    Start address of the 2-register span.
+ * @param hi    End address of the 2-register span (lo + 1).
+ * @return true if [start, end] overlaps [lo, hi]; false otherwise.
+ */
+static inline bool range_includes(uint16_t start, uint16_t end, uint16_t lo,
+                                  uint16_t hi)
+{
+    return (start <= hi) && (end >= lo);
+}
+
+/**
+ * @brief Sample a filtered ADC value into a struct field (snapshot stage).
  *
  * Reads the filtered ADC value from the specified channel, converts it from
- * volts to millivolts, and stores the result in both the register structure
- * field and the output array. The update only occurs if the ADC filter has
- * settled (reached steady state).
+ * volts to millivolts, and stores the result in the register structure field.
+ * The update only occurs if the ADC filter has settled (reached steady state).
+ * This function is called once per channel during the snapshot stage, before
+ * the per-register loop.
  *
  * @param[in]  channel      ADC1 channel index (e.g., BSP_ADC1_CHANNEL_A0)
  * @param[out] pStructField Pointer to the holding register structure field to
- * update
- * @param[out] pArr         Pointer to the Modbus response array element to
  * update
  *
  * @note If the filter has not settled or the ADC read fails, no update is
@@ -69,13 +131,10 @@ static inline void f32_to_u16(float val, uint16_t *register_values)
  * @see BSP_ADC1_IsFilterSettled()
  * @see BSP_ADC1_GetFilteredValue()
  */
-static void update_reg_with_adcval(uint16_t channel, uint16_t *pStructField,
-                                   uint16_t *pArr)
+static void sample_adc_into_struct(uint16_t channel, uint16_t *pStructField)
 {
-    // by default we get values in volts and hence float
-    float32_t adcValv = 0;
-    // then we convert it to mv and save it in an integer
-    uint16_t adcValmv = 0;
+    float32_t adcValv  = 0;
+    uint16_t  adcValmv = 0;
     if (BSP_ADC1_IsFilterSettled())
     {
         if (BSP_OK != BSP_ADC1_GetFilteredValue(channel, &adcValv))
@@ -83,14 +142,18 @@ static void update_reg_with_adcval(uint16_t channel, uint16_t *pStructField,
             adcValv = 0.0f;
         }
 
-        adcValmv = (uint16_t)(adcValv * 1000.0);
-        *pArr = *pStructField = adcValmv;
+        adcValmv      = (uint16_t)(adcValv * 1000.0);
+        *pStructField = adcValmv;
     }
 }
 
 /**
- * @brief Compute calibrated ADC value using y = m*x + c with dead zone, and
- *        pack the result as a float32 into the Modbus register array.
+ * @brief Sample a calibrated ADC value into a struct field (snapshot stage).
+ *
+ * Reads the filtered ADC value from the specified channel, applies the
+ * calibration formula (y = m*x + c) with dead zone, and stores the result
+ * in the input registers structure field. This function is called once per
+ * channel during the snapshot stage, before the per-register loop.
  *
  * The calibration formula applied is:
  *   calibrated = scale_factor * raw_volts + offset_term
@@ -98,19 +161,20 @@ static void update_reg_with_adcval(uint16_t channel, uint16_t *pStructField,
  * Dead zone: if the absolute value of raw_volts is less than dead_zone,
  * the output is forced to 0.0f (treats near-zero signals as zero).
  *
- * @param channel      BSP ADC channel identifier
- * @param scale_factor m — multiplicative scale factor
- * @param offset_term  c — additive offset
- * @param dead_zone    Minimum absolute input magnitude; below this output = 0
+ * @param channel           BSP ADC channel identifier
+ * @param scale_factor      m — multiplicative scale factor
+ * @param offset_term       c — additive offset
+ * @param dead_zone         Minimum absolute input magnitude; below this output
+ * = 0
  * @param pCalibratedField  Pointer to the float field in the input registers
  * struct
- * @param pRegBase     Pointer to the first of the two uint16_t Modbus registers
- *                     that hold this float32 value (base address, not [i])
+ *
+ * @note If the filter has not settled or the ADC read fails, no update is
+ * performed
  */
-static void update_calibrated_adcval(uint16_t channel, float scale_factor,
-                                     float offset_term, float dead_zone,
-                                     float    *pCalibratedField,
-                                     uint16_t *pRegBase)
+static void sample_calibrated_into_struct(uint16_t channel, float scale_factor,
+                                          float offset_term, float dead_zone,
+                                          float *pCalibratedField)
 {
     float32_t raw_volts  = 0.0f;
     float     calibrated = 0.0f;
@@ -122,19 +186,16 @@ static void update_calibrated_adcval(uint16_t channel, float scale_factor,
             raw_volts = 0.0f;
         }
 
+        /* y = m*x + c */
+        calibrated = (scale_factor * raw_volts) + offset_term;
+
         /* Apply dead zone: treat sub-threshold inputs as zero */
-        if ((raw_volts > -dead_zone) && (raw_volts < dead_zone))
+        if ((calibrated > -dead_zone) && (calibrated < dead_zone))
         {
             calibrated = 0.0f;
         }
-        else
-        {
-            /* y = m*x + c */
-            calibrated = (scale_factor * raw_volts) + offset_term;
-        }
 
         *pCalibratedField = calibrated;
-        f32_to_u16(calibrated, pRegBase);
     }
 }
 
@@ -193,18 +254,20 @@ static bsp_error_t update_digital_input(unsigned int channel, bool *pCoil,
     return apiStatus;
 }
 
+/*
+ * Always write the new calibration value to EEPROM (BUG-05).
+ *
+ * The previous implementation read the stored value back and skipped the write
+ * when it compared equal to the new value. That comparison used float `==`,
+ * which is unreliable (NaN/denormal/bit-pattern differences), so it could both
+ * skip needed writes and perform redundant ones. Calibration is an infrequent,
+ * master-initiated operation, so the redundant-write avoidance was of
+ * negligible benefit; we drop the read-back-and-compare entirely. If
+ * write-suppression is ever genuinely required, compare the raw bytes with
+ * memcmp() rather than float `==`.
+ */
 static inline bsp_error_t update_calibration(uint32_t address, float newValue)
 {
-    float       oldVal = 0.0f;
-    bsp_error_t err    = BSP_OK;
-
-    err = BSP_EEPROM_Read(address, (uint8_t *)&oldVal, sizeof(oldVal));
-
-    if (err == BSP_OK && oldVal == newValue)
-    {
-        return BSP_OK;
-    }
-
     return BSP_EEPROM_Write(address, (uint8_t *)&newValue, sizeof(newValue));
 }
 
@@ -218,11 +281,15 @@ static inline bsp_error_t update_calibration(uint32_t address, float newValue)
 modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                                         uint16_t quantity, uint8_t *coil_values)
 {
-    jerry_device_coils_t *coils       = jerry_device_get_coils();
-    uint16_t              end_address = start_address + quantity - 1U;
-    uint16_t              byte_index;
-    uint16_t              bit_index;
-    bool                  value;
+    jerry_device_coils_t *coils = jerry_device_get_coils();
+    if (quantity == 0)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+    uint16_t end_address = start_address + quantity - 1U;
+    uint16_t byte_index;
+    uint16_t bit_index;
+    bool     value;
 
     /* Validate address range */
     if (!ADDR_IN_RANGE_FROM_ZERO(start_address, JERRY_DEVICE_COIL_MAX_ADDR) ||
@@ -251,6 +318,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_0 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_1:
                 if (BSP_OK !=
@@ -258,6 +326,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_1 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_2:
                 if (BSP_OK !=
@@ -265,6 +334,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_2 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_3:
                 if (BSP_OK !=
@@ -272,6 +342,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_3 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_4:
                 if (BSP_OK !=
@@ -279,6 +350,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_4 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_5:
                 if (BSP_OK !=
@@ -286,6 +358,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_5 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_6:
                 if (BSP_OK !=
@@ -293,6 +366,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_6 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_7:
                 if (BSP_OK !=
@@ -300,6 +374,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_7 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_8:
                 if (BSP_OK !=
@@ -307,6 +382,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_8 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_9:
                 if (BSP_OK !=
@@ -314,6 +390,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_9 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_10:
                 if (BSP_OK !=
@@ -321,6 +398,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_10 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_11:
                 if (BSP_OK !=
@@ -328,6 +406,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_11 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_12:
                 if (BSP_OK !=
@@ -335,6 +414,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_12 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_13:
                 if (BSP_OK !=
@@ -342,6 +422,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_13 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_14:
                 if (BSP_OK !=
@@ -349,6 +430,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_14 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_OUTPUT_15:
                 if (BSP_OK !=
@@ -356,6 +438,7 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
                 {
                     return MODBUS_EXCEPTION_SLAVE_DEVICE_FAILURE;
                 }
+                coils->digital_output_15 = value;
                 break;
             case JERRY_DEVICE_COIL_DIGITAL_INPUT_0:
                 if (BSP_OK != update_digital_input(BSP_GPIODI_INDEX_0,
@@ -694,10 +777,14 @@ modbus_exception_t modbus_cb_read_discrete_inputs(uint16_t start_address,
                                                   uint8_t *input_values)
 {
     jerry_device_discrete_inputs_t *inputs = jerry_device_get_discrete_inputs();
-    uint16_t                        end_address = start_address + quantity - 1U;
-    uint16_t                        byte_index;
-    uint16_t                        bit_index;
-    bool                            value;
+    if (quantity == 0)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
+    uint16_t end_address = start_address + quantity - 1U;
+    uint16_t byte_index;
+    uint16_t bit_index;
+    bool     value;
 
     /* Validate address range */
     if (!ADDR_IN_RANGE_FROM_ZERO(start_address, JERRY_DEVICE_DI_MAX_ADDR) ||
@@ -837,6 +924,10 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t  start_address,
 {
     jerry_device_holding_registers_t *regs =
         jerry_device_get_holding_registers();
+    if (quantity == 0)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
     uint16_t end_address = start_address + quantity - 1U;
 
     /* Validate address range */
@@ -866,6 +957,47 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t  start_address,
         }
     }
 
+    /* ---- Snapshot stage (BUG-19): compute every volatile/32-bit value once
+     * ---- */
+
+    /* System tick: write both words from a single tick read. */
+    if (range_includes(start_address, end_address,
+                       JERRY_DEVICE_HR_SYSTEM_TICK_LOW,
+                       JERRY_DEVICE_HR_SYSTEM_TICK_HIGH))
+    {
+        update_system_tick_registers(regs);
+    }
+
+    /* Build number: refresh once. */
+    if (range_includes(start_address, end_address,
+                       JERRY_DEVICE_HR_APP_BUILD_NUMBER,
+                       JERRY_DEVICE_HR_APP_BUILD_NUMBER + 1U))
+    {
+        regs->app_build_number = APP_BUILD_NUMBER;
+    }
+
+    /* ADC raw values: sample each channel at most once if in range. */
+    if (range_includes(start_address, end_address, JERRY_DEVICE_HR_ADC_0_VALUE,
+                       JERRY_DEVICE_HR_ADC_0_VALUE))
+    {
+        sample_adc_into_struct(BSP_ADC1_CHANNEL_A0, &regs->adc_0_value);
+    }
+    if (range_includes(start_address, end_address, JERRY_DEVICE_HR_ADC_1_VALUE,
+                       JERRY_DEVICE_HR_ADC_1_VALUE))
+    {
+        sample_adc_into_struct(BSP_ADC1_CHANNEL_A1, &regs->adc_1_value);
+    }
+    if (range_includes(start_address, end_address, JERRY_DEVICE_HR_ADC_2_VALUE,
+                       JERRY_DEVICE_HR_ADC_2_VALUE))
+    {
+        sample_adc_into_struct(BSP_ADC1_CHANNEL_A2, &regs->adc_2_value);
+    }
+    if (range_includes(start_address, end_address, JERRY_DEVICE_HR_ADC_3_VALUE,
+                       JERRY_DEVICE_HR_ADC_3_VALUE))
+    {
+        sample_adc_into_struct(BSP_ADC1_CHANNEL_A3, &regs->adc_3_value);
+    }
+
     /* Read each register */
     for (uint16_t i = 0U; i < quantity; i++)
     {
@@ -877,82 +1009,54 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t  start_address,
                 register_values[i] = (uint16_t)regs->pwm_0_duty_cycle;
                 break;
             case JERRY_DEVICE_HR_PWM_0_FREQUENCY:
-                /* High word of 32-bit value */
-                register_values[i] =
-                    (uint16_t)(((uint32_t)regs->pwm_0_frequency) >> 16U);
-                break;
             case JERRY_DEVICE_HR_PWM_0_FREQUENCY + 1U:
-                /* Low word of 32-bit value */
-                register_values[i] =
-                    (uint16_t)((uint32_t)regs->pwm_0_frequency & 0xFFFFU);
+                u32_word_to_reg((uint32_t)regs->pwm_0_frequency,
+                                addr - JERRY_DEVICE_HR_PWM_0_FREQUENCY,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_PWM_1_DUTY_CYCLE:
                 register_values[i] = (uint16_t)regs->pwm_1_duty_cycle;
                 break;
             case JERRY_DEVICE_HR_PWM_1_FREQUENCY:
-                /* High word of 32-bit value */
-                register_values[i] =
-                    (uint16_t)((uint32_t)regs->pwm_1_frequency >> 16U);
-                break;
             case JERRY_DEVICE_HR_PWM_1_FREQUENCY + 1U:
-                /* Low word of 32-bit value */
-                register_values[i] =
-                    (uint16_t)((uint32_t)regs->pwm_1_frequency & 0xFFFFU);
+                u32_word_to_reg((uint32_t)regs->pwm_1_frequency,
+                                addr - JERRY_DEVICE_HR_PWM_1_FREQUENCY,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_PWM_2_DUTY_CYCLE:
                 register_values[i] = (uint16_t)regs->pwm_2_duty_cycle;
                 break;
             case JERRY_DEVICE_HR_PWM_2_FREQUENCY:
-                /* High word of 32-bit value */
-                register_values[i] =
-                    (uint16_t)((uint32_t)regs->pwm_2_frequency >> 16U);
-                break;
             case JERRY_DEVICE_HR_PWM_2_FREQUENCY + 1U:
-                /* Low word of 32-bit value */
-                register_values[i] =
-                    (uint16_t)((uint32_t)regs->pwm_2_frequency & 0xFFFFU);
+                u32_word_to_reg((uint32_t)regs->pwm_2_frequency,
+                                addr - JERRY_DEVICE_HR_PWM_2_FREQUENCY,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_PWM_3_DUTY_CYCLE:
                 register_values[i] = (uint16_t)regs->pwm_3_duty_cycle;
                 break;
             case JERRY_DEVICE_HR_PWM_3_FREQUENCY:
-                /* High word of 32-bit value */
-                register_values[i] =
-                    (uint16_t)((uint32_t)regs->pwm_3_frequency >> 16U);
-                break;
             case JERRY_DEVICE_HR_PWM_3_FREQUENCY + 1U:
-                /* Low word of 32-bit value */
-                register_values[i] =
-                    (uint16_t)((uint32_t)regs->pwm_3_frequency & 0xFFFFU);
+                u32_word_to_reg((uint32_t)regs->pwm_3_frequency,
+                                addr - JERRY_DEVICE_HR_PWM_3_FREQUENCY,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_0_VALUE:
-                update_reg_with_adcval(BSP_ADC1_CHANNEL_A0,
-                                       &(regs->adc_0_value),
-                                       &register_values[i]);
+                register_values[i] = (uint16_t)regs->adc_0_value;
                 break;
             case JERRY_DEVICE_HR_ADC_1_VALUE:
-                update_reg_with_adcval(BSP_ADC1_CHANNEL_A1,
-                                       &(regs->adc_1_value),
-                                       &register_values[i]);
+                register_values[i] = (uint16_t)regs->adc_1_value;
                 break;
             case JERRY_DEVICE_HR_ADC_2_VALUE:
-                update_reg_with_adcval(BSP_ADC1_CHANNEL_A2,
-                                       &(regs->adc_2_value),
-                                       &register_values[i]);
+                register_values[i] = (uint16_t)regs->adc_2_value;
                 break;
             case JERRY_DEVICE_HR_ADC_3_VALUE:
-                update_reg_with_adcval(BSP_ADC1_CHANNEL_A3,
-                                       &(regs->adc_3_value),
-                                       &register_values[i]);
+                register_values[i] = (uint16_t)regs->adc_3_value;
                 break;
             case JERRY_DEVICE_HR_SYSTEM_TICK_LOW:
-                /* Update both tick registers before returning either one */
-                update_system_tick_registers(regs);
                 register_values[i] = (uint16_t)regs->system_tick_low;
                 break;
             case JERRY_DEVICE_HR_SYSTEM_TICK_HIGH:
-                /* Update both tick registers before returning either one */
-                update_system_tick_registers(regs);
                 register_values[i] = (uint16_t)regs->system_tick_high;
                 break;
             case JERRY_DEVICE_HR_RTC_YEAR:
@@ -987,89 +1091,92 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t  start_address,
                 register_values[i]      = (uint16_t)regs->app_version_patch;
                 break;
             case JERRY_DEVICE_HR_APP_BUILD_NUMBER:
-                /* Refresh build number then return high word of 32-bit value */
-                regs->app_build_number = APP_BUILD_NUMBER;
-                register_values[i] =
-                    (uint16_t)((uint32_t)regs->app_build_number >> 16U);
-                break;
             case JERRY_DEVICE_HR_APP_BUILD_NUMBER + 1U:
-                /* Low word of 32-bit value (build number already refreshed
-                 * above) */
-                regs->app_build_number = APP_BUILD_NUMBER;
-                register_values[i] =
-                    (uint16_t)((uint32_t)regs->app_build_number & 0xFFFFU);
+                u32_word_to_reg((uint32_t)regs->app_build_number,
+                                addr - JERRY_DEVICE_HR_APP_BUILD_NUMBER,
+                                &register_values[i]);
                 break;
 
-            /* ADC0 Calibration */
+            /* ADC0 Calibration (BUG-02: write to relative slot
+             * register_values[i], one word per register, not the absolute
+             * register address) */
             case JERRY_DEVICE_HR_ADC_0_SCALE_FACTOR:
             case JERRY_DEVICE_HR_ADC_0_SCALE_FACTOR + 1U:
-                f32_to_u16(
-                    regs->adc_0_scale_factor,
-                    &register_values[JERRY_DEVICE_HR_ADC_0_SCALE_FACTOR]);
+                f32_word_to_reg(regs->adc_0_scale_factor,
+                                addr - JERRY_DEVICE_HR_ADC_0_SCALE_FACTOR,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_0_OFFSET_TERM:
             case JERRY_DEVICE_HR_ADC_0_OFFSET_TERM + 1U:
-                f32_to_u16(regs->adc_0_offset_term,
-                           &register_values[JERRY_DEVICE_HR_ADC_0_OFFSET_TERM]);
+                f32_word_to_reg(regs->adc_0_offset_term,
+                                addr - JERRY_DEVICE_HR_ADC_0_OFFSET_TERM,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_0_DEAD_ZONE:
             case JERRY_DEVICE_HR_ADC_0_DEAD_ZONE + 1U:
-                f32_to_u16(regs->adc_0_dead_zone,
-                           &register_values[JERRY_DEVICE_HR_ADC_0_DEAD_ZONE]);
+                f32_word_to_reg(regs->adc_0_dead_zone,
+                                addr - JERRY_DEVICE_HR_ADC_0_DEAD_ZONE,
+                                &register_values[i]);
                 break;
 
             /* ADC1 Calibration */
             case JERRY_DEVICE_HR_ADC_1_SCALE_FACTOR:
             case JERRY_DEVICE_HR_ADC_1_SCALE_FACTOR + 1U:
-                f32_to_u16(
-                    regs->adc_1_scale_factor,
-                    &register_values[JERRY_DEVICE_HR_ADC_1_SCALE_FACTOR]);
+                f32_word_to_reg(regs->adc_1_scale_factor,
+                                addr - JERRY_DEVICE_HR_ADC_1_SCALE_FACTOR,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_1_OFFSET_TERM:
             case JERRY_DEVICE_HR_ADC_1_OFFSET_TERM + 1U:
-                f32_to_u16(regs->adc_1_offset_term,
-                           &register_values[JERRY_DEVICE_HR_ADC_1_OFFSET_TERM]);
+                f32_word_to_reg(regs->adc_1_offset_term,
+                                addr - JERRY_DEVICE_HR_ADC_1_OFFSET_TERM,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_1_DEAD_ZONE:
             case JERRY_DEVICE_HR_ADC_1_DEAD_ZONE + 1U:
-                f32_to_u16(regs->adc_1_dead_zone,
-                           &register_values[JERRY_DEVICE_HR_ADC_1_DEAD_ZONE]);
+                f32_word_to_reg(regs->adc_1_dead_zone,
+                                addr - JERRY_DEVICE_HR_ADC_1_DEAD_ZONE,
+                                &register_values[i]);
                 break;
 
             /* ADC2 Calibration */
             case JERRY_DEVICE_HR_ADC_2_SCALE_FACTOR:
             case JERRY_DEVICE_HR_ADC_2_SCALE_FACTOR + 1U:
-                f32_to_u16(
-                    regs->adc_2_scale_factor,
-                    &register_values[JERRY_DEVICE_HR_ADC_2_SCALE_FACTOR]);
+                f32_word_to_reg(regs->adc_2_scale_factor,
+                                addr - JERRY_DEVICE_HR_ADC_2_SCALE_FACTOR,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_2_OFFSET_TERM:
             case JERRY_DEVICE_HR_ADC_2_OFFSET_TERM + 1U:
-                f32_to_u16(regs->adc_2_offset_term,
-                           &register_values[JERRY_DEVICE_HR_ADC_2_OFFSET_TERM]);
+                f32_word_to_reg(regs->adc_2_offset_term,
+                                addr - JERRY_DEVICE_HR_ADC_2_OFFSET_TERM,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_2_DEAD_ZONE:
             case JERRY_DEVICE_HR_ADC_2_DEAD_ZONE + 1U:
-                f32_to_u16(regs->adc_2_dead_zone,
-                           &register_values[JERRY_DEVICE_HR_ADC_2_DEAD_ZONE]);
+                f32_word_to_reg(regs->adc_2_dead_zone,
+                                addr - JERRY_DEVICE_HR_ADC_2_DEAD_ZONE,
+                                &register_values[i]);
                 break;
 
             /* ADC3 Calibration */
             case JERRY_DEVICE_HR_ADC_3_SCALE_FACTOR:
             case JERRY_DEVICE_HR_ADC_3_SCALE_FACTOR + 1U:
-                f32_to_u16(
-                    regs->adc_3_scale_factor,
-                    &register_values[JERRY_DEVICE_HR_ADC_3_SCALE_FACTOR]);
+                f32_word_to_reg(regs->adc_3_scale_factor,
+                                addr - JERRY_DEVICE_HR_ADC_3_SCALE_FACTOR,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_3_OFFSET_TERM:
             case JERRY_DEVICE_HR_ADC_3_OFFSET_TERM + 1U:
-                f32_to_u16(regs->adc_3_offset_term,
-                           &register_values[JERRY_DEVICE_HR_ADC_3_OFFSET_TERM]);
+                f32_word_to_reg(regs->adc_3_offset_term,
+                                addr - JERRY_DEVICE_HR_ADC_3_OFFSET_TERM,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_3_DEAD_ZONE:
             case JERRY_DEVICE_HR_ADC_3_DEAD_ZONE + 1U:
-                f32_to_u16(regs->adc_3_dead_zone,
-                           &register_values[JERRY_DEVICE_HR_ADC_3_DEAD_ZONE]);
+                f32_word_to_reg(regs->adc_3_dead_zone,
+                                addr - JERRY_DEVICE_HR_ADC_3_DEAD_ZONE,
+                                &register_values[i]);
                 break;
 
             default:
@@ -1442,6 +1549,10 @@ modbus_exception_t modbus_cb_read_input_registers(uint16_t  start_address,
     jerry_device_input_registers_t   *regs = jerry_device_get_input_registers();
     jerry_device_holding_registers_t *hrRegs =
         jerry_device_get_holding_registers();
+    if (quantity == 0)
+    {
+        return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+    }
     uint16_t end_address = start_address + quantity - 1U;
 
     /* Validate address range */
@@ -1449,6 +1560,55 @@ modbus_exception_t modbus_cb_read_input_registers(uint16_t  start_address,
         !ADDR_IN_RANGE_FROM_ZERO(end_address, JERRY_DEVICE_IR_MAX_ADDR))
     {
         return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
+    }
+
+    /* ---- Snapshot stage (BUG-19): sample each in-range calibrated value once
+     * ---- */
+
+    /* Sample calibrated ADC values if in range. */
+    if (range_includes(start_address, end_address,
+                       JERRY_DEVICE_IR_ADC_0_CALIBRATED_VALUE,
+                       JERRY_DEVICE_IR_ADC_0_CALIBRATED_VALUE + 1U))
+    {
+        sample_calibrated_into_struct(
+            BSP_ADC1_CHANNEL_A0, hrRegs->adc_0_scale_factor,
+            hrRegs->adc_0_offset_term, hrRegs->adc_0_dead_zone,
+            &regs->adc_0_calibrated_value);
+    }
+    if (range_includes(start_address, end_address,
+                       JERRY_DEVICE_IR_ADC_1_CALIBRATED_VALUE,
+                       JERRY_DEVICE_IR_ADC_1_CALIBRATED_VALUE + 1U))
+    {
+        sample_calibrated_into_struct(
+            BSP_ADC1_CHANNEL_A1, hrRegs->adc_1_scale_factor,
+            hrRegs->adc_1_offset_term, hrRegs->adc_1_dead_zone,
+            &regs->adc_1_calibrated_value);
+    }
+    if (range_includes(start_address, end_address,
+                       JERRY_DEVICE_IR_ADC_2_CALIBRATED_VALUE,
+                       JERRY_DEVICE_IR_ADC_2_CALIBRATED_VALUE + 1U))
+    {
+        sample_calibrated_into_struct(
+            BSP_ADC1_CHANNEL_A2, hrRegs->adc_2_scale_factor,
+            hrRegs->adc_2_offset_term, hrRegs->adc_2_dead_zone,
+            &regs->adc_2_calibrated_value);
+    }
+    if (range_includes(start_address, end_address,
+                       JERRY_DEVICE_IR_ADC_3_CALIBRATED_VALUE,
+                       JERRY_DEVICE_IR_ADC_3_CALIBRATED_VALUE + 1U))
+    {
+        sample_calibrated_into_struct(
+            BSP_ADC1_CHANNEL_A3, hrRegs->adc_3_scale_factor,
+            hrRegs->adc_3_offset_term, hrRegs->adc_3_dead_zone,
+            &regs->adc_3_calibrated_value);
+    }
+
+    /* Build number: refresh once. */
+    if (range_includes(start_address, end_address,
+                       JERRY_DEVICE_IR_APP_BUILD_NUMBER,
+                       JERRY_DEVICE_IR_APP_BUILD_NUMBER + 1U))
+    {
+        regs->app_build_number = APP_BUILD_NUMBER;
     }
 
     /* Read each register */
@@ -1472,35 +1632,27 @@ modbus_exception_t modbus_cb_read_input_registers(uint16_t  start_address,
                 break;
             case JERRY_DEVICE_IR_ADC_0_CALIBRATED_VALUE:
             case JERRY_DEVICE_IR_ADC_0_CALIBRATED_VALUE + 1:
-                update_calibrated_adcval(
-                    BSP_ADC1_CHANNEL_A0, hrRegs->adc_0_scale_factor,
-                    hrRegs->adc_0_offset_term, hrRegs->adc_0_dead_zone,
-                    &regs->adc_0_calibrated_value,
-                    &register_values[JERRY_DEVICE_IR_ADC_0_CALIBRATED_VALUE]);
+                f32_word_to_reg(regs->adc_0_calibrated_value,
+                                addr - JERRY_DEVICE_IR_ADC_0_CALIBRATED_VALUE,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_IR_ADC_1_CALIBRATED_VALUE:
             case JERRY_DEVICE_IR_ADC_1_CALIBRATED_VALUE + 1:
-                update_calibrated_adcval(
-                    BSP_ADC1_CHANNEL_A1, hrRegs->adc_1_scale_factor,
-                    hrRegs->adc_1_offset_term, hrRegs->adc_1_dead_zone,
-                    &regs->adc_1_calibrated_value,
-                    &register_values[JERRY_DEVICE_IR_ADC_1_CALIBRATED_VALUE]);
+                f32_word_to_reg(regs->adc_1_calibrated_value,
+                                addr - JERRY_DEVICE_IR_ADC_1_CALIBRATED_VALUE,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_IR_ADC_2_CALIBRATED_VALUE:
             case JERRY_DEVICE_IR_ADC_2_CALIBRATED_VALUE + 1:
-                update_calibrated_adcval(
-                    BSP_ADC1_CHANNEL_A2, hrRegs->adc_2_scale_factor,
-                    hrRegs->adc_2_offset_term, hrRegs->adc_2_dead_zone,
-                    &regs->adc_2_calibrated_value,
-                    &register_values[JERRY_DEVICE_IR_ADC_2_CALIBRATED_VALUE]);
+                f32_word_to_reg(regs->adc_2_calibrated_value,
+                                addr - JERRY_DEVICE_IR_ADC_2_CALIBRATED_VALUE,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_IR_ADC_3_CALIBRATED_VALUE:
             case JERRY_DEVICE_IR_ADC_3_CALIBRATED_VALUE + 1:
-                update_calibrated_adcval(
-                    BSP_ADC1_CHANNEL_A3, hrRegs->adc_3_scale_factor,
-                    hrRegs->adc_3_offset_term, hrRegs->adc_3_dead_zone,
-                    &regs->adc_3_calibrated_value,
-                    &register_values[JERRY_DEVICE_IR_ADC_3_CALIBRATED_VALUE]);
+                f32_word_to_reg(regs->adc_3_calibrated_value,
+                                addr - JERRY_DEVICE_IR_ADC_3_CALIBRATED_VALUE,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_IR_APP_VERSION_MAJOR:
                 /* Refresh from compile-time constants before reading */
@@ -1516,17 +1668,10 @@ modbus_exception_t modbus_cb_read_input_registers(uint16_t  start_address,
                 register_values[i]      = (uint16_t)regs->app_version_patch;
                 break;
             case JERRY_DEVICE_IR_APP_BUILD_NUMBER:
-                /* Refresh build number then return high word of 32-bit value */
-                regs->app_build_number = APP_BUILD_NUMBER;
-                register_values[i] =
-                    (uint16_t)((uint32_t)regs->app_build_number >> 16U);
-                break;
             case JERRY_DEVICE_IR_APP_BUILD_NUMBER + 1U:
-                regs->app_build_number = APP_BUILD_NUMBER;
-                /* Low word of 32-bit value (build number already refreshed
-                 * above) */
-                register_values[i] =
-                    (uint16_t)((uint32_t)regs->app_build_number & 0xFFFFU);
+                u32_word_to_reg((uint32_t)regs->app_build_number,
+                                addr - JERRY_DEVICE_IR_APP_BUILD_NUMBER,
+                                &register_values[i]);
                 break;
             default:
                 return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;

@@ -25,6 +25,7 @@
 #include "lwip/sys.h"
 #include "modbus_callbacks.h"
 #include "modbus_internal.h"
+#include "register_lock.h"
 #include "task.h"
 
 /* ==========================================================================
@@ -109,8 +110,9 @@ void vModbusTask(void *pvParameters)
     LOG_INF("[Modbus] Device address from DEVADDR pins: %u, Unit ID: %u",
             dev_addr, s_modbus_unit_id);
 
-    /* Initialize register data structures */
+    /* Initialize register data structures and the mutex guarding them */
     jerry_device_registers_init();
+    RegisterLock_Init();
     /* Read parameters from EEPROM */
     hrRegs = jerry_device_get_holding_registers();
     do
@@ -195,11 +197,19 @@ void vModbusTask(void *pvParameters)
 
     LcdManager_UpdateModbusDeviceAddress(s_modbus_unit_id);
     initDigitalOutputCoilsValues = 0x0;
-
     if (BSP_OK == BSP_I2CDO_Read(&initDigitalOutputCoilsValues))
     {
-        modbus_cb_write_multiple_coils(
-            0, 16, (const uint8_t *)&initDigitalOutputCoilsValues);
+        /*
+         * Corrects endianness issue N-02.
+         * The 16-bit value from the I2C I/O expander is explicitly
+         * unpacked into a 2-byte array to match the Modbus coil packing
+         * order (little-endian: byte 0 = coils 0-7, byte 1 = coils 8-15).
+         * This avoids an undefined-behavior pointer cast and makes the
+         * byte order explicit.
+         */
+        uint8_t coils[2] = {(uint8_t)(initDigitalOutputCoilsValues & 0xFFU),
+                            (uint8_t)(initDigitalOutputCoilsValues >> 8)};
+        modbus_cb_write_multiple_coils(0, 16, coils);
     }
 
     /* Start the Modbus TCP server */
@@ -221,68 +231,70 @@ void vModbusTask(void *pvParameters)
  */
 static void modbus_tcp_server_thread(void *arg)
 {
-    struct netconn *listen_conn;
-    struct netconn *new_conn;
-    err_t           err;
-
     (void)arg;
 
-    LOG_INF("[Modbus]: Available netconns: %d",
-            lwip_stats.memp[MEMP_NETCONN]->avail);
-    /* Create a new TCP connection handle */
-    listen_conn = netconn_new(NETCONN_TCP);
-    if (listen_conn == NULL)
-    {
-        LOG_INF("[Modbus]: Failed to create connection");
-        return;
-    }
-
-    /* Bind to Modbus TCP port */
-    err = netconn_bind(listen_conn, IP_ADDR_ANY, MODBUS_TCP_PORT);
-    if (err != ERR_OK)
-    {
-        LOG_INF("[Modbus]: Failed to bind to port %u: %d", MODBUS_TCP_PORT,
-                err);
-        netconn_delete(listen_conn);
-        return;
-    }
-
-    /* Start listening */
-    err = netconn_listen(listen_conn);
-    if (err != ERR_OK)
-    {
-        LOG_INF("[Modbus]: Failed to listen: %d", err);
-        netconn_delete(listen_conn);
-        return;
-    }
-
-    LOG_INF("[Modbus] TCP Server listening on port %u", MODBUS_TCP_PORT);
-
-    /* Main server loop */
     while (1)
     {
-        /* Accept new connections */
-        err = netconn_accept(listen_conn, &new_conn);
-        if (err == ERR_OK)
+#if LWIP_STATS && MEMP_STATS
+        if (lwip_stats.memp[MEMP_NETCONN] != NULL)
         {
-            LOG_INF("[Modbus]: New connection accepted");
-
-            /* Set receive timeout */
-            netconn_set_recvtimeout(new_conn, MODBUS_RECV_TIMEOUT_MS);
-
-            /* Handle the connection (blocking) */
-            modbus_handle_connection(new_conn);
-
-            /* Clean up */
-            netconn_close(new_conn);
-            netconn_delete(new_conn);
-            LOG_INF("[Modbus]: Connection closed");
+            LOG_INF("[Modbus]: Available netconns: %u",
+                    (unsigned int)lwip_stats.memp[MEMP_NETCONN]->avail);
         }
-        else
+#endif
+        struct netconn *listen_conn = netconn_new(NETCONN_TCP);
+        if (listen_conn == NULL)
         {
-            LOG_INF("[Modbus]: Accept error: %d", err);
-            vTaskDelay(pdMS_TO_TICKS(100));
+            LOG_ERR(
+                "[Modbus] Failed to create listen connection. Retrying in 5s.");
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            continue;
         }
+
+        err_t err = netconn_bind(listen_conn, IP_ADDR_ANY, MODBUS_TCP_PORT);
+        if (err != ERR_OK)
+        {
+            LOG_ERR("[Modbus] Failed to bind to port %u: %d. Retrying in 5s.",
+                    MODBUS_TCP_PORT, err);
+            netconn_delete(listen_conn);
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            continue;
+        }
+
+        err = netconn_listen(listen_conn);
+        if (err != ERR_OK)
+        {
+            LOG_ERR("[Modbus] Failed to listen: %d. Retrying in 5s.", err);
+            netconn_delete(listen_conn);
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            continue;
+        }
+
+        LOG_INF("[Modbus] TCP Server listening on port %u", MODBUS_TCP_PORT);
+
+        while (1)
+        {
+            struct netconn *new_conn;
+            err = netconn_accept(listen_conn, &new_conn);
+
+            if (err == ERR_OK)
+            {
+                LOG_INF("[Modbus] New connection accepted");
+                netconn_set_recvtimeout(new_conn, MODBUS_RECV_TIMEOUT_MS);
+                modbus_handle_connection(new_conn);
+                netconn_close(new_conn);
+                netconn_delete(new_conn);
+                LOG_INF("[Modbus] Connection closed");
+            }
+            else
+            {
+                LOG_ERR("[Modbus] Accept error: %d. Resetting listener.", err);
+                break; /* Break inner loop to re-create listen_conn */
+            }
+        }
+
+        netconn_close(listen_conn);
+        netconn_delete(listen_conn);
     }
 }
 
@@ -293,38 +305,61 @@ static void modbus_handle_connection(struct netconn *conn)
 {
     struct netbuf *buf;
     err_t          err;
-    void          *data;
-    u16_t          len;
-    uint16_t       response_len;
-    modbus_error_t modbus_err;
+    uint16_t       total_len = 0;
 
     while (1)
     {
-        /* Receive data */
         err = netconn_recv(conn, &buf);
         if (err == ERR_OK)
         {
-            /* Get data from netbuf */
-            netbuf_data(buf, &data, &len);
+            struct pbuf *p;
+            uint16_t     len;
+            bool         overflow = false;
 
-            if (len > 0U)
+            /* Walk the pbuf chain to copy all fragments into a single buffer */
+            for (p = buf->p; p != NULL; p = p->next)
             {
-                /* Copy to receive buffer */
-                uint16_t copy_len = (len > sizeof(s_rx_buffer))
-                                        ? (uint16_t)sizeof(s_rx_buffer)
-                                        : len;
-                (void)memcpy(s_rx_buffer, data, copy_len);
-
-                /* Process the Modbus request */
-                modbus_err = modbus_process_request(s_rx_buffer, copy_len,
-                                                    s_tx_buffer, &response_len);
-
-                if (modbus_err == MODBUS_OK)
+                len = p->len;
+                if (total_len + len > sizeof(s_rx_buffer))
                 {
-                    /* Send response only if there is data to send */
-                    /* (response_len=0 means request was for different unit ID)
-                     */
-                    if (response_len > 0U)
+                    LOG_ERR(
+                        "[Modbus] RX buffer overflow. Dropping oversized "
+                        "frame.");
+                    total_len = 0; /* Reset for next frame */
+                    overflow  = true;
+                }
+                else
+                {
+                    memcpy(&s_rx_buffer[total_len], p->payload, len);
+                    total_len += len;
+                }
+                if (overflow)
+                {
+                    break;
+                }
+            }
+
+            netbuf_delete(buf);
+
+            if (overflow)
+            {
+                continue;
+            }
+
+            if (total_len >= 6)
+            {
+                uint16_t expected_len =
+                    (uint16_t)((s_rx_buffer[4] << 8) | s_rx_buffer[5]) + 6;
+
+                if (total_len >= expected_len)
+                {
+                    modbus_error_t modbus_err;
+                    uint16_t       response_len;
+
+                    modbus_err = modbus_process_request(
+                        s_rx_buffer, expected_len, s_tx_buffer, &response_len);
+
+                    if (modbus_err == MODBUS_OK && response_len > 0)
                     {
                         err = netconn_write(conn, s_tx_buffer, response_len,
                                             NETCONN_COPY);
@@ -333,22 +368,28 @@ static void modbus_handle_connection(struct netconn *conn)
                             LOG_ERR("[Modbus]: Write error: %d", err);
                         }
                     }
-                }
-                else
-                {
-                    LOG_ERR("[Modbus]: Process error: %d", (int)modbus_err);
+                    else if (modbus_err != MODBUS_OK)
+                    {
+                        LOG_ERR("[Modbus]: Process error: %d", (int)modbus_err);
+                    }
+
+                    /* Reset for next frame */
+                    total_len = 0;
                 }
             }
-
-            netbuf_delete(buf);
         }
         else if (err == ERR_TIMEOUT)
         {
-            /* Timeout - continue waiting */
+            if (total_len > 0)
+            {
+                LOG_WRN(
+                    "[Modbus] Discarding partial frame on timeout (%u bytes)",
+                    total_len);
+                total_len = 0;
+            }
         }
         else
         {
-            /* Connection error - exit */
             LOG_ERR("[Modbus]: Receive error: %d", err);
             break;
         }
@@ -363,6 +404,10 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
                                              uint8_t       *response,
                                              uint16_t      *response_len)
 {
+    /* These static variables are used to avoid large stack allocations. This is
+     * only safe because the server is single-threaded and handles one
+     * connection at a time. If multi-threaded connection handling is added,
+     * these must be allocated per-connection. */
     static modbus_adu_t request_adu;
     static modbus_adu_t response_adu;
     static modbus_pdu_t response_pdu;
@@ -389,14 +434,18 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
     /* Initialize response PDU */
     (void)memset(&response_pdu, 0, sizeof(response_pdu));
 
+    /* Guard all shared register access performed by the callbacks below
+     * (BUG-04). The lock is released on every exit path from here on. */
+    RegisterLock_Acquire();
+
     /* Process based on function code */
     switch (request_adu.pdu.function_code)
     {
         case MODBUS_FC_READ_COILS:
         {
-            uint16_t start_address;
-            uint16_t quantity;
-            uint8_t  coil_values[256];
+            uint16_t       start_address;
+            uint16_t       quantity;
+            static uint8_t coil_values[256];
 
             err = modbus_pdu_decode_read_bits_request(
                 &request_adu.pdu, &start_address, &quantity);
@@ -416,9 +465,9 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
 
         case MODBUS_FC_READ_DISCRETE_INPUTS:
         {
-            uint16_t start_address;
-            uint16_t quantity;
-            uint8_t  input_values[256];
+            uint16_t       start_address;
+            uint16_t       quantity;
+            static uint8_t input_values[256];
 
             err = modbus_pdu_decode_read_bits_request(
                 &request_adu.pdu, &start_address, &quantity);
@@ -438,9 +487,9 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
 
         case MODBUS_FC_READ_HOLDING_REGISTERS:
         {
-            uint16_t start_address;
-            uint16_t quantity;
-            uint16_t register_values[125];
+            uint16_t        start_address;
+            uint16_t        quantity;
+            static uint16_t register_values[125];
 
             err = modbus_pdu_decode_read_registers_request(
                 &request_adu.pdu, &start_address, &quantity);
@@ -460,9 +509,9 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
 
         case MODBUS_FC_READ_INPUT_REGISTERS:
         {
-            uint16_t start_address;
-            uint16_t quantity;
-            uint16_t register_values[125];
+            uint16_t        start_address;
+            uint16_t        quantity;
+            static uint16_t register_values[125];
 
             err = modbus_pdu_decode_read_registers_request(
                 &request_adu.pdu, &start_address, &quantity);
@@ -545,9 +594,9 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
 
         case MODBUS_FC_WRITE_MULTIPLE_REGISTERS:
         {
-            uint16_t start_address;
-            uint16_t quantity;
-            uint16_t values[123];
+            uint16_t        start_address;
+            uint16_t        quantity;
+            static uint16_t values[123];
 
             err = modbus_pdu_decode_write_multiple_registers_request(
                 &request_adu.pdu, &start_address, &quantity, values, 123U);
@@ -576,6 +625,9 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
         err = modbus_pdu_encode_exception(
             &response_pdu, request_adu.pdu.function_code, exception);
     }
+
+    /* Done touching shared register data — release the lock. */
+    RegisterLock_Release();
 
     if (err != MODBUS_OK)
     {

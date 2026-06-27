@@ -10,12 +10,13 @@
  * @copyright Copyright (c) 2026
  */
 
+#include "digital_output.h"
+
 #include <stdio.h>
 
 #include "bsp.h"
-#include "log.h"
-#include "digital_output.h"
 #include "lcd_manager.h"
+#include "log.h"
 
 /* ==========================================================================
  * Private Variable Declarations
@@ -103,8 +104,8 @@ bsp_error_t DigitalOutput_SetChannel(uint16_t channel, bool value)
         }
         else
         {
-            LOG_ERR("[DO] Channel %d set to %d: FAILED (I2C error %d)",
-                    channel, (int)value, (int)err);
+            LOG_ERR("[DO] Channel %d set to %d: FAILED (I2C error %d)", channel,
+                    (int)value, (int)err);
         }
     }
     else
@@ -150,8 +151,8 @@ bsp_error_t DigitalOutput_ReadHardware(uint16_t channel, bool *value)
     }
     else
     {
-        LOG_ERR("[DO] ReadHardware channel %d: FAILED (I2C error %d)",
-                channel, (int)err);
+        LOG_ERR("[DO] ReadHardware channel %d: FAILED (I2C error %d)", channel,
+                (int)err);
     }
 
     return err;
@@ -185,8 +186,8 @@ bsp_error_t DigitalOutput_WriteAll(uint16_t mask)
         }
         else
         {
-            LOG_ERR("[DO] WriteAll to 0x%04X: FAILED (I2C error %d)",
-                    newShadow, (int)err);
+            LOG_ERR("[DO] WriteAll to 0x%04X: FAILED (I2C error %d)", newShadow,
+                    (int)err);
         }
     }
     else

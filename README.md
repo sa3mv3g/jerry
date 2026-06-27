@@ -299,6 +299,53 @@ if (send_response) {
 }
 ```
 
+### 32-bit Register Atomicity Contract
+
+32-bit values (floats and unsigned integers) in Jerry's Modbus implementation span two consecutive 16-bit registers. To ensure atomic reads and avoid data tearing, **masters MUST read both registers in a single Modbus transaction**.
+
+#### Affected Registers
+
+**Holding Registers (FC03):**
+- PWM 0-3 Frequency (uint32, high-word-first)
+- App Build Number (uint32, high-word-first)
+- System Tick (uint32, high-word-first)
+- ADC 0-3 Calibration: Scale Factor, Offset Term, Dead Zone (float32, memory order)
+
+**Input Registers (FC04):**
+- ADC 0-3 Calibrated Values (float32, memory order)
+- App Build Number (uint32, high-word-first)
+
+#### Word Order Convention
+
+Two different byte-order conventions are used to maintain compatibility with existing masters:
+
+1. **Float32 (IEEE 754)**: Memory order via union
+   - Register N: `u16[0]` (first word)
+   - Register N+1: `u16[1]` (second word)
+
+2. **Uint32**: High-word-first (big-endian)
+   - Register N: `(value >> 16) & 0xFFFF` (high word)
+   - Register N+1: `value & 0xFFFF` (low word)
+
+#### Example: Reading PWM 0 Frequency (uint32)
+
+```python
+# Correct: Single transaction reads both registers atomically
+client = ModbusClient(host='192.168.1.100')
+regs = client.read_holding_registers(
+    address=JERRY_DEVICE_HR_PWM_0_FREQUENCY,
+    count=2
+)
+high_word = regs[0]
+low_word = regs[1]
+frequency = (high_word << 16) | low_word
+
+# Incorrect: Separate transactions risk tearing if value changes
+high = client.read_holding_registers(JERRY_DEVICE_HR_PWM_0_FREQUENCY, 1)[0]
+low = client.read_holding_registers(JERRY_DEVICE_HR_PWM_0_FREQUENCY + 1, 1)[0]
+# If frequency changes between reads, high and low come from different snapshots
+```
+
 ## Vendor Specific Notes
 
 ### STM32H563 (NUCLEO-H563ZI)
@@ -447,6 +494,27 @@ In this TrustZone configuration:
 
 **Behavior Fix**:
 By default, the Secure SysTick remains active after jumping to the Non-Secure application, causing periodic interrupts that preempt the Non-Secure code. To prevent this overhead (if Secure world background tasks are not needed), the Secure SysTick is explicitly **disabled** (`SysTick->CTRL = 0`) in `Secure/Core/Src/main.c` immediately before the jump to the Non-Secure vector table.
+
+#### 5. Diagnostic LED Patterns
+
+The firmware uses the on-board **RED LED** (`LED_RED` on the NUCLEO-H563ZI) to signal fatal
+runtime faults that cannot be reliably reported over the logging UART (for example, when the
+fault has corrupted the stack). These patterns are produced by minimal, self-contained code that
+does **not** depend on the RTOS scheduler or the logging subsystem.
+
+| Condition | RED LED Pattern | Meaning |
+|-----------|-----------------|---------|
+| **Stack overflow** | **3 fast blinks (~150 ms each), then a ~1 s pause, repeating forever** | A FreeRTOS task overflowed its stack (`vApplicationStackOverflowHook`). The system has halted with interrupts disabled. The 3-blink "SOS-style" burst is deliberately distinct from any normal activity blink so the fault is unmistakable. |
+
+**What to do when you see the stack-overflow pattern:**
+1. The device has halted and will not recover on its own — a power cycle / reset is required.
+2. The overflow indicates a task's stack is undersized. Increase the relevant `*_TASK_STACK_SIZE`
+   in [`application/src/main.c`](application/src/main.c) and rebuild.
+3. Use `uxTaskGetStackHighWaterMark()` (already wired into the monitor task) to find which task is
+   running low on stack before it overflows.
+
+> **Note:** The pattern is identified by its *cadence* (3 blinks + long pause), not by precise
+> timing. Busy-wait delays are tuned approximately to the core clock.
 
 ## TODO
 

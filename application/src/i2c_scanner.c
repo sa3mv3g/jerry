@@ -6,14 +6,13 @@
  * All rights reserved.
  */
 
+#include "i2c_scanner.h"
+
 #include <stdio.h>
 
 #include "bsp.h"
 #include "bsp_i2c.h"
 #include "log.h"
-#include "i2c_scanner.h"
-
-#define BSP_I2C_READ(A, B, C, D) BSP_I2C_LcdRead(A, B, C, D)
 
 /**
  * @brief I2C address range definitions
@@ -79,18 +78,15 @@ static const char *get_device_description(uint8_t address)
 
 void I2C_ScanBus(void)
 {
-    uint8_t     dummy_data   = 0;
     uint16_t    device_count = 0;
     bsp_error_t result;
     const char *device_desc;
 
-    LOG_INF("\n");
-    LOG_INF("========================================\n");
-    LOG_INF("I2C Bus Scanner\n");
-    LOG_INF("========================================\n");
-    LOG_INF("Scanning I2C bus (0x%02X to 0x%02X)...\n", I2C_SCAN_START_ADDR,
+    LOG_INF("========================================");
+    LOG_INF("I2C Bus Scanner");
+    LOG_INF("========================================");
+    LOG_INF("Scanning I2C bus (0x%02X to 0x%02X)...", I2C_SCAN_START_ADDR,
             I2C_SCAN_END_ADDR);
-    LOG_INF("\n");
 
     /* Scan all valid 7-bit I2C addresses */
     for (uint8_t addr = I2C_SCAN_START_ADDR; addr <= I2C_SCAN_END_ADDR; addr++)
@@ -99,7 +95,7 @@ void I2C_ScanBus(void)
         uint8_t addr_8bit = addr << 1;
 
         /* Try to read from the device */
-        result = BSP_I2C_READ(addr_8bit, &dummy_data, 1, I2C_SCAN_TIMEOUT_MS);
+        result = BSP_I2C_LcdWrite(addr_8bit, NULL, 0, I2C_SCAN_TIMEOUT_MS);
 
         if (result == BSP_OK)
         {
@@ -108,19 +104,17 @@ void I2C_ScanBus(void)
 
             if (device_desc != NULL)
             {
-                LOG_INF("Device found at address 0x%02X (%s)\n", addr,
+                LOG_INF("Device found at address 0x%02X (%s)", addr,
                         device_desc);
             }
             else
             {
-                LOG_INF("Device found at address 0x%02X (Unknown device)\n",
+                LOG_INF("Device found at address 0x%02X (Unknown device)",
                         addr);
             }
         }
     }
 
-    LOG_INF("\n");
-    LOG_INF("Scan complete. Found %u device(s).\n", device_count);
-    LOG_INF("========================================\n");
-    LOG_INF("\n");
+    LOG_INF("Scan complete. Found %u device(s).", device_count);
+    LOG_INF("========================================");
 }

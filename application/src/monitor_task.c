@@ -11,8 +11,9 @@
 #include "bsp.h"
 #include "jerry_device_registers.h"
 #include "lcd_manager.h"
-#include "rtc_manager.h"
 #include "log.h"
+#include "register_lock.h"
+#include "rtc_manager.h"
 #include "task.h"
 
 /* LwIP includes for memory stats */
@@ -87,7 +88,7 @@ static void check_lwip_errors(void)
     if ((lwip_stats.memp[MEMP_NETCONN] != NULL) &&
         (lwip_stats.memp[MEMP_NETCONN]->err > s_last_netconn_err))
     {
-        LOG_INF("!!! NEW NETCONN POOL ERROR !!! (total: %u)",
+        LOG_ERR("!!! NEW NETCONN POOL ERROR !!! (total: %u)",
                 (unsigned int)lwip_stats.memp[MEMP_NETCONN]->err);
         s_last_netconn_err = lwip_stats.memp[MEMP_NETCONN]->err;
     }
@@ -104,7 +105,7 @@ static void check_task_stacks(void)
     if (hwm < 50U)
     {
         LOG_WRN("!!! WARNING: Monitor task stack low: %u words !!!",
-                 (unsigned int)hwm);
+                (unsigned int)hwm);
     }
 }
 
@@ -133,7 +134,6 @@ static void print_adc_values(void)
             /* Convert to millivolts (assuming 3.3V reference) */
             uint32_t mv = (uint32_t)(adc_values[ch] * 3300.0f);
             LOG_INF("CH%u:%4umV ", (unsigned int)ch, (unsigned int)mv);
-            LcdManager_UpdateAnalogInput(ch, adc_values[ch] * 3300.0f);
         }
     }
     else
@@ -147,26 +147,39 @@ static void print_adc_values(void)
  */
 static void print_digital_inputs(void)
 {
-    uint32_t di_values[8];
+    static char log_buf[128];
+    uint32_t    di_values[8];
 
-    /* Read all digital inputs */
+    /* Read all digital inputs (for logging only; LCD updates are owned by Main
+     * task to avoid lost-update races — see N-01). */
     for (uint8_t i = 0; i < 8U; i++)
     {
         if (BSP_GPIODI_Read(i, &di_values[i]) != BSP_OK)
         {
             di_values[i] = 0xFFU; /* Mark as error */
         }
-        else
-        {
-            LcdManager_UpdateDigitalInputStatus(i, di_values[i] > 0);
-        }
     }
 
-    LOG_INF("[DI] DI0=%u DI1=%u DI2=%u DI3=%u DI4=%u DI5=%u DI6=%u DI7=%u",
-            (unsigned int)di_values[0], (unsigned int)di_values[1],
-            (unsigned int)di_values[2], (unsigned int)di_values[3],
-            (unsigned int)di_values[4], (unsigned int)di_values[5],
-            (unsigned int)di_values[6], (unsigned int)di_values[7]);
+    int offset = snprintf(log_buf, sizeof(log_buf), "[DI] ");
+    for (uint8_t i = 0; i < 8U; i++)
+    {
+        if (offset < (int)sizeof(log_buf))
+        {
+            if (di_values[i] == 0xFFU)
+            {
+                offset +=
+                    snprintf(&log_buf[offset], sizeof(log_buf) - (size_t)offset,
+                             "DI%u=ERR ", i);
+            }
+            else
+            {
+                offset +=
+                    snprintf(&log_buf[offset], sizeof(log_buf) - (size_t)offset,
+                             "DI%u=%u ", i, (unsigned int)di_values[i]);
+            }
+        }
+    }
+    LOG_INF("%s", log_buf);
 }
 
 /**
@@ -174,17 +187,26 @@ static void print_digital_inputs(void)
  */
 static void update_time_and_ao(void)
 {
+    /* Logging only; LCD updates are owned by Main task to avoid lost-update
+     * races — see N-01. */
     App_RTC_TimeTypeDef timeDate;
     if (RTC_Manager_GetTimeAndDate(&timeDate))
     {
-        LcdManager_UpdateTime(timeDate.hours, timeDate.minutes,
-                              timeDate.seconds);
+        LOG_INF("[RTC] %02u:%02u:%02u", (unsigned int)timeDate.hours,
+                (unsigned int)timeDate.minutes, (unsigned int)timeDate.seconds);
     }
 
     jerry_device_holding_registers_t* regs =
         jerry_device_get_holding_registers();
-    LcdManager_UpdateAnalogOutput(0, (uint16_t)regs->pwm_0_duty_cycle);
-    LcdManager_UpdateAnalogOutput(1, (uint16_t)regs->pwm_1_duty_cycle);
+
+    /* Snapshot the shared register fields under the lock (BUG-04). */
+    RegisterLock_Acquire();
+    uint16_t pwm_0_duty = (uint16_t)regs->pwm_0_duty_cycle;
+    uint16_t pwm_1_duty = (uint16_t)regs->pwm_1_duty_cycle;
+    RegisterLock_Release();
+
+    LOG_INF("[AO] PWM0:%u PWM1:%u", (unsigned int)pwm_0_duty,
+            (unsigned int)pwm_1_duty);
 }
 
 /* Stack Monitor Task */

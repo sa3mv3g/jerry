@@ -1,7 +1,7 @@
 #include "lcd_manager.h"
 
+#include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "FreeRTOS.h"
@@ -25,8 +25,55 @@
 
 /* LCD_MANAGER_COLS_MAX + 1 cuz we need to store null character */
 static char gLcdStrings[LCD_MANAGER_ROWS_MAX][LCD_MANAGER_COLS_MAX + 1];
-static SemaphoreHandle_t gUdpateLcdSem;
-static StaticSemaphore_t gUdpateLcdSemBuff;
+static SemaphoreHandle_t gUpdateLcdSem;
+static StaticSemaphore_t gUpdateLcdSemBuff;
+
+/*
+ * Per-row "dirty" flags (BUG-09). A binary semaphore alone can lose updates:
+ * if a row is updated while the LCD task is mid-write, the extra give is
+ * coalesced and the newly-changed row is not re-rendered until the next
+ * unrelated update. Each producer marks the specific row dirty (and gives the
+ * semaphore); the LCD task clears and renders dirty rows, re-scanning until
+ * none remain, so updates that arrive during a write are not lost.
+ */
+static volatile bool gRowDirty[LCD_MANAGER_ROWS_MAX] = {false};
+
+/**
+ * @brief Mark an LCD row as needing a redraw and wake the LCD task.
+ * @param row Row index (0 .. LCD_MANAGER_ROWS_MAX-1).
+ */
+static void lcdManager_MarkRowDirty(uint8_t row)
+{
+    if (row < LCD_MANAGER_ROWS_MAX)
+    {
+        taskENTER_CRITICAL();
+        gRowDirty[row] = true;
+        taskEXIT_CRITICAL();
+
+        if (gUpdateLcdSem != NULL)
+        {
+            (void)xSemaphoreGive(gUpdateLcdSem);
+        }
+    }
+}
+
+/**
+ * @brief Atomically test-and-clear a row's dirty flag.
+ * @param row Row index.
+ * @return true if the row was dirty (and has now been cleared).
+ */
+static bool lcdManager_ClearRowDirty(uint8_t row)
+{
+    bool was_dirty = false;
+    taskENTER_CRITICAL();
+    if (gRowDirty[row])
+    {
+        gRowDirty[row] = false;
+        was_dirty      = true;
+    }
+    taskEXIT_CRITICAL();
+    return was_dirty;
+}
 
 static uint8_t gIpLastOctet   = 0;
 static uint8_t gModbusAddress = 0;
@@ -51,15 +98,20 @@ static LcdI2cHandle lcd_handle;
 static void update_row_0(void)
 {
     char temp[32];
-    snprintf(temp, sizeof(temp), "IP:%02X MB:%02X %02u:%02u:%02u", gIpLastOctet,
-             gModbusAddress, gRtcHours % 100U, gRtcMinutes % 100U,
-             gRtcSeconds % 100U);
+    if (gRtcHours >= 24 || gRtcMinutes >= 60 || gRtcSeconds >= 60)
+    {
+        snprintf(temp, sizeof(temp), "IP:%02X MB:%02X --:--:--", gIpLastOctet,
+                 gModbusAddress);
+    }
+    else
+    {
+        snprintf(temp, sizeof(temp), "IP:%02X MB:%02X %02u:%02u:%02u",
+                 gIpLastOctet, gModbusAddress, (unsigned)gRtcHours,
+                 (unsigned)gRtcMinutes, (unsigned)gRtcSeconds);
+    }
     strncpy(gLcdStrings[0], temp, LCD_MANAGER_COLS_MAX);
     gLcdStrings[0][LCD_MANAGER_COLS_MAX] = '\0';
-    if (gUdpateLcdSem != NULL)
-    {
-        xSemaphoreGive(gUdpateLcdSem);
-    }
+    lcdManager_MarkRowDirty(0U);
 }
 
 static void update_row_1(void)
@@ -70,29 +122,72 @@ static void update_row_1(void)
              gAnalogOutput[1] % 100000U);
     strncpy(gLcdStrings[1], temp, LCD_MANAGER_COLS_MAX);
     gLcdStrings[1][LCD_MANAGER_COLS_MAX] = '\0';
-    if (gUdpateLcdSem != NULL)
-    {
-        xSemaphoreGive(gUdpateLcdSem);
-    }
+    lcdManager_MarkRowDirty(1U);
 }
+
+#define LCD_AI_FIELD_WIDTH 9
+#define LCD_AI_BUFFER_SIZE (LCD_AI_FIELD_WIDTH + 1)
+
+/* Stringification helper for the width macro */
+#define STR(x)  #x
+#define XSTR(x) STR(x)
+#define LCD_AI_FMT_STR \
+    "%-" XSTR(LCD_AI_FIELD_WIDTH) "." XSTR(LCD_AI_FIELD_WIDTH) "s"
 
 static void format_ai(char* buf, float val)
 {
-    char temp[16];
-    int  len = snprintf(temp, sizeof(temp), "%.3f", val);
-    if (len > 9)
+    if (isnan(val))
     {
-        len = snprintf(temp, sizeof(temp), "%.2f", val);
+        snprintf(buf, LCD_AI_BUFFER_SIZE, LCD_AI_FMT_STR, "NaN");
+        return;
     }
-    if (len > 9)
+    if (isinf(val))
+    {
+        snprintf(buf, LCD_AI_BUFFER_SIZE, LCD_AI_FMT_STR,
+                 (val > 0) ? "+Inf" : "-Inf");
+        return;
+    }
+
+    /* Clamp to a range that can be displayed in LCD_AI_FIELD_WIDTH chars with
+     * sign and . */
+    if (val > 99999.999f)
+    {
+        val = 99999.999f;
+    }
+    else if (val < -9999.999f)
+    {
+        val = -9999.999f;
+    }
+
+    char temp[16];
+    int  len;
+
+    if (val >= 10000.0f || val <= -1000.0f)
+    {
+        len = snprintf(temp, sizeof(temp), "%.0f", val);
+    }
+    else if (val >= 1000.0f || val <= -100.0f)
     {
         len = snprintf(temp, sizeof(temp), "%.1f", val);
     }
-    if (len > 9)
+    else if (val >= 100.0f || val <= -10.0f)
     {
-        (void)snprintf(temp, sizeof(temp), "%.0f", val);
+        len = snprintf(temp, sizeof(temp), "%.2f", val);
     }
-    (void)snprintf(buf, 10, "%-9.9s", temp);
+    else
+    {
+        len = snprintf(temp, sizeof(temp), "%.3f", val);
+    }
+
+    /* Final check to prevent overflow, though clamping should prevent this. */
+    if (len >= LCD_AI_BUFFER_SIZE)
+    {
+        snprintf(buf, LCD_AI_BUFFER_SIZE, LCD_AI_FMT_STR, "OVF");
+    }
+    else
+    {
+        snprintf(buf, LCD_AI_BUFFER_SIZE, LCD_AI_FMT_STR, temp);
+    }
 }
 
 static void update_row_2(void)
@@ -101,10 +196,7 @@ static void update_row_2(void)
     format_ai(ai0, gAnalogInput[0]);
     format_ai(ai1, gAnalogInput[1]);
     snprintf(gLcdStrings[2], LCD_MANAGER_COLS_MAX + 1, "%s %s ", ai0, ai1);
-    if (gUdpateLcdSem != NULL)
-    {
-        xSemaphoreGive(gUdpateLcdSem);
-    }
+    lcdManager_MarkRowDirty(2U);
 }
 
 static void update_row_3(void)
@@ -113,10 +205,7 @@ static void update_row_3(void)
     format_ai(ai2, gAnalogInput[2]);
     format_ai(ai3, gAnalogInput[3]);
     snprintf(gLcdStrings[3], LCD_MANAGER_COLS_MAX + 1, "%s %s ", ai2, ai3);
-    if (gUdpateLcdSem != NULL)
-    {
-        xSemaphoreGive(gUdpateLcdSem);
-    }
+    lcdManager_MarkRowDirty(3U);
 }
 
 void vLcdManageTask(void* pvParameters)
@@ -124,7 +213,7 @@ void vLcdManageTask(void* pvParameters)
     (void)pvParameters;
     LcdI2cError err;
 
-    gUdpateLcdSem = xSemaphoreCreateBinaryStatic(&gUdpateLcdSemBuff);
+    gUpdateLcdSem = xSemaphoreCreateBinaryStatic(&gUpdateLcdSemBuff);
     memset(gLcdStrings, (char)' ', sizeof(gLcdStrings));
     for (uint8_t lcdRow = 0; lcdRow < LCD_MANAGER_ROWS_MAX; lcdRow++)
     {
@@ -164,14 +253,29 @@ void vLcdManageTask(void* pvParameters)
     /* Main task loop */
     for (;;)
     {
-        if ((xSemaphoreTake(gUdpateLcdSem, portMAX_DELAY) == pdTRUE) &&
+        /* Block until at least one row has been marked dirty. */
+        if ((xSemaphoreTake(gUpdateLcdSem, portMAX_DELAY) == pdTRUE) &&
             (err == kLcdI2cOk))
         {
-            for (uint8_t lcdRow = 0; lcdRow < LCD_MANAGER_ROWS_MAX; lcdRow++)
+            bool any_dirty;
+
+            /* Render dirty rows, re-scanning until a full pass finds none.
+             * A row marked dirty while we are writing is therefore not lost
+             * (BUG-09). */
+            do
             {
-                err = LcdI2c_WriteStringAt(&lcd_handle, 0, lcdRow,
-                                           gLcdStrings[lcdRow]);
-            }
+                any_dirty = false;
+                for (uint8_t lcdRow = 0; lcdRow < LCD_MANAGER_ROWS_MAX;
+                     lcdRow++)
+                {
+                    if (lcdManager_ClearRowDirty(lcdRow))
+                    {
+                        any_dirty = true;
+                        err       = LcdI2c_WriteStringAt(&lcd_handle, 0, lcdRow,
+                                                         gLcdStrings[lcdRow]);
+                    }
+                }
+            } while (any_dirty && (err == kLcdI2cOk));
         }
     }
 }
@@ -184,24 +288,56 @@ int32_t lcdManager_Send(uint8_t i2c_address, const uint8_t* data,
 
 void LcdManager_IsLcdReady(SemaphoreHandle_t* isLcdReadySem)
 {
-    if ((NULL != isLcdReadySem) && (NULL != gUdpateLcdSem))
+    if ((NULL != isLcdReadySem) && (NULL != gUpdateLcdSem))
     {
-        xSemaphoreGive(isLcdReadySem);
+        xSemaphoreGive(*isLcdReadySem);
     }
+}
+
+/**
+ * @brief Parses a string into an 8-bit unsigned integer.
+ * @param s The string to parse.
+ * @param value Pointer to store the parsed value.
+ * @return true if parsing was successful, false otherwise.
+ */
+static bool parse_uint8(const char* s, uint8_t* value)
+{
+    if (s == NULL || *s == '\0')
+    {
+        return false;
+    }
+    uint16_t result = 0;
+    while (*s != '\0')
+    {
+        if (*s < '0' || *s > '9')
+        {
+            return false; /* Not a digit */
+        }
+        result = (uint16_t)(result * 10) + (uint16_t)(*s - '0');
+        if (result > 255)
+        {
+            return false; /* Overflow */
+        }
+        s++;
+    }
+    *value = (uint8_t)result;
+    return true;
 }
 
 void LcdManager_UpdateIpv4Address(const char* ip)
 {
     if (ip != NULL)
     {
-        const char* last_dot = strrchr(ip, '.');
-        if (last_dot)
+        const char* octet_str = ip;
+        const char* last_dot  = strrchr(ip, '.');
+        if (last_dot != NULL)
         {
-            gIpLastOctet = (uint8_t)atoi(last_dot + 1);
+            octet_str = last_dot + 1;
         }
-        else
+
+        if (!parse_uint8(octet_str, &gIpLastOctet))
         {
-            gIpLastOctet = (uint8_t)atoi(ip);
+            gIpLastOctet = 0; /* Default on parse error */
         }
         update_row_0();
     }

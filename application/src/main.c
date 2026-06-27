@@ -13,9 +13,12 @@
 #include "app_tasks.h"
 #include "bsp.h"
 #include "digital_output.h"
+#include "jerry_device_registers.h"
 #include "lcd_manager.h"
 #include "log.h"
 #include "logging_port.h"
+#include "register_lock.h"
+#include "rtc_manager.h"
 #include "task.h"
 #include "timers.h"
 
@@ -30,9 +33,9 @@
 
 /* Stack size for the tasks */
 #define MAIN_TASK_STACK_SIZE       512U
-#define LOG_TASK_STACK_SIZE        512U
+#define LOG_TASK_STACK_SIZE        configMINIMAL_STACK_SIZE
 #define MODBUS_TASK_STACK_SIZE     1024U
-#define FOTA_TASK_STACK_SIZE       512U
+#define FOTA_TASK_STACK_SIZE       configMINIMAL_STACK_SIZE
 #define MONITOR_TASK_STACK_SIZE    512U
 #define TCP_ECHO_TASK_STACK_SIZE   1024U
 #define LCD_MANAGE_TASK_STACK_SIZE 1024U
@@ -116,30 +119,62 @@ void vApplicationGetTimerTaskMemory(StaticTask_t** ppxTimerTaskTCBBuffer,
  * ========================================================================== */
 
 /**
+ * @brief Crude blocking busy-wait used by the fatal-fault LED indicator.
+ *
+ * Must not depend on the scheduler or SysTick (it runs with interrupts
+ * disabled from a fault hook). The iteration count is approximate; the LED
+ * *cadence*, not exact timing, identifies the fault.
+ *
+ * @param loops Number of empty loop iterations to spin.
+ */
+static void fatal_fault_busy_wait(volatile uint32_t loops)
+{
+    while (loops > 0U)
+    {
+        loops--;
+    }
+}
+
+/* Approximate busy-wait counts (tuned to the core clock; timing is not
+ * critical, the pattern is what identifies the fault). */
+#define FATAL_FAULT_BLINK_ON_LOOPS  (600000U)  /* ~150 ms on  */
+#define FATAL_FAULT_BLINK_OFF_LOOPS (600000U)  /* ~150 ms off */
+#define FATAL_FAULT_BLINK_GAP_LOOPS (4000000U) /* ~1 s pause  */
+
+/**
  * @brief Stack Overflow Hook - Called when FreeRTOS detects stack overflow
  *
- * This hook is called when configCHECK_FOR_STACK_OVERFLOW is enabled and
- * a stack overflow is detected. The task name is printed to help identify
- * which task caused the overflow.
+ * This hook is called when configCHECK_FOR_STACK_OVERFLOW is enabled and a
+ * stack overflow is detected. At this point the task stack is already
+ * corrupted, so we must NOT use the logging subsystem (snprintf and friends
+ * are stack-heavy and could fault or corrupt memory). Instead we disable
+ * interrupts and drive the on-board RED LED in a characteristic pattern —
+ * 3 fast blinks then a ~1 s pause, repeating forever — which is documented in
+ * the README ("Diagnostic LED Patterns"). See BUG-08 / issue #28.
  */
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName)
 {
     (void)xTask;
+    (void)pcTaskName;
 
-    /* CRITICAL: Stack overflow detected! */
-    LOG_ERR("");
-    LOG_ERR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    LOG_ERR("!!! STACK OVERFLOW DETECTED !!!");
-    LOG_ERR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    LOG_ERR("Task Name: %s", pcTaskName);
-    LOG_ERR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    LOG_ERR("");
-
-    /* Halt the system - in production, you might want to reset */
+    /* Halt immediately: the stack is corrupt, so do nothing stack-heavy. */
     taskDISABLE_INTERRUPTS();
+
+    /* Defensive: ensure the LED GPIO is configured even if init never ran. */
+    (void)BSP_LED_Init(LED_RED);
+
     for (;;)
     {
-        /* Infinite loop */
+        /* 3 fast blinks ... */
+        for (uint32_t blink = 0U; blink < 3U; blink++)
+        {
+            (void)BSP_LED_On(LED_RED);
+            fatal_fault_busy_wait(FATAL_FAULT_BLINK_ON_LOOPS);
+            (void)BSP_LED_Off(LED_RED);
+            fatal_fault_busy_wait(FATAL_FAULT_BLINK_OFF_LOOPS);
+        }
+        /* ... then a long pause, repeat forever. */
+        fatal_fault_busy_wait(FATAL_FAULT_BLINK_GAP_LOOPS);
     }
 }
 
@@ -436,27 +471,29 @@ void vMainTask(void* pvParameters)
 
     /* Initialize sub-systems */
     (void)xTaskCreateStatic(vLoggingTask, "Log", LOG_TASK_STACK_SIZE, NULL,
-                            tskIDLE_PRIORITY + 1, xLogTaskStack, &xLogTaskTCB);
+                            (UBaseType_t)(tskIDLE_PRIORITY + 1U), xLogTaskStack,
+                            &xLogTaskTCB);
 
     (void)xTaskCreateStatic(vModbusTask, "Modbus", MODBUS_TASK_STACK_SIZE, NULL,
-                            tskIDLE_PRIORITY + 2, xModbusTaskStack,
-                            &xModbusTaskTCB);
+                            (UBaseType_t)(tskIDLE_PRIORITY + 2U),
+                            xModbusTaskStack, &xModbusTaskTCB);
 
     (void)xTaskCreateStatic(vFotaTask, "Fota", FOTA_TASK_STACK_SIZE, NULL,
-                            tskIDLE_PRIORITY + 1, xFotaTaskStack,
-                            &xFotaTaskTCB);
+                            (UBaseType_t)(tskIDLE_PRIORITY + 1U),
+                            xFotaTaskStack, &xFotaTaskTCB);
 
     (void)xTaskCreateStatic(vMonitorTask, "Monitor", MONITOR_TASK_STACK_SIZE,
-                            NULL, tskIDLE_PRIORITY + 1, xMonitorTaskStack,
-                            &xMonitorTaskTCB);
+                            NULL, (UBaseType_t)(tskIDLE_PRIORITY + 1U),
+                            xMonitorTaskStack, &xMonitorTaskTCB);
 
     (void)xTaskCreateStatic(vTcpEchoTask, "TcpEcho", TCP_ECHO_TASK_STACK_SIZE,
-                            NULL, tskIDLE_PRIORITY + 1, xTcpEchoTaskStack,
-                            &xTcpEchoTaskTCB);
+                            NULL, (UBaseType_t)(tskIDLE_PRIORITY + 1U),
+                            xTcpEchoTaskStack, &xTcpEchoTaskTCB);
 
-    (void)xTaskCreateStatic(
-        vLcdManageTask, "LCDMan", LCD_MANAGE_TASK_STACK_SIZE, NULL,
-        tskIDLE_PRIORITY + 1, xLcdManageTaskStack, &xLcdManageTaskTCB);
+    (void)xTaskCreateStatic(vLcdManageTask, "LCDMan",
+                            LCD_MANAGE_TASK_STACK_SIZE, NULL,
+                            (UBaseType_t)(tskIDLE_PRIORITY + 1U),
+                            xLcdManageTaskStack, &xLcdManageTaskTCB);
 
     xEventGroupSync(xSyncEventGroup, APPTASK_MAIN_TASK_EVENT_MASK,
                     APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
@@ -464,11 +501,15 @@ void vMainTask(void* pvParameters)
     /* Sync digital output LCD state now that LCD task is ready */
     DigitalOutput_SyncLcd();
 
+    /* Counter for sub-interval updates (ADC/AO every 3 s = 6 × 500 ms) */
+    uint32_t update_counter = 0U;
+
     for (;;)
     {
-        /* Main loop */
+        /* Main loop: 500 ms interval */
         vTaskDelay(pdMS_TO_TICKS(500));
 
+        /* Digital inputs: every loop (500 ms) */
         for (uint8_t digitalInputChannelIndex = BSP_GPIODI_INDEX_0;
              digitalInputChannelIndex <= BSP_GPIODI_INDEX_7;
              digitalInputChannelIndex++)
@@ -476,17 +517,57 @@ void vMainTask(void* pvParameters)
             uint32_t digitalInputValue;
             bool     digitalInputStatus;
 
-            BSP_GPIODI_Read(digitalInputChannelIndex, &digitalInputValue);
-            if (digitalInputValue == GPIO_PIN_SET)
+            if (BSP_GPIODI_Read(digitalInputChannelIndex, &digitalInputValue) ==
+                BSP_OK)
             {
-                digitalInputStatus = true;
+                if (digitalInputValue == GPIO_PIN_SET)
+                {
+                    digitalInputStatus = true;
+                }
+                else
+                {
+                    digitalInputStatus = false;
+                }
+                LcdManager_UpdateDigitalInputStatus(digitalInputChannelIndex,
+                                                    digitalInputStatus);
             }
-            else
+        }
+
+        /* RTC time: every loop (500 ms) */
+        App_RTC_TimeTypeDef timeDate;
+        if (RTC_Manager_GetTimeAndDate(&timeDate))
+        {
+            LcdManager_UpdateTime(timeDate.hours, timeDate.minutes,
+                                  timeDate.seconds);
+        }
+
+        /* Analog inputs (ADC) and outputs (AO): every 3 s (6 × 500 ms) */
+        update_counter++;
+        if (update_counter >= 6U)
+        {
+            update_counter = 0U;
+
+            /* Update analog inputs (ADC) on LCD */
+            float32_t adc_values[BSP_ADC1_NUM_CHANNELS];
+            if (BSP_ADC1_IsFilterSettled() &&
+                (BSP_ADC1_GetFilteredValuesAll(adc_values) == BSP_OK))
             {
-                digitalInputStatus = false;
+                for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
+                {
+                    LcdManager_UpdateAnalogInput(ch, adc_values[ch] * 3300.0f);
+                }
             }
-            LcdManager_UpdateDigitalInputStatus(digitalInputChannelIndex,
-                                                digitalInputStatus);
+
+            /* Update analog outputs (PWM duty cycles) on LCD */
+            jerry_device_holding_registers_t* regs =
+                jerry_device_get_holding_registers();
+            RegisterLock_Acquire();
+            uint16_t pwm_0_duty = (uint16_t)regs->pwm_0_duty_cycle;
+            uint16_t pwm_1_duty = (uint16_t)regs->pwm_1_duty_cycle;
+            RegisterLock_Release();
+
+            LcdManager_UpdateAnalogOutput(0, pwm_0_duty);
+            LcdManager_UpdateAnalogOutput(1, pwm_1_duty);
         }
     }
 }

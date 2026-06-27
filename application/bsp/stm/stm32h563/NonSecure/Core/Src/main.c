@@ -96,10 +96,10 @@ void ethernetif_get_mac_addr(uint8_t *mac_addr)
   // and unicast (bit 0 of first octet is 0).
   mac_addr[0] = ((uid[2] >> 8) & 0xFE) | 0x02; // Set locally administered bit, clear unicast/multicast bit
   mac_addr[1] = (uid[2] >> 0) & 0xFF;
-  mac_addr[2] = (uid[1] >> 24) & 0xFF;
-  mac_addr[3] = (uid[1] >> 16) & 0xFF;
-  mac_addr[4] = (uid[1] >> 8) & 0xFF;
-  mac_addr[5] = (uid[1] >> 0) & 0xFF;
+  mac_addr[2] = (uid[0] >> 24) & 0xFF;
+  mac_addr[3] = (uid[0] >> 16) & 0xFF;
+  mac_addr[4] = (uid[0] >> 8) & 0xFF;
+  mac_addr[5] = (uid[0] >> 0) & 0xFF;
 
 }
 
