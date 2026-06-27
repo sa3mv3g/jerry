@@ -1,7 +1,6 @@
 #include "lcd_manager.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "FreeRTOS.h"
@@ -240,18 +239,50 @@ void LcdManager_IsLcdReady(SemaphoreHandle_t* isLcdReadySem)
     }
 }
 
+/**
+ * @brief Parses a string into an 8-bit unsigned integer.
+ * @param s The string to parse.
+ * @param value Pointer to store the parsed value.
+ * @return true if parsing was successful, false otherwise.
+ */
+static bool parse_uint8(const char* s, uint8_t* value)
+{
+    if (s == NULL || *s == '\0')
+    {
+        return false;
+    }
+    uint16_t result = 0;
+    while (*s != '\0')
+    {
+        if (*s < '0' || *s > '9')
+        {
+            return false; /* Not a digit */
+        }
+        result = (uint16_t)(result * 10) + (uint16_t)(*s - '0');
+        if (result > 255)
+        {
+            return false; /* Overflow */
+        }
+        s++;
+    }
+    *value = (uint8_t)result;
+    return true;
+}
+
 void LcdManager_UpdateIpv4Address(const char* ip)
 {
     if (ip != NULL)
     {
-        const char* last_dot = strrchr(ip, '.');
-        if (last_dot)
+        const char* octet_str = ip;
+        const char* last_dot  = strrchr(ip, '.');
+        if (last_dot != NULL)
         {
-            gIpLastOctet = (uint8_t)atoi(last_dot + 1);
+            octet_str = last_dot + 1;
         }
-        else
+
+        if (!parse_uint8(octet_str, &gIpLastOctet))
         {
-            gIpLastOctet = (uint8_t)atoi(ip);
+            gIpLastOctet = 0; /* Default on parse error */
         }
         update_row_0();
     }
