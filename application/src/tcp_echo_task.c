@@ -53,40 +53,10 @@
 struct netif gnetif;
 
 /* Ethernet Task resources */
-static StaticTask_t xEthernetTaskTCB;
-static StackType_t  xEthernetTaskStack[512];
 
 /* External ethernetif initialization function */
 /* This function is typically provided by the LwIP port or BSP */
 extern err_t ethernetif_init(struct netif *netif);
-
-static void vEthernetTask(void *pvParameters)
-{
-    struct netif *netif = (struct netif *)pvParameters;
-    int           count = 0;
-    while (1)
-    {
-        /* Check link status periodically */
-        ethernetif_check_link(netif);
-
-        /* NOTE: ethernetif_poll() removed - packet reception is handled by
-         * the interrupt-driven ethernetif_input_task in ethernetif.c.
-         * Having both polling and interrupt-driven reception caused race
-         * conditions and intermittent packet loss. */
-
-        count++;
-        if (count >= 500)
-        { /* 5 seconds */
-            count = 0;
-            LOG_INF("Stats - RX: %d, TX: %d, DROP: %d, RX_INT: %u",
-                    (int)lwip_stats.link.recv, (int)lwip_stats.link.xmit,
-                    (int)lwip_stats.link.drop,
-                    (unsigned int)ethernetif_get_rx_int_count());
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
-}
 
 #if LWIP_NETIF_LINK_CALLBACK
 static void link_callback(struct netif *netif)
@@ -221,10 +191,10 @@ void vTcpEchoTask(void *pvParameters)
     netif_set_link_callback(&gnetif, link_callback);
 #endif
 
-    /* Create Ethernet Task to drive the interface */
-    xTaskCreateStatic(vEthernetTask, "Ethernet", 512, &gnetif,
-                      tskIDLE_PRIORITY + 2, xEthernetTaskStack,
-                      &xEthernetTaskTCB);
+    /* The vEthernetTask is no longer needed. The link status is now handled
+     * by the event-driven link_callback, which is more efficient than
+     * polling. The ethernetif_input_task handles packet reception.
+     */
 
     /* Always bring the interface up administratively so DHCP can start */
     netif_set_up(&gnetif);
