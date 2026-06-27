@@ -448,6 +448,27 @@ In this TrustZone configuration:
 **Behavior Fix**:
 By default, the Secure SysTick remains active after jumping to the Non-Secure application, causing periodic interrupts that preempt the Non-Secure code. To prevent this overhead (if Secure world background tasks are not needed), the Secure SysTick is explicitly **disabled** (`SysTick->CTRL = 0`) in `Secure/Core/Src/main.c` immediately before the jump to the Non-Secure vector table.
 
+#### 5. Diagnostic LED Patterns
+
+The firmware uses the on-board **RED LED** (`LED_RED` on the NUCLEO-H563ZI) to signal fatal
+runtime faults that cannot be reliably reported over the logging UART (for example, when the
+fault has corrupted the stack). These patterns are produced by minimal, self-contained code that
+does **not** depend on the RTOS scheduler or the logging subsystem.
+
+| Condition | RED LED Pattern | Meaning |
+|-----------|-----------------|---------|
+| **Stack overflow** | **3 fast blinks (~150 ms each), then a ~1 s pause, repeating forever** | A FreeRTOS task overflowed its stack (`vApplicationStackOverflowHook`). The system has halted with interrupts disabled. The 3-blink "SOS-style" burst is deliberately distinct from any normal activity blink so the fault is unmistakable. |
+
+**What to do when you see the stack-overflow pattern:**
+1. The device has halted and will not recover on its own — a power cycle / reset is required.
+2. The overflow indicates a task's stack is undersized. Increase the relevant `*_TASK_STACK_SIZE`
+   in [`application/src/main.c`](application/src/main.c) and rebuild.
+3. Use `uxTaskGetStackHighWaterMark()` (already wired into the monitor task) to find which task is
+   running low on stack before it overflows.
+
+> **Note:** The pattern is identified by its *cadence* (3 blinks + long pause), not by precise
+> timing. Busy-wait delays are tuned approximately to the core clock.
+
 ## TODO
 
 1. Currently, `MX_Device.h` file has to be generated using the following command:

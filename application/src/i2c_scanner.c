@@ -6,12 +6,13 @@
  * All rights reserved.
  */
 
+#include "i2c_scanner.h"
+
 #include <stdio.h>
 
 #include "bsp.h"
 #include "bsp_i2c.h"
 #include "log.h"
-#include "i2c_scanner.h"
 
 #define BSP_I2C_READ(A, B, C, D) BSP_I2C_LcdRead(A, B, C, D)
 

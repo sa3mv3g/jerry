@@ -11,8 +11,8 @@
 #include "bsp.h"
 #include "jerry_device_registers.h"
 #include "lcd_manager.h"
-#include "rtc_manager.h"
 #include "log.h"
+#include "rtc_manager.h"
 #include "task.h"
 
 /* LwIP includes for memory stats */
@@ -104,7 +104,7 @@ static void check_task_stacks(void)
     if (hwm < 50U)
     {
         LOG_WRN("!!! WARNING: Monitor task stack low: %u words !!!",
-                 (unsigned int)hwm);
+                (unsigned int)hwm);
     }
 }
 

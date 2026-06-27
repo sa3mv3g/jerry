@@ -41,11 +41,28 @@
 #define KEY1_UNLOCK_VALUE (0x5555U)
 #define KEY2_UNLOCK_VALUE (0xDDDDU)
 
-static inline void f32_to_u16(float val, uint16_t *register_values)
+/**
+ * @brief Write one 16-bit word of a 32-bit float into a Modbus register slot.
+ *
+ * A 32-bit float spans two consecutive Modbus registers. When reading, the
+ * response encoder consumes the output buffer by relative position @c i, so
+ * each word must be written to ``&register_values[i]`` — never to the float's
+ * absolute register address. @p word_index selects which half of the float to
+ * emit (0 = first word, 1 = second word), matching the word order used by the
+ * write path (``num.u16[address - base]``).
+ *
+ * @param[in]  val           The float value to read from.
+ * @param[in]  word_index    0 for the first register of the pair, 1 for the
+ *                           second.
+ * @param[out] register_slot Destination register slot
+ * (``&register_values[i]``).
+ */
+static inline void f32_word_to_reg(float val, uint16_t word_index,
+                                   uint16_t *register_slot)
 {
     unpack_float_t num;
-    num.f32 = val;
-    memcpy(register_values, num.u16, sizeof(num.u16));
+    num.f32        = val;
+    *register_slot = num.u16[word_index & 1U];
 }
 
 /**
@@ -104,13 +121,15 @@ static void update_reg_with_adcval(uint16_t channel, uint16_t *pStructField,
  * @param dead_zone    Minimum absolute input magnitude; below this output = 0
  * @param pCalibratedField  Pointer to the float field in the input registers
  * struct
- * @param pRegBase     Pointer to the first of the two uint16_t Modbus registers
- *                     that hold this float32 value (base address, not [i])
+ * @param word_index   Which 16-bit word of the float32 to emit (0 = first
+ *                     register of the pair, 1 = second).
+ * @param pRegSlot     Destination response slot (``&register_values[i]``), NOT
+ *                     the float's absolute register address.
  */
 static void update_calibrated_adcval(uint16_t channel, float scale_factor,
                                      float offset_term, float dead_zone,
-                                     float    *pCalibratedField,
-                                     uint16_t *pRegBase)
+                                     float   *pCalibratedField,
+                                     uint16_t word_index, uint16_t *pRegSlot)
 {
     float32_t raw_volts  = 0.0f;
     float     calibrated = 0.0f;
@@ -134,7 +153,7 @@ static void update_calibrated_adcval(uint16_t channel, float scale_factor,
         }
 
         *pCalibratedField = calibrated;
-        f32_to_u16(calibrated, pRegBase);
+        f32_word_to_reg(calibrated, word_index, pRegSlot);
     }
 }
 
@@ -1000,76 +1019,86 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t  start_address,
                     (uint16_t)((uint32_t)regs->app_build_number & 0xFFFFU);
                 break;
 
-            /* ADC0 Calibration */
+            /* ADC0 Calibration (BUG-02: write to relative slot
+             * register_values[i], one word per register, not the absolute
+             * register address) */
             case JERRY_DEVICE_HR_ADC_0_SCALE_FACTOR:
             case JERRY_DEVICE_HR_ADC_0_SCALE_FACTOR + 1U:
-                f32_to_u16(
-                    regs->adc_0_scale_factor,
-                    &register_values[JERRY_DEVICE_HR_ADC_0_SCALE_FACTOR]);
+                f32_word_to_reg(regs->adc_0_scale_factor,
+                                addr - JERRY_DEVICE_HR_ADC_0_SCALE_FACTOR,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_0_OFFSET_TERM:
             case JERRY_DEVICE_HR_ADC_0_OFFSET_TERM + 1U:
-                f32_to_u16(regs->adc_0_offset_term,
-                           &register_values[JERRY_DEVICE_HR_ADC_0_OFFSET_TERM]);
+                f32_word_to_reg(regs->adc_0_offset_term,
+                                addr - JERRY_DEVICE_HR_ADC_0_OFFSET_TERM,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_0_DEAD_ZONE:
             case JERRY_DEVICE_HR_ADC_0_DEAD_ZONE + 1U:
-                f32_to_u16(regs->adc_0_dead_zone,
-                           &register_values[JERRY_DEVICE_HR_ADC_0_DEAD_ZONE]);
+                f32_word_to_reg(regs->adc_0_dead_zone,
+                                addr - JERRY_DEVICE_HR_ADC_0_DEAD_ZONE,
+                                &register_values[i]);
                 break;
 
             /* ADC1 Calibration */
             case JERRY_DEVICE_HR_ADC_1_SCALE_FACTOR:
             case JERRY_DEVICE_HR_ADC_1_SCALE_FACTOR + 1U:
-                f32_to_u16(
-                    regs->adc_1_scale_factor,
-                    &register_values[JERRY_DEVICE_HR_ADC_1_SCALE_FACTOR]);
+                f32_word_to_reg(regs->adc_1_scale_factor,
+                                addr - JERRY_DEVICE_HR_ADC_1_SCALE_FACTOR,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_1_OFFSET_TERM:
             case JERRY_DEVICE_HR_ADC_1_OFFSET_TERM + 1U:
-                f32_to_u16(regs->adc_1_offset_term,
-                           &register_values[JERRY_DEVICE_HR_ADC_1_OFFSET_TERM]);
+                f32_word_to_reg(regs->adc_1_offset_term,
+                                addr - JERRY_DEVICE_HR_ADC_1_OFFSET_TERM,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_1_DEAD_ZONE:
             case JERRY_DEVICE_HR_ADC_1_DEAD_ZONE + 1U:
-                f32_to_u16(regs->adc_1_dead_zone,
-                           &register_values[JERRY_DEVICE_HR_ADC_1_DEAD_ZONE]);
+                f32_word_to_reg(regs->adc_1_dead_zone,
+                                addr - JERRY_DEVICE_HR_ADC_1_DEAD_ZONE,
+                                &register_values[i]);
                 break;
 
             /* ADC2 Calibration */
             case JERRY_DEVICE_HR_ADC_2_SCALE_FACTOR:
             case JERRY_DEVICE_HR_ADC_2_SCALE_FACTOR + 1U:
-                f32_to_u16(
-                    regs->adc_2_scale_factor,
-                    &register_values[JERRY_DEVICE_HR_ADC_2_SCALE_FACTOR]);
+                f32_word_to_reg(regs->adc_2_scale_factor,
+                                addr - JERRY_DEVICE_HR_ADC_2_SCALE_FACTOR,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_2_OFFSET_TERM:
             case JERRY_DEVICE_HR_ADC_2_OFFSET_TERM + 1U:
-                f32_to_u16(regs->adc_2_offset_term,
-                           &register_values[JERRY_DEVICE_HR_ADC_2_OFFSET_TERM]);
+                f32_word_to_reg(regs->adc_2_offset_term,
+                                addr - JERRY_DEVICE_HR_ADC_2_OFFSET_TERM,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_2_DEAD_ZONE:
             case JERRY_DEVICE_HR_ADC_2_DEAD_ZONE + 1U:
-                f32_to_u16(regs->adc_2_dead_zone,
-                           &register_values[JERRY_DEVICE_HR_ADC_2_DEAD_ZONE]);
+                f32_word_to_reg(regs->adc_2_dead_zone,
+                                addr - JERRY_DEVICE_HR_ADC_2_DEAD_ZONE,
+                                &register_values[i]);
                 break;
 
             /* ADC3 Calibration */
             case JERRY_DEVICE_HR_ADC_3_SCALE_FACTOR:
             case JERRY_DEVICE_HR_ADC_3_SCALE_FACTOR + 1U:
-                f32_to_u16(
-                    regs->adc_3_scale_factor,
-                    &register_values[JERRY_DEVICE_HR_ADC_3_SCALE_FACTOR]);
+                f32_word_to_reg(regs->adc_3_scale_factor,
+                                addr - JERRY_DEVICE_HR_ADC_3_SCALE_FACTOR,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_3_OFFSET_TERM:
             case JERRY_DEVICE_HR_ADC_3_OFFSET_TERM + 1U:
-                f32_to_u16(regs->adc_3_offset_term,
-                           &register_values[JERRY_DEVICE_HR_ADC_3_OFFSET_TERM]);
+                f32_word_to_reg(regs->adc_3_offset_term,
+                                addr - JERRY_DEVICE_HR_ADC_3_OFFSET_TERM,
+                                &register_values[i]);
                 break;
             case JERRY_DEVICE_HR_ADC_3_DEAD_ZONE:
             case JERRY_DEVICE_HR_ADC_3_DEAD_ZONE + 1U:
-                f32_to_u16(regs->adc_3_dead_zone,
-                           &register_values[JERRY_DEVICE_HR_ADC_3_DEAD_ZONE]);
+                f32_word_to_reg(regs->adc_3_dead_zone,
+                                addr - JERRY_DEVICE_HR_ADC_3_DEAD_ZONE,
+                                &register_values[i]);
                 break;
 
             default:
@@ -1476,7 +1505,8 @@ modbus_exception_t modbus_cb_read_input_registers(uint16_t  start_address,
                     BSP_ADC1_CHANNEL_A0, hrRegs->adc_0_scale_factor,
                     hrRegs->adc_0_offset_term, hrRegs->adc_0_dead_zone,
                     &regs->adc_0_calibrated_value,
-                    &register_values[JERRY_DEVICE_IR_ADC_0_CALIBRATED_VALUE]);
+                    addr - JERRY_DEVICE_IR_ADC_0_CALIBRATED_VALUE,
+                    &register_values[i]);
                 break;
             case JERRY_DEVICE_IR_ADC_1_CALIBRATED_VALUE:
             case JERRY_DEVICE_IR_ADC_1_CALIBRATED_VALUE + 1:
@@ -1484,7 +1514,8 @@ modbus_exception_t modbus_cb_read_input_registers(uint16_t  start_address,
                     BSP_ADC1_CHANNEL_A1, hrRegs->adc_1_scale_factor,
                     hrRegs->adc_1_offset_term, hrRegs->adc_1_dead_zone,
                     &regs->adc_1_calibrated_value,
-                    &register_values[JERRY_DEVICE_IR_ADC_1_CALIBRATED_VALUE]);
+                    addr - JERRY_DEVICE_IR_ADC_1_CALIBRATED_VALUE,
+                    &register_values[i]);
                 break;
             case JERRY_DEVICE_IR_ADC_2_CALIBRATED_VALUE:
             case JERRY_DEVICE_IR_ADC_2_CALIBRATED_VALUE + 1:
@@ -1492,7 +1523,8 @@ modbus_exception_t modbus_cb_read_input_registers(uint16_t  start_address,
                     BSP_ADC1_CHANNEL_A2, hrRegs->adc_2_scale_factor,
                     hrRegs->adc_2_offset_term, hrRegs->adc_2_dead_zone,
                     &regs->adc_2_calibrated_value,
-                    &register_values[JERRY_DEVICE_IR_ADC_2_CALIBRATED_VALUE]);
+                    addr - JERRY_DEVICE_IR_ADC_2_CALIBRATED_VALUE,
+                    &register_values[i]);
                 break;
             case JERRY_DEVICE_IR_ADC_3_CALIBRATED_VALUE:
             case JERRY_DEVICE_IR_ADC_3_CALIBRATED_VALUE + 1:
@@ -1500,7 +1532,8 @@ modbus_exception_t modbus_cb_read_input_registers(uint16_t  start_address,
                     BSP_ADC1_CHANNEL_A3, hrRegs->adc_3_scale_factor,
                     hrRegs->adc_3_offset_term, hrRegs->adc_3_dead_zone,
                     &regs->adc_3_calibrated_value,
-                    &register_values[JERRY_DEVICE_IR_ADC_3_CALIBRATED_VALUE]);
+                    addr - JERRY_DEVICE_IR_ADC_3_CALIBRATED_VALUE,
+                    &register_values[i]);
                 break;
             case JERRY_DEVICE_IR_APP_VERSION_MAJOR:
                 /* Refresh from compile-time constants before reading */
