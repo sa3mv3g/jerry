@@ -212,18 +212,20 @@ static bsp_error_t update_digital_input(unsigned int channel, bool *pCoil,
     return apiStatus;
 }
 
+/*
+ * Always write the new calibration value to EEPROM (BUG-05).
+ *
+ * The previous implementation read the stored value back and skipped the write
+ * when it compared equal to the new value. That comparison used float `==`,
+ * which is unreliable (NaN/denormal/bit-pattern differences), so it could both
+ * skip needed writes and perform redundant ones. Calibration is an infrequent,
+ * master-initiated operation, so the redundant-write avoidance was of
+ * negligible benefit; we drop the read-back-and-compare entirely. If
+ * write-suppression is ever genuinely required, compare the raw bytes with
+ * memcmp() rather than float `==`.
+ */
 static inline bsp_error_t update_calibration(uint32_t address, float newValue)
 {
-    float       oldVal = 0.0f;
-    bsp_error_t err    = BSP_OK;
-
-    err = BSP_EEPROM_Read(address, (uint8_t *)&oldVal, sizeof(oldVal));
-
-    if (err == BSP_OK && oldVal == newValue)
-    {
-        return BSP_OK;
-    }
-
     return BSP_EEPROM_Write(address, (uint8_t *)&newValue, sizeof(newValue));
 }
 
