@@ -28,6 +28,53 @@ static char gLcdStrings[LCD_MANAGER_ROWS_MAX][LCD_MANAGER_COLS_MAX + 1];
 static SemaphoreHandle_t gUdpateLcdSem;
 static StaticSemaphore_t gUdpateLcdSemBuff;
 
+/*
+ * Per-row "dirty" flags (BUG-09). A binary semaphore alone can lose updates:
+ * if a row is updated while the LCD task is mid-write, the extra give is
+ * coalesced and the newly-changed row is not re-rendered until the next
+ * unrelated update. Each producer marks the specific row dirty (and gives the
+ * semaphore); the LCD task clears and renders dirty rows, re-scanning until
+ * none remain, so updates that arrive during a write are not lost.
+ */
+static volatile bool gRowDirty[LCD_MANAGER_ROWS_MAX] = {false};
+
+/**
+ * @brief Mark an LCD row as needing a redraw and wake the LCD task.
+ * @param row Row index (0 .. LCD_MANAGER_ROWS_MAX-1).
+ */
+static void lcdManager_MarkRowDirty(uint8_t row)
+{
+    if (row < LCD_MANAGER_ROWS_MAX)
+    {
+        taskENTER_CRITICAL();
+        gRowDirty[row] = true;
+        taskEXIT_CRITICAL();
+
+        if (gUdpateLcdSem != NULL)
+        {
+            (void)xSemaphoreGive(gUdpateLcdSem);
+        }
+    }
+}
+
+/**
+ * @brief Atomically test-and-clear a row's dirty flag.
+ * @param row Row index.
+ * @return true if the row was dirty (and has now been cleared).
+ */
+static bool lcdManager_ClearRowDirty(uint8_t row)
+{
+    bool was_dirty = false;
+    taskENTER_CRITICAL();
+    if (gRowDirty[row])
+    {
+        gRowDirty[row] = false;
+        was_dirty      = true;
+    }
+    taskEXIT_CRITICAL();
+    return was_dirty;
+}
+
 static uint8_t gIpLastOctet   = 0;
 static uint8_t gModbusAddress = 0;
 static uint8_t gDigitalInput  = 0;
@@ -56,10 +103,7 @@ static void update_row_0(void)
              gRtcSeconds % 100U);
     strncpy(gLcdStrings[0], temp, LCD_MANAGER_COLS_MAX);
     gLcdStrings[0][LCD_MANAGER_COLS_MAX] = '\0';
-    if (gUdpateLcdSem != NULL)
-    {
-        xSemaphoreGive(gUdpateLcdSem);
-    }
+    lcdManager_MarkRowDirty(0U);
 }
 
 static void update_row_1(void)
@@ -70,10 +114,7 @@ static void update_row_1(void)
              gAnalogOutput[1] % 100000U);
     strncpy(gLcdStrings[1], temp, LCD_MANAGER_COLS_MAX);
     gLcdStrings[1][LCD_MANAGER_COLS_MAX] = '\0';
-    if (gUdpateLcdSem != NULL)
-    {
-        xSemaphoreGive(gUdpateLcdSem);
-    }
+    lcdManager_MarkRowDirty(1U);
 }
 
 static void format_ai(char* buf, float val)
@@ -101,10 +142,7 @@ static void update_row_2(void)
     format_ai(ai0, gAnalogInput[0]);
     format_ai(ai1, gAnalogInput[1]);
     snprintf(gLcdStrings[2], LCD_MANAGER_COLS_MAX + 1, "%s %s ", ai0, ai1);
-    if (gUdpateLcdSem != NULL)
-    {
-        xSemaphoreGive(gUdpateLcdSem);
-    }
+    lcdManager_MarkRowDirty(2U);
 }
 
 static void update_row_3(void)
@@ -113,10 +151,7 @@ static void update_row_3(void)
     format_ai(ai2, gAnalogInput[2]);
     format_ai(ai3, gAnalogInput[3]);
     snprintf(gLcdStrings[3], LCD_MANAGER_COLS_MAX + 1, "%s %s ", ai2, ai3);
-    if (gUdpateLcdSem != NULL)
-    {
-        xSemaphoreGive(gUdpateLcdSem);
-    }
+    lcdManager_MarkRowDirty(3U);
 }
 
 void vLcdManageTask(void* pvParameters)
@@ -164,14 +199,29 @@ void vLcdManageTask(void* pvParameters)
     /* Main task loop */
     for (;;)
     {
+        /* Block until at least one row has been marked dirty. */
         if ((xSemaphoreTake(gUdpateLcdSem, portMAX_DELAY) == pdTRUE) &&
             (err == kLcdI2cOk))
         {
-            for (uint8_t lcdRow = 0; lcdRow < LCD_MANAGER_ROWS_MAX; lcdRow++)
+            bool any_dirty;
+
+            /* Render dirty rows, re-scanning until a full pass finds none.
+             * A row marked dirty while we are writing is therefore not lost
+             * (BUG-09). */
+            do
             {
-                err = LcdI2c_WriteStringAt(&lcd_handle, 0, lcdRow,
-                                           gLcdStrings[lcdRow]);
-            }
+                any_dirty = false;
+                for (uint8_t lcdRow = 0; lcdRow < LCD_MANAGER_ROWS_MAX;
+                     lcdRow++)
+                {
+                    if (lcdManager_ClearRowDirty(lcdRow))
+                    {
+                        any_dirty = true;
+                        err       = LcdI2c_WriteStringAt(&lcd_handle, 0, lcdRow,
+                                                         gLcdStrings[lcdRow]);
+                    }
+                }
+            } while (any_dirty && (err == kLcdI2cOk));
         }
     }
 }
