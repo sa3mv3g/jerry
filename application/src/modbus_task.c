@@ -303,38 +303,61 @@ static void modbus_handle_connection(struct netconn *conn)
 {
     struct netbuf *buf;
     err_t          err;
-    void          *data;
-    u16_t          len;
-    uint16_t       response_len;
-    modbus_error_t modbus_err;
+    uint16_t       total_len = 0;
 
     while (1)
     {
-        /* Receive data */
         err = netconn_recv(conn, &buf);
         if (err == ERR_OK)
         {
-            /* Get data from netbuf */
-            netbuf_data(buf, &data, &len);
+            struct pbuf *p;
+            uint16_t     len;
+            bool         overflow = false;
 
-            if (len > 0U)
+            /* Walk the pbuf chain to copy all fragments into a single buffer */
+            for (p = buf->p; p != NULL; p = p->next)
             {
-                /* Copy to receive buffer */
-                uint16_t copy_len = (len > sizeof(s_rx_buffer))
-                                        ? (uint16_t)sizeof(s_rx_buffer)
-                                        : len;
-                (void)memcpy(s_rx_buffer, data, copy_len);
-
-                /* Process the Modbus request */
-                modbus_err = modbus_process_request(s_rx_buffer, copy_len,
-                                                    s_tx_buffer, &response_len);
-
-                if (modbus_err == MODBUS_OK)
+                len = p->len;
+                if (total_len + len > sizeof(s_rx_buffer))
                 {
-                    /* Send response only if there is data to send */
-                    /* (response_len=0 means request was for different unit ID)
-                     */
-                    if (response_len > 0U)
+                    LOG_ERR(
+                        "[Modbus] RX buffer overflow. Dropping oversized "
+                        "frame.");
+                    total_len = 0; /* Reset for next frame */
+                    overflow  = true;
+                }
+                else
+                {
+                    memcpy(&s_rx_buffer[total_len], p->payload, len);
+                    total_len += len;
+                }
+                if (overflow)
+                {
+                    break;
+                }
+            }
+
+            netbuf_delete(buf);
+
+            if (overflow)
+            {
+                continue;
+            }
+
+            if (total_len >= 6)
+            {
+                uint16_t expected_len =
+                    (uint16_t)((s_rx_buffer[4] << 8) | s_rx_buffer[5]) + 6;
+
+                if (total_len >= expected_len)
+                {
+                    modbus_error_t modbus_err;
+                    uint16_t       response_len;
+
+                    modbus_err = modbus_process_request(
+                        s_rx_buffer, expected_len, s_tx_buffer, &response_len);
+
+                    if (modbus_err == MODBUS_OK && response_len > 0)
                     {
                         err = netconn_write(conn, s_tx_buffer, response_len,
                                             NETCONN_COPY);
@@ -343,22 +366,28 @@ static void modbus_handle_connection(struct netconn *conn)
                             LOG_ERR("[Modbus]: Write error: %d", err);
                         }
                     }
-                }
-                else
-                {
-                    LOG_ERR("[Modbus]: Process error: %d", (int)modbus_err);
+                    else if (modbus_err != MODBUS_OK)
+                    {
+                        LOG_ERR("[Modbus]: Process error: %d", (int)modbus_err);
+                    }
+
+                    /* Reset for next frame */
+                    total_len = 0;
                 }
             }
-
-            netbuf_delete(buf);
         }
         else if (err == ERR_TIMEOUT)
         {
-            /* Timeout - continue waiting */
+            if (total_len > 0)
+            {
+                LOG_WRN(
+                    "[Modbus] Discarding partial frame on timeout (%u bytes)",
+                    total_len);
+                total_len = 0;
+            }
         }
         else
         {
-            /* Connection error - exit */
             LOG_ERR("[Modbus]: Receive error: %d", err);
             break;
         }
