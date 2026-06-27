@@ -29,6 +29,10 @@ uint32_t RTC_Manager_GetTimeWithMs(App_RTC_TimeTypeDef *pTimeDate)
          * (SecondFraction + 1) */
         if (pTimeDate->second_fraction > 0)
         {
+            if (pTimeDate->subseconds > pTimeDate->second_fraction)
+            {
+                return 0;
+            }
             uint32_t ms =
                 ((pTimeDate->second_fraction - pTimeDate->subseconds) * 1000U) /
                 (pTimeDate->second_fraction + 1U);
