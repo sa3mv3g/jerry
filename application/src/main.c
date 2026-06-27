@@ -116,30 +116,62 @@ void vApplicationGetTimerTaskMemory(StaticTask_t** ppxTimerTaskTCBBuffer,
  * ========================================================================== */
 
 /**
+ * @brief Crude blocking busy-wait used by the fatal-fault LED indicator.
+ *
+ * Must not depend on the scheduler or SysTick (it runs with interrupts
+ * disabled from a fault hook). The iteration count is approximate; the LED
+ * *cadence*, not exact timing, identifies the fault.
+ *
+ * @param loops Number of empty loop iterations to spin.
+ */
+static void fatal_fault_busy_wait(volatile uint32_t loops)
+{
+    while (loops > 0U)
+    {
+        loops--;
+    }
+}
+
+/* Approximate busy-wait counts (tuned to the core clock; timing is not
+ * critical, the pattern is what identifies the fault). */
+#define FATAL_FAULT_BLINK_ON_LOOPS  (600000U)  /* ~150 ms on  */
+#define FATAL_FAULT_BLINK_OFF_LOOPS (600000U)  /* ~150 ms off */
+#define FATAL_FAULT_BLINK_GAP_LOOPS (4000000U) /* ~1 s pause  */
+
+/**
  * @brief Stack Overflow Hook - Called when FreeRTOS detects stack overflow
  *
- * This hook is called when configCHECK_FOR_STACK_OVERFLOW is enabled and
- * a stack overflow is detected. The task name is printed to help identify
- * which task caused the overflow.
+ * This hook is called when configCHECK_FOR_STACK_OVERFLOW is enabled and a
+ * stack overflow is detected. At this point the task stack is already
+ * corrupted, so we must NOT use the logging subsystem (snprintf and friends
+ * are stack-heavy and could fault or corrupt memory). Instead we disable
+ * interrupts and drive the on-board RED LED in a characteristic pattern —
+ * 3 fast blinks then a ~1 s pause, repeating forever — which is documented in
+ * the README ("Diagnostic LED Patterns"). See BUG-08 / issue #28.
  */
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName)
 {
     (void)xTask;
+    (void)pcTaskName;
 
-    /* CRITICAL: Stack overflow detected! */
-    LOG_ERR("");
-    LOG_ERR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    LOG_ERR("!!! STACK OVERFLOW DETECTED !!!");
-    LOG_ERR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    LOG_ERR("Task Name: %s", pcTaskName);
-    LOG_ERR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    LOG_ERR("");
-
-    /* Halt the system - in production, you might want to reset */
+    /* Halt immediately: the stack is corrupt, so do nothing stack-heavy. */
     taskDISABLE_INTERRUPTS();
+
+    /* Defensive: ensure the LED GPIO is configured even if init never ran. */
+    (void)BSP_LED_Init(LED_RED);
+
     for (;;)
     {
-        /* Infinite loop */
+        /* 3 fast blinks ... */
+        for (uint32_t blink = 0U; blink < 3U; blink++)
+        {
+            (void)BSP_LED_On(LED_RED);
+            fatal_fault_busy_wait(FATAL_FAULT_BLINK_ON_LOOPS);
+            (void)BSP_LED_Off(LED_RED);
+            fatal_fault_busy_wait(FATAL_FAULT_BLINK_OFF_LOOPS);
+        }
+        /* ... then a long pause, repeat forever. */
+        fatal_fault_busy_wait(FATAL_FAULT_BLINK_GAP_LOOPS);
     }
 }
 
