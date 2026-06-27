@@ -437,9 +437,9 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
     {
         case MODBUS_FC_READ_COILS:
         {
-            uint16_t start_address;
-            uint16_t quantity;
-            uint8_t  coil_values[256];
+            uint16_t       start_address;
+            uint16_t       quantity;
+            static uint8_t coil_values[256];
 
             err = modbus_pdu_decode_read_bits_request(
                 &request_adu.pdu, &start_address, &quantity);
@@ -459,9 +459,9 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
 
         case MODBUS_FC_READ_DISCRETE_INPUTS:
         {
-            uint16_t start_address;
-            uint16_t quantity;
-            uint8_t  input_values[256];
+            uint16_t       start_address;
+            uint16_t       quantity;
+            static uint8_t input_values[256];
 
             err = modbus_pdu_decode_read_bits_request(
                 &request_adu.pdu, &start_address, &quantity);
@@ -481,9 +481,9 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
 
         case MODBUS_FC_READ_HOLDING_REGISTERS:
         {
-            uint16_t start_address;
-            uint16_t quantity;
-            uint16_t register_values[125];
+            uint16_t        start_address;
+            uint16_t        quantity;
+            static uint16_t register_values[125];
 
             err = modbus_pdu_decode_read_registers_request(
                 &request_adu.pdu, &start_address, &quantity);
@@ -503,9 +503,9 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
 
         case MODBUS_FC_READ_INPUT_REGISTERS:
         {
-            uint16_t start_address;
-            uint16_t quantity;
-            uint16_t register_values[125];
+            uint16_t        start_address;
+            uint16_t        quantity;
+            static uint16_t register_values[125];
 
             err = modbus_pdu_decode_read_registers_request(
                 &request_adu.pdu, &start_address, &quantity);
@@ -588,9 +588,9 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
 
         case MODBUS_FC_WRITE_MULTIPLE_REGISTERS:
         {
-            uint16_t start_address;
-            uint16_t quantity;
-            uint16_t values[123];
+            uint16_t        start_address;
+            uint16_t        quantity;
+            static uint16_t values[123];
 
             err = modbus_pdu_decode_write_multiple_registers_request(
                 &request_adu.pdu, &start_address, &quantity, values, 123U);
