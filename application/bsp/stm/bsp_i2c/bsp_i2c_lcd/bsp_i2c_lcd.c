@@ -1,5 +1,6 @@
 #include "bsp.h"
 #include "bsp_i2c.h"
+#include "stm32h5xx_hal_i2c.h"
 
 /* ========================================================================== */
 /*                 Private Definitions and Macros                             */
@@ -91,6 +92,7 @@ bsp_error_t BSP_I2C_LcdRead(uint8_t address, uint8_t *buff, uint16_t len,
 bsp_error_t BSP_I2C_LcdWrite(uint8_t address, uint8_t *buff, uint16_t len,
                              uint32_t timeout)
 {
+    (void)timeout;
     bsp_error_t ret = BSP_OK;
 
     if (NULL == buff)
@@ -110,7 +112,7 @@ bsp_error_t BSP_I2C_LcdWrite(uint8_t address, uint8_t *buff, uint16_t len,
         if (BSP_I2C_TARGET_STATE_CONN == lcdStatus)
         {
             ret = BSP_I2C_MapStatus(
-                HAL_I2C_Master_Transmit(&hi2c4, address, buff, len, timeout));
+                I2C_WriteData_Async(&hi2c4, address, buff, len));
 
             if (ret != BSP_OK)
             {

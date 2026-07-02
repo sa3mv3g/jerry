@@ -5,12 +5,11 @@
 
 #include "bsp.h"
 #include "main.h"
-#include "portmacrocommon.h"
 
 /* ========================================================================== */
 /*                 Private Definitions and Macros                             */
 /* ========================================================================== */
-#define SEMPHR_TIMEOUT (100U)
+#define I2C_TIMEOUT (100U)
 
 /* ========================================================================== */
 /*                 Private Typedefs                                           */
@@ -23,9 +22,8 @@
 /* ========================================================================== */
 /*                 Private Variable Declaration                               */
 /* ========================================================================== */
-static SemaphoreHandle_t      gI2C4Mutex = NULL;
-static StaticSemaphore_t      gI2C4MutexBuf;
 static BSP_I2C_Target_State_t gI2C4BusStatus;
+static volatile bool          g_i2c4_tx_complete = false;
 
 /* ========================================================================== */
 /*                 Public Functions                                           */
@@ -33,16 +31,16 @@ static BSP_I2C_Target_State_t gI2C4BusStatus;
 
 void BSP_I2C_Controller_MutexInit(void)
 {
-    /* Create the I2C4 bus mutex (static allocation — safe before scheduler) */
-    gI2C4Mutex = xSemaphoreCreateMutexStatic(&gI2C4MutexBuf);
+    /* Bare-metal: no mutex needed or implemented via basic flags if required */
 }
 
 BaseType_t BSP_I2C_Controller_MutexLock(void)
 {
-    return xSemaphoreTake(gI2C4Mutex, pdMS_TO_TICKS(SEMPHR_TIMEOUT));
+    /* Bare-metal: return success immediately or implement spinlock */
+    return 1;  // pdTRUE equivalent
 }
 
-void BSP_I2C_Controller_MutexUnlock(void) { xSemaphoreGive(gI2C4Mutex); }
+void BSP_I2C_Controller_MutexUnlock(void) { /* Bare-metal: no action */ }
 
 bsp_error_t BSP_I2C_Target_ParamsInit(BSP_I2C_Target_State_t *statePtr)
 {
@@ -125,7 +123,7 @@ bsp_error_t BSP_I2C_Target_GetState(BSP_I2C_Target_State_t *statePtr,
     return ret;
 }
 
-bsp_error_t BSP_I2C_Init()
+bsp_error_t BSP_I2C_Init(void)
 {
     bsp_error_t   ret;
     GPIO_PinState sclState;
@@ -157,9 +155,59 @@ bsp_error_t BSP_I2C_Init()
     return ret;
 }
 
-uint32_t BSP_I2C_GetBusStatus()
+uint32_t BSP_I2C_GetBusStatus(void)
 {
     uint32_t ret = 0;
     BSP_I2C_Target_GetState(&gI2C4BusStatus, &ret);
     return ret;
+}
+
+HAL_StatusTypeDef I2C_WriteData_Async(I2C_HandleTypeDef *hi2c,
+                                      uint16_t DevAddress, uint8_t *pData,
+                                      uint16_t Size)
+{
+    HAL_StatusTypeDef status;
+    uint32_t          tickstart;
+
+    g_i2c4_tx_complete = false;
+
+    // Start the interrupt-driven hardware transmission
+    status = HAL_I2C_Master_Transmit_IT(hi2c, DevAddress, pData, Size);
+
+    if (status == HAL_OK)
+    {
+        tickstart = HAL_GetTick();
+
+        // Bare-metal busy-wait loop waiting for interrupt to complete
+        while (!g_i2c4_tx_complete)
+        {
+            if ((HAL_GetTick() - tickstart) > I2C_TIMEOUT)
+            {
+                // Timeout hit - hardware might be hung.
+                return HAL_TIMEOUT;
+            }
+        }
+
+        return HAL_OK;
+    }
+
+    return status;
+}
+
+// 3. The interrupt callback
+void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c)
+{
+    if (hi2c->Instance == I2C4)
+    {
+        g_i2c4_tx_complete = true;
+    }
+}
+
+// Catch I2C errors (NACK, Bus Error)
+void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
+{
+    if (hi2c->Instance == I2C4)
+    {
+        g_i2c4_tx_complete = true;
+    }
 }

@@ -1,6 +1,9 @@
+#include "FreeRTOS.h"
 #include "bsp.h"
 #include "bsp_i2c.h"
 #include "log.h"
+#include "semphr.h"
+#include "stm32h5xx_hal_i2c.h"
 
 /* ========================================================================== */
 /*                 Private Definitions and Macros                             */
@@ -98,19 +101,17 @@ bsp_error_t BSP_I2CDO_Write(uint16_t value)
 
             // Write lower 8 bits to PCF8574
             output_byte = (uint8_t)(value & 0xFFU);
-            status =
-                HAL_I2C_Master_Transmit(&hi2c4, BSP_I2CDO_PCF8574_ADDR,
-                                        &output_byte, 1, BSP_I2CDO_TIMEOUT);
-            ret = BSP_I2C_MapStatus(status);
+            status      = I2C_WriteData_Async(&hi2c4, BSP_I2CDO_PCF8574_ADDR,
+                                              &output_byte, 1);
+            ret         = BSP_I2C_MapStatus(status);
 
             // Write upper 8 bits to PCF8574A
             if (ret == BSP_OK)
             {
                 output_byte = (uint8_t)((value >> 8U) & 0xFFU);
-                status =
-                    HAL_I2C_Master_Transmit(&hi2c4, BSP_I2CDO_PCF8574A_ADDR,
-                                            &output_byte, 1, BSP_I2CDO_TIMEOUT);
-                ret = BSP_I2C_MapStatus(status);
+                status = I2C_WriteData_Async(&hi2c4, BSP_I2CDO_PCF8574A_ADDR,
+                                             &output_byte, 1);
+                ret    = BSP_I2C_MapStatus(status);
                 if (ret != BSP_OK)
                 {
                     BSP_I2C_Target_Disconnect(&gPCF8574AConnState);

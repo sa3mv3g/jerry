@@ -52,6 +52,7 @@ void EXTI13_IRQHandler(void);
 void GPDMA1_Channel0_IRQHandler(void);
 void TIM6_IRQHandler(void);
 void ETH_IRQHandler(void);
+void I2C4_EV_IRQHandler(void);
 void I2C4_ER_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 extern __IO uint32_t AddressRead;

@@ -542,11 +542,11 @@
 //   <o.26> TIM14_IRQn            <0=> Secure state
 //   <o.27> I3C1_EV_IRQn          <0=> Secure state
 //   <o.28> I3C1_ER_IRQn          <0=> Secure state
-//   <o.29> I2C4_EV_IRQn          <0=> Secure state
+//   <o.29> I2C4_EV_IRQn          <1=> Non-Secure state
 //   <o.30> I2C4_ER_IRQn          <1=> Non-Secure state
 //   <o.31> LPTIM3_IRQn           <0=> Secure state
 */
-#define NVIC_INIT_ITNS3_VAL      0x40000400
+#define NVIC_INIT_ITNS3_VAL      0x60000400
 
 /*
 //   </e>
