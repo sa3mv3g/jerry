@@ -292,7 +292,10 @@ def cmd_flash(args: argparse.Namespace) -> int:
         "--build-dir",
         str(bdir),
     ]
+    if args.serial_number:
+        cmd.extend(["--sn", args.serial_number])
     return run(cmd)
+
 
 
 def cmd_lint(args: argparse.Namespace) -> int:
@@ -449,6 +452,13 @@ def build_parser() -> argparse.ArgumentParser:
     # flash
     p_flash = subparsers.add_parser("flash", help="Flash firmware to device")
     _add_vendor_profile_args(p_flash)
+    p_flash.add_argument(
+        "--sn",
+        default=None,
+        dest="serial_number",
+        metavar="SN",
+        help="Target device serial number",
+    )
 
     # lint
     p_lint = subparsers.add_parser("lint", help="Run all static analysis tools")

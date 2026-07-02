@@ -100,19 +100,14 @@ bsp_error_t DigitalOutput_SetChannel(uint16_t channel, bool value)
         {
             g_shadow = newShadow;
             LcdManager_UpdateDigitalOutputStatus(channel, value);
-            LOG_INF("[DO] Channel %d set to %d: OK", channel, (int)value);
         }
         else
         {
-            LOG_ERR("[DO] Channel %d set to %d: FAILED (I2C error %d)", channel,
-                    (int)value, (int)err);
         }
     }
     else
     {
         /* No change needed, state already matches */
-        LOG_INF("[DO] Channel %d already %d, no action taken", channel,
-                (int)value);
     }
 
     return err;
