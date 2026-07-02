@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "FreeRTOS.h"
+#include "SEGGER_RTT.h"
 #include "app_tasks.h"
 #include "bsp.h"
 #include "digital_output.h"
@@ -425,14 +426,37 @@ void print_task_stack_usage(void)
 /* Main Entry Point */
 int main(void)
 {
+    /* Relocate Vector Table to RAM so we can inject the RTT Control Block */
+    {
+        /* Must be 1024-byte aligned for Cortex-M33 with 150+ IRQs */
+#if defined(__ICCARM__)
+#pragma data_alignment = 1024
+#elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
+        __attribute__((aligned(1024)))
+#elif defined(__GNUC__)
+        __attribute__((aligned(1024)))
+#endif
+        static uint32_t ram_vector_table[256];
+
+        uint32_t* flash_vector_table = (uint32_t*)SCB->VTOR;
+        for (int i = 0; i < 256; i++)
+        {
+            ram_vector_table[i] = flash_vector_table[i];
+        }
+
+        /* Inject RTT Control Block address at offset 0x20 (Word 8) */
+        extern SEGGER_RTT_CB _SEGGER_RTT;
+        ram_vector_table[8] = (uint32_t)&_SEGGER_RTT + 2;
+
+        /* Activate RAM Vector Table */
+        SCB->VTOR = (uint32_t)ram_vector_table;
+    }
+
     /* Initialize Hardware (BSP) */
     BSP_Init();
 
     /* Initialize Logging */
     Logging_Init();
-
-    /* Initialize Digital Output Module */
-    (void)DigitalOutput_Init();
 
 #ifdef ENABLE_I2C_DEVICE_SCAN
     /* Scan I2C bus for connected devices (optional feature) */
@@ -498,7 +522,7 @@ void vMainTask(void* pvParameters)
     xEventGroupSync(xSyncEventGroup, APPTASK_MAIN_TASK_EVENT_MASK,
                     APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
 
-    /* Sync digital output LCD state now that LCD task is ready */
+    DigitalOutput_Init();
     DigitalOutput_SyncLcd();
 
     /* Counter for sub-interval updates (ADC/AO every 3 s = 6 × 500 ms) */
