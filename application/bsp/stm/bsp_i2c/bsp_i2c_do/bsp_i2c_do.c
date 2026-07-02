@@ -32,9 +32,7 @@ static BSP_I2C_Target_State_t gPCF8574AConnState;
 
 bsp_error_t BSP_I2CDO_init(void)
 {
-    bsp_error_t ret     = BSP_OK;
-    bool        pcfcon  = false;
-    bool        pcfacon = false;
+    bsp_error_t ret = BSP_OK;
 
     BSP_I2C_Target_Init(&gPCF8574ConnState);
     BSP_I2C_Target_Init(&gPCF8574AConnState);
@@ -43,33 +41,20 @@ bsp_error_t BSP_I2CDO_init(void)
                               BSP_I2CDO_TIMEOUT) == HAL_OK)
     {
         BSP_I2C_Target_Connect(&gPCF8574ConnState);
-        pcfcon = true;
 
         if (HAL_I2C_IsDeviceReady(&hi2c4, BSP_I2CDO_PCF8574A_ADDR, RETRY_COUNTS,
                                   BSP_I2CDO_TIMEOUT) == HAL_OK)
         {
             BSP_I2C_Target_Connect(&gPCF8574AConnState);
-            pcfacon = true;
         }
         else
         {
             BSP_I2C_Target_Disconnect(&gPCF8574AConnState);
-            pcfacon = false;
         }
     }
     else
     {
         BSP_I2C_Target_Disconnect(&gPCF8574ConnState);
-        pcfcon = false;
-    }
-
-    if ((true == pcfcon) && (true == pcfacon))
-    {
-        ret = BSP_I2CDO_Write(0x0000U);
-    }
-    else
-    {
-        ret = BSP_ERROR;
     }
 
     return ret;
@@ -103,7 +88,8 @@ bsp_error_t BSP_I2CDO_Write(uint16_t value)
             output_byte = (uint8_t)(value & 0xFFU);
             status      = I2C_WriteData_Async(&hi2c4, BSP_I2CDO_PCF8574_ADDR,
                                               &output_byte, 1);
-            ret         = BSP_I2C_MapStatus(status);
+
+            ret = BSP_I2C_MapStatus(status);
 
             // Write upper 8 bits to PCF8574A
             if (ret == BSP_OK)

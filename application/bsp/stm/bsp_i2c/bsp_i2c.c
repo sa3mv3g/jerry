@@ -3,13 +3,16 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "FreeRTOS.h"
 #include "bsp.h"
 #include "main.h"
+#include "portmacrocommon.h"
+#include "semphr.h"
 
 /* ========================================================================== */
 /*                 Private Definitions and Macros                             */
 /* ========================================================================== */
-#define I2C_TIMEOUT (100U)
+#define SEMPHR_TIMEOUT (100U)
 
 /* ========================================================================== */
 /*                 Private Typedefs                                           */
@@ -22,8 +25,11 @@
 /* ========================================================================== */
 /*                 Private Variable Declaration                               */
 /* ========================================================================== */
+static SemaphoreHandle_t      gI2C4Mutex = NULL;
+static StaticSemaphore_t      gI2C4MutexBuf;
 static BSP_I2C_Target_State_t gI2C4BusStatus;
-static volatile bool          g_i2c4_tx_complete = false;
+static SemaphoreHandle_t      xI2cTxSemaphore = NULL;
+static StaticSemaphore_t      xI2cTxSemaphoreBuffer;
 
 /* ========================================================================== */
 /*                 Public Functions                                           */
@@ -31,16 +37,15 @@ static volatile bool          g_i2c4_tx_complete = false;
 
 void BSP_I2C_Controller_MutexInit(void)
 {
-    /* Bare-metal: no mutex needed or implemented via basic flags if required */
+    gI2C4Mutex = xSemaphoreCreateMutexStatic(&gI2C4MutexBuf);
 }
 
 BaseType_t BSP_I2C_Controller_MutexLock(void)
 {
-    /* Bare-metal: return success immediately or implement spinlock */
-    return 1;  // pdTRUE equivalent
+    return xSemaphoreTake(gI2C4Mutex, pdMS_TO_TICKS(SEMPHR_TIMEOUT));
 }
 
-void BSP_I2C_Controller_MutexUnlock(void) { /* Bare-metal: no action */ }
+void BSP_I2C_Controller_MutexUnlock(void) { xSemaphoreGive(gI2C4Mutex); }
 
 bsp_error_t BSP_I2C_Target_ParamsInit(BSP_I2C_Target_State_t *statePtr)
 {
@@ -129,6 +134,8 @@ bsp_error_t BSP_I2C_Init(void)
     GPIO_PinState sclState;
     GPIO_PinState sdaState;
 
+    xI2cTxSemaphore = xSemaphoreCreateBinaryStatic(&xI2cTxSemaphoreBuffer);
+
     BSP_I2C_Target_Init(&gI2C4BusStatus);
 
     /* Manually check if SDA/SCL are HIGH (idle)
@@ -167,47 +174,42 @@ HAL_StatusTypeDef I2C_WriteData_Async(I2C_HandleTypeDef *hi2c,
                                       uint16_t Size)
 {
     HAL_StatusTypeDef status;
-    uint32_t          tickstart;
 
-    g_i2c4_tx_complete = false;
-
-    // Start the interrupt-driven hardware transmission
     status = HAL_I2C_Master_Transmit_IT(hi2c, DevAddress, pData, Size);
 
     if (status == HAL_OK)
     {
-        tickstart = HAL_GetTick();
-
-        // Bare-metal busy-wait loop waiting for interrupt to complete
-        while (!g_i2c4_tx_complete)
+        if (xSemaphoreTake(xI2cTxSemaphore, pdMS_TO_TICKS(100)) == pdTRUE)
         {
-            if ((HAL_GetTick() - tickstart) > I2C_TIMEOUT)
-            {
-                // Timeout hit - hardware might be hung.
-                return HAL_TIMEOUT;
-            }
+            status = HAL_OK;
         }
-
-        return HAL_OK;
+        else
+        {
+            status = HAL_TIMEOUT;
+        }
     }
 
     return status;
 }
 
-// 3. The interrupt callback
 void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c)
 {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
     if (hi2c->Instance == I2C4)
     {
-        g_i2c4_tx_complete = true;
+        xSemaphoreGiveFromISR(xI2cTxSemaphore, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
 }
 
-// Catch I2C errors (NACK, Bus Error)
 void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
 {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
     if (hi2c->Instance == I2C4)
     {
-        g_i2c4_tx_complete = true;
+        xSemaphoreGiveFromISR(xI2cTxSemaphore, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
 }

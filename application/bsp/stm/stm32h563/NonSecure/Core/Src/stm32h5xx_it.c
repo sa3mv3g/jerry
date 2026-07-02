@@ -1,4 +1,3 @@
-#include "log.h"
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
@@ -26,6 +25,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "eeprom_emul.h"
+#include "log.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
