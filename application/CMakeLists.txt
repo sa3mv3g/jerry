@@ -163,12 +163,22 @@ FetchContent_Declare(
 )
 
 # 5. Download embedded-log
-message(STATUS "[5/5] Declaring embedded-log (master)...")
+message(STATUS "[5/6] Declaring embedded-log (master)...")
 FetchContent_Declare(
     FCD_embedded_log
     GIT_REPOSITORY https://github.com/to9/embedded-log.git
     GIT_TAG        master
     SOURCE_DIR     "${DEPS_PATH}/embedded-log"
+    GIT_PROGRESS   TRUE
+)
+
+# 6. Download SEGGER RTT
+message(STATUS "[6/6] Declaring SEGGER RTT (V8.58.0)...")
+FetchContent_Declare(
+    FCD_segger_rtt
+    GIT_REPOSITORY https://github.com/SEGGERMicro/RTT.git
+    GIT_TAG        V8.58.0
+    SOURCE_DIR     "${DEPS_PATH}/segger_rtt"
     GIT_PROGRESS   TRUE
 )
 
@@ -180,6 +190,7 @@ message(STATUS "  - FreeRTOS-Kernel: ${DEPS_PATH}/FreeRTOS-Kernel")
 message(STATUS "  - CMSIS_6: ${DEPS_PATH}/CMSIS_6")
 message(STATUS "  - CMSIS-DSP: ${DEPS_PATH}/CMSIS-DSP")
 message(STATUS "  - embedded-log: ${DEPS_PATH}/embedded-log")
+message(STATUS "  - SEGGER RTT: ${DEPS_PATH}/segger_rtt")
 message(STATUS "")
 
 # Since embedded-log doesn't have a CMakeLists.txt, we populate it separately if we don't want CMake to try add_subdirectory
@@ -189,6 +200,11 @@ if(NOT fcd_embedded_log_POPULATED)
     FetchContent_Populate(FCD_embedded_log)
     # Remove default log_cfg.h so our application/inc/log_cfg.h is used
     file(REMOVE "${fcd_embedded_log_SOURCE_DIR}/src/log_cfg.h")
+endif()
+
+FetchContent_GetProperties(FCD_segger_rtt)
+if(NOT fcd_segger_rtt_POPULATED)
+    FetchContent_Populate(FCD_segger_rtt)
 endif()
 
 message(STATUS "")
@@ -241,6 +257,17 @@ add_library(embedded_log STATIC "${fcd_embedded_log_SOURCE_DIR}/src/log.c")
 target_include_directories(embedded_log PUBLIC "${fcd_embedded_log_SOURCE_DIR}/src")
 # Allow overriding log_cfg.h from application/inc
 target_include_directories(embedded_log BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/inc")
+
+message(STATUS "[1.6] Adding SEGGER RTT library...")
+add_library(segger_rtt STATIC 
+    "${fcd_segger_rtt_SOURCE_DIR}/RTT/SEGGER_RTT.c"
+    "${fcd_segger_rtt_SOURCE_DIR}/RTT/SEGGER_RTT_printf.c"
+)
+target_include_directories(segger_rtt PUBLIC "${fcd_segger_rtt_SOURCE_DIR}/RTT")
+# Allow overriding SEGGER_RTT_Conf.h
+target_include_directories(segger_rtt BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/inc")
+
+target_link_libraries(embedded_log PUBLIC segger_rtt)
 
 # Propagate includes to BSP and FreeRTOS which use log macros
 target_link_libraries(freertos_kernel PUBLIC embedded_log)
