@@ -9,6 +9,7 @@
 #include "log.h"
 #include "main.h"
 #include "stm32h5xx_hal.h"
+#include "stm32h5xx_hal_tim.h"
 
 #define LED_OK       LED2
 #define PWR_FLAG_WUF PWR_WAKEUP_FLAG4
@@ -19,6 +20,7 @@ extern uint32_t          __eth_dma_start;
 extern TIM_HandleTypeDef htim1;
 extern I2C_HandleTypeDef hi2c4;
 extern TIM_HandleTypeDef htim7;
+extern TIM_HandleTypeDef htim3;
 
 /* Note: hadc1, Node_GPDMA1_Channel0, List_GPDMA1_Channel0, and
  * handle_GPDMA1_Channel0 are declared extern in main.h */
@@ -160,6 +162,7 @@ bsp_error_t BSP_Init(void)
     MX_GTZC_NS_Init();
 
     /* Initialize all configured peripherals */
+    MX_TIM3_Init();
     MX_GPDMA1_Init();
     MX_GPIO_Init();
     MX_LPUART1_UART_Init();
@@ -261,6 +264,7 @@ bsp_error_t BSP_Init(void)
         LOG_ERR("[BSP] I2C bus error\r\n");
     }
     HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_1);
+    BSP_SinePwm_Init();
     /* Initialize ADC filter subsystem */
     BSP_ADC1_FilterInit();
     BSP_ADC1_Start();

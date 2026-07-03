@@ -67,6 +67,8 @@ extern DMA_HandleTypeDef  handle_GPDMA1_Channel0;
 
 /* USER CODE END EM */
 
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 void MX_GPIO_Init(void);
@@ -82,6 +84,7 @@ void MX_I2C4_Init(void);
 void MX_TIM7_Init(void);
 void MX_CRC_Init(void);
 void MX_RTC_Init(void);
+void MX_TIM3_Init(void);
 
 /* USER CODE BEGIN EFP */
 void ethernetif_get_mac_addr(uint8_t *mac_addr);
@@ -89,8 +92,8 @@ void ethernetif_get_mac_addr(uint8_t *mac_addr);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define MX_I2C3_PERIPH_CLOCK_FREQ 10
-#define MX_SPI1_PERIPH_CLOCK_FREQ 976562
+#define Tim3_Handle htim3
+#define TIM3_PWM_BASE_FREQ_KHZ 50
 #define DI4_Pin GPIO_PIN_0
 #define DI4_GPIO_Port GPIOF
 #define DI3_Pin GPIO_PIN_1

@@ -201,8 +201,8 @@ static void update_time_and_ao(void)
 
     /* Snapshot the shared register fields under the lock (BUG-04). */
     RegisterLock_Acquire();
-    uint16_t pwm_0_duty = (uint16_t)regs->pwm_0_duty_cycle;
-    uint16_t pwm_1_duty = (uint16_t)regs->pwm_1_duty_cycle;
+    uint16_t pwm_0_duty = (uint16_t)regs->pwm_0_amplitude;
+    uint16_t pwm_1_duty = (uint16_t)regs->pwm_1_amplitude;
     RegisterLock_Release();
 
     LOG_INF("[AO] PWM0:%u PWM1:%u", (unsigned int)pwm_0_duty,

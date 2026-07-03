@@ -5,6 +5,7 @@ if(VENDOR STREQUAL "stm" OR "$ENV{VENDOR}" STREQUAL "stm")
                     ${BSP_DIR}/stm/bsp_i2c/bsp_i2c.c
                     ${BSP_DIR}/stm/bsp_i2c/bsp_i2c_do/bsp_i2c_do.c
                     ${BSP_DIR}/stm/bsp_i2c/bsp_i2c_lcd/bsp_i2c_lcd.c
+                    ${BSP_DIR}/stm/bsp_SinePwm/bsp_sinepwm.c
                     PARENT_SCOPE
     )
 
