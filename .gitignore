@@ -84,3 +84,4 @@ application/dependencies/CMSIS-DSP
 
 .cache/*
 application/dependencies/embedded-log/
+application/dependencies/segger_rtt/
