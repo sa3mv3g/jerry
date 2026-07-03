@@ -569,6 +569,9 @@ void vMainTask(void* pvParameters)
         update_counter++;
         if (update_counter >= 6U)
         {
+            uint16_t pwm_0_amplitude;
+            uint16_t pwm_1_amplitude;
+
             update_counter = 0U;
 
             /* Update analog inputs (ADC) on LCD */
@@ -586,12 +589,12 @@ void vMainTask(void* pvParameters)
             jerry_device_holding_registers_t* regs =
                 jerry_device_get_holding_registers();
             RegisterLock_Acquire();
-            uint16_t pwm_0_duty = (uint16_t)regs->pwm_0_duty_cycle;
-            uint16_t pwm_1_duty = (uint16_t)regs->pwm_1_duty_cycle;
+            pwm_0_amplitude = (uint16_t)regs->pwm_0_amplitude;
+            pwm_1_amplitude = (uint16_t)regs->pwm_1_amplitude;
             RegisterLock_Release();
 
-            LcdManager_UpdateAnalogOutput(0, pwm_0_duty);
-            LcdManager_UpdateAnalogOutput(1, pwm_1_duty);
+            LcdManager_UpdateAnalogOutput(0, pwm_0_amplitude);
+            LcdManager_UpdateAnalogOutput(1, pwm_1_amplitude);
         }
     }
 }

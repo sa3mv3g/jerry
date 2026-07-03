@@ -12,6 +12,7 @@
  * @copyright Copyright (c) 2026
  */
 
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -1005,41 +1006,29 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t  start_address,
 
         switch (addr)
         {
-            case JERRY_DEVICE_HR_PWM_0_DUTY_CYCLE:
-                register_values[i] = (uint16_t)regs->pwm_0_duty_cycle;
+            case JERRY_DEVICE_HR_PWM_0_AMPLITUDE:
+                register_values[i] = (uint16_t)regs->pwm_0_amplitude;
                 break;
-            case JERRY_DEVICE_HR_PWM_0_FREQUENCY:
-            case JERRY_DEVICE_HR_PWM_0_FREQUENCY + 1U:
-                u32_word_to_reg((uint32_t)regs->pwm_0_frequency,
-                                addr - JERRY_DEVICE_HR_PWM_0_FREQUENCY,
-                                &register_values[i]);
+            case JERRY_DEVICE_HR_PWM_0_PHASE:
+                register_values[i] = (uint16_t)regs->pwm_0_phase;
                 break;
-            case JERRY_DEVICE_HR_PWM_1_DUTY_CYCLE:
-                register_values[i] = (uint16_t)regs->pwm_1_duty_cycle;
+            case JERRY_DEVICE_HR_PWM_1_AMPLITUDE:
+                register_values[i] = (uint16_t)regs->pwm_1_amplitude;
                 break;
-            case JERRY_DEVICE_HR_PWM_1_FREQUENCY:
-            case JERRY_DEVICE_HR_PWM_1_FREQUENCY + 1U:
-                u32_word_to_reg((uint32_t)regs->pwm_1_frequency,
-                                addr - JERRY_DEVICE_HR_PWM_1_FREQUENCY,
-                                &register_values[i]);
+            case JERRY_DEVICE_HR_PWM_1_PHASE:
+                register_values[i] = (uint16_t)regs->pwm_1_phase;
                 break;
-            case JERRY_DEVICE_HR_PWM_2_DUTY_CYCLE:
-                register_values[i] = (uint16_t)regs->pwm_2_duty_cycle;
+            case JERRY_DEVICE_HR_PWM_2_AMPLITUDE:
+                register_values[i] = (uint16_t)regs->pwm_2_amplitude;
                 break;
-            case JERRY_DEVICE_HR_PWM_2_FREQUENCY:
-            case JERRY_DEVICE_HR_PWM_2_FREQUENCY + 1U:
-                u32_word_to_reg((uint32_t)regs->pwm_2_frequency,
-                                addr - JERRY_DEVICE_HR_PWM_2_FREQUENCY,
-                                &register_values[i]);
+            case JERRY_DEVICE_HR_PWM_2_PHASE:
+                register_values[i] = (uint16_t)regs->pwm_2_phase;
                 break;
-            case JERRY_DEVICE_HR_PWM_3_DUTY_CYCLE:
-                register_values[i] = (uint16_t)regs->pwm_3_duty_cycle;
+            case JERRY_DEVICE_HR_PWM_3_AMPLITUDE:
+                register_values[i] = (uint16_t)regs->pwm_3_amplitude;
                 break;
-            case JERRY_DEVICE_HR_PWM_3_FREQUENCY:
-            case JERRY_DEVICE_HR_PWM_3_FREQUENCY + 1U:
-                u32_word_to_reg((uint32_t)regs->pwm_3_frequency,
-                                addr - JERRY_DEVICE_HR_PWM_3_FREQUENCY,
-                                &register_values[i]);
+            case JERRY_DEVICE_HR_PWM_3_PHASE:
+                register_values[i] = (uint16_t)regs->pwm_3_phase;
                 break;
             case JERRY_DEVICE_HR_ADC_0_VALUE:
                 register_values[i] = (uint16_t)regs->adc_0_value;
@@ -1198,37 +1187,85 @@ modbus_exception_t modbus_cb_write_single_register(uint16_t address,
 
     switch (address)
     {
-        case JERRY_DEVICE_HR_PWM_0_DUTY_CYCLE:
+        case JERRY_DEVICE_HR_PWM_0_AMPLITUDE:
             /* Validate value range */
             if (value > 10000U)
             {
                 return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
             }
-            regs->pwm_0_duty_cycle = value;
+            regs->pwm_0_amplitude = value;
+            BSP_SinePwm_Update(1, (float)regs->pwm_0_amplitude / 10000.0f,
+                               regs->pwm_0_phase);
             break;
-        case JERRY_DEVICE_HR_PWM_1_DUTY_CYCLE:
+        case JERRY_DEVICE_HR_PWM_0_PHASE:
             /* Validate value range */
-            if (value > 10000U)
+            if (value > 360U && value != 0xFFFFU)
             {
                 return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
             }
-            regs->pwm_1_duty_cycle = value;
+            regs->pwm_0_phase = value;
+            BSP_SinePwm_Update(1, (float)regs->pwm_0_amplitude / 10000.0f,
+                               regs->pwm_0_phase);
             break;
-        case JERRY_DEVICE_HR_PWM_2_DUTY_CYCLE:
+        case JERRY_DEVICE_HR_PWM_1_AMPLITUDE:
             /* Validate value range */
             if (value > 10000U)
             {
                 return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
             }
-            regs->pwm_2_duty_cycle = value;
+            regs->pwm_1_amplitude = value;
+            BSP_SinePwm_Update(2, (float)regs->pwm_1_amplitude / 10000.0f,
+                               regs->pwm_1_phase);
             break;
-        case JERRY_DEVICE_HR_PWM_3_DUTY_CYCLE:
+        case JERRY_DEVICE_HR_PWM_1_PHASE:
+            /* Validate value range */
+            if (value > 360U && value != 0xFFFFU)
+            {
+                return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+            }
+            regs->pwm_1_phase = value;
+            BSP_SinePwm_Update(2, (float)regs->pwm_1_amplitude / 10000.0f,
+                               regs->pwm_1_phase);
+            break;
+        case JERRY_DEVICE_HR_PWM_2_AMPLITUDE:
             /* Validate value range */
             if (value > 10000U)
             {
                 return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
             }
-            regs->pwm_3_duty_cycle = value;
+            regs->pwm_2_amplitude = value;
+            BSP_SinePwm_Update(3, (float)regs->pwm_2_amplitude / 10000.0f,
+                               regs->pwm_2_phase);
+            break;
+        case JERRY_DEVICE_HR_PWM_2_PHASE:
+            /* Validate value range */
+            if (value > 360U && value != 0xFFFFU)
+            {
+                return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+            }
+            regs->pwm_2_phase = value;
+            BSP_SinePwm_Update(3, (float)regs->pwm_2_amplitude / 10000.0f,
+                               regs->pwm_2_phase);
+            break;
+        case JERRY_DEVICE_HR_PWM_3_AMPLITUDE:
+            /* Validate value range */
+            if (value > 10000U)
+            {
+                return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+            }
+            regs->pwm_3_amplitude = value;
+            BSP_SinePwm_Update(4, (float)regs->pwm_3_amplitude / 10000.0f,
+                               regs->pwm_3_phase);
+            break;
+        case JERRY_DEVICE_HR_PWM_3_PHASE:
+            /* Validate value range */
+            if (value > 360U && value != 0xFFFFU)
+            {
+                return MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE;
+            }
+            regs->pwm_3_phase = value;
+            BSP_SinePwm_Update(4, (float)regs->pwm_3_amplitude / 10000.0f,
+                               regs->pwm_3_phase);
             break;
         case JERRY_DEVICE_HR_RTC_YEAR:
             /* Validate value range */
