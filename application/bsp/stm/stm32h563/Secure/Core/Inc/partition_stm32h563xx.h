@@ -407,12 +407,12 @@
 //   <o.25> EXTI14_IRQn           <0=> Secure state
 //   <o.26> EXTI15_IRQn           <0=> Secure state
 //   <o.27> GPDMA1_Channel0_IRQn  <1=> Non-Secure state
-//   <o.28> GPDMA1_Channel1_IRQn  <0=> Secure state
-//   <o.29> GPDMA1_Channel2_IRQn  <0=> Secure state
-//   <o.30> GPDMA1_Channel3_IRQn  <0=> Secure state
-//   <o.31> GPDMA1_Channel4_IRQn  <0=> Secure state
+//   <o.28> GPDMA1_Channel1_IRQn  <1=> Non-Secure state
+//   <o.29> GPDMA1_Channel2_IRQn  <1=> Non-Secure state
+//   <o.30> GPDMA1_Channel3_IRQn  <1=> Non-Secure state
+//   <o.31> GPDMA1_Channel4_IRQn  <1=> Non-Secure state
 */
-#define NVIC_INIT_ITNS0_VAL      0x09000000
+#define NVIC_INIT_ITNS0_VAL      0xF9000000
 
 /*
 //   </e>

@@ -410,7 +410,8 @@ void MX_GPIO_Init(void)
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOC, GPIO_PIN_0|RMII_MDC_Pin|GPIO_PIN_2|GPIO_PIN_3
-                          |RMII_RXD0_Pin|RMII_RXD1_Pin, GPIO_PIN_NSEC);
+                          |RMII_RXD0_Pin|RMII_RXD1_Pin|GPIO_PIN_6|GPIO_PIN_7
+                          |GPIO_PIN_8|GPIO_PIN_9, GPIO_PIN_NSEC);
 
   /*IO attributes management functions */
   HAL_GPIO_ConfigPinAttributes(GPIOA, RMII_REF_CLK_Pin|RMII_MDIO_Pin|VBUS_SENSE_Pin|GPIO_PIN_6
