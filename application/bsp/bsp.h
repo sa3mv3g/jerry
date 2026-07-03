@@ -556,4 +556,31 @@ bsp_error_t BSP_EEPROM_Read(uint32_t address, uint8_t *pBuff,
 bsp_error_t BSP_EEPROM_Write(uint32_t address, uint8_t *pBuff,
                              uint32_t sizeBytes);
 
+/**
+ * @brief Initializes the SPWM generation.
+ *
+ * Sets up initial 0-amplitude waveforms for both channels and starts
+ * the base timer.
+ *
+ * @return bsp_error_t BSP_OK upon successful initialization.
+ */
+bsp_error_t BSP_SinePwm_Init(void);
+
+/**
+ * @brief Updates the SPWM lookup table with a new sine wave amplitude.
+ *
+ * This function calculates the PWM duty cycle values for a single period
+ * of a sine wave, scaling the amplitude based on the given parameter and
+ * the timer's Auto-Reload Register (ARR). It populates the non-active
+ * buffer in a double-buffered scheme to ensure glitch-free updates.
+ *
+ * @param channel The timer channel (1 to 4) to update.
+ * @param amplitude The normalized amplitude or DC duty cycle (0.0 to 1.0).
+ * @param phase_deg The phase offset in degrees (0-360), or 0xFFFF for Linear DC
+ * mode.
+ * @return bsp_error_t BSP_OK upon successful update.
+ */
+bsp_error_t BSP_SinePwm_Update(uint8_t channel, float amplitude,
+                               uint16_t phase_deg);
+
 #endif  // BSP_H

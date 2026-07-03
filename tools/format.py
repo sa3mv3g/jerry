@@ -39,6 +39,9 @@ def main():
             root_dir, "application", "src", "generated", "**", "*.[ch]"
         ),
         os.path.join(
+            root_dir, "application", "bsp", "stm", "bsp_SinePwm", "**", "*.[ch]"
+        ),
+        os.path.join(
             root_dir,
             "application",
             "dependencies",
