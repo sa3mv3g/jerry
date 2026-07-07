@@ -122,6 +122,88 @@ uint32_t SECURE_CAL_Write(uint16_t vaddr, uint32_t value);
 
 /* USER CODE END Calibration_NSC */
 
+/* USER CODE BEGIN FOTA_NSC */
+
+/**
+ * @defgroup FOTA_NSC  FOTA Non-Secure Callable Interface
+ * @brief    Secure-world flash operations for firmware-over-the-air update.
+ *
+ * Firmware package format (written to inactive bank via WriteChunk):
+ *
+ *   Bytes [0 .. fw_size-1]          Raw firmware binary (16-byte aligned)
+ *   Bytes [fw_size .. total-9]      X.509 certificate DER
+ *                                     Custom extension OID 1.3.6.1.4.1.99999.1
+ *                                     contains SHA-256(firmware) as OCTET STRING
+ *   Bytes [total-8 .. total-5]      cert_size (uint32_t LE)
+ *   Bytes [total-4 .. total-1]      magic = 0x464F5441 ("FOTA")
+ *
+ * Typical usage:
+ *   1. SECURE_FOTA_EraseTarget()              — erase inactive bank
+ *   2. SECURE_FOTA_WriteChunk(0, buf, len)    — write first chunk
+ *   3. SECURE_FOTA_WriteChunk(len, buf2, len) — write next chunk
+ *   ...
+ *   4. SECURE_FOTA_Commit(total_size)         — verify + swap + reset
+ *
+ * On startup after FOTA reset:
+ *   5. SECURE_CAL_Read(FOTA_VALID_FLAG_VADDR, &flag)
+ *   6. If flag != 0xA5A5A5A5 → SECURE_FOTA_Rollback()
+ *   7. After self-test: SECURE_CAL_Write(FOTA_VALID_FLAG_VADDR, 0xA5A5A5A5)
+ * @{
+ */
+
+/** @defgroup FOTA_ERR  FOTA error codes @{ */
+#define FOTA_OK                 0U   /*!< Success */
+#define FOTA_ERR_FLASH_UNLOCK   1U   /*!< HAL_FLASH_Unlock() failed */
+#define FOTA_ERR_ERASE          2U   /*!< Sector erase failed */
+#define FOTA_ERR_WRITE          3U   /*!< Flash program failed */
+#define FOTA_ERR_BAD_POINTER    4U   /*!< pData not in NonSecure memory */
+#define FOTA_ERR_ALIGNMENT      5U   /*!< offset or len not 16-byte aligned */
+#define FOTA_ERR_BAD_SIZE       6U   /*!< total_size too small or cert_size invalid */
+#define FOTA_ERR_BAD_MAGIC      7U   /*!< Trailer magic != 0x464F5441 */
+#define FOTA_ERR_CERT_PARSE     8U   /*!< wolfSSL failed to parse firmware cert */
+#define FOTA_ERR_CA_PARSE       9U   /*!< wolfSSL failed to parse CA cert */
+#define FOTA_ERR_CERT_VERIFY    10U  /*!< Firmware cert signature invalid */
+#define FOTA_ERR_NO_HASH        11U  /*!< SHA-256 hash extension not found in cert */
+#define FOTA_ERR_HASH_COMPUTE   12U  /*!< SHA-256 computation error */
+#define FOTA_ERR_HASH_MISMATCH  13U  /*!< Computed hash != hash in cert */
+/** @} */
+
+/**
+ * @brief  Erase the inactive bank sectors 32-119 (704KB NS firmware area).
+ *         Must be called once before streaming firmware chunks.
+ * @retval FOTA_OK (0) on success, FOTA_ERR_* on failure
+ */
+uint32_t SECURE_FOTA_EraseTarget(void);
+
+/**
+ * @brief  Write a chunk of firmware data to the inactive bank.
+ * @param  offset  Byte offset from NS firmware start (must be 16-byte aligned)
+ * @param  pData   Pointer to data in NonSecure memory
+ * @param  len     Number of bytes (must be multiple of 16)
+ * @retval FOTA_OK (0) on success, FOTA_ERR_* on failure
+ */
+uint32_t SECURE_FOTA_WriteChunk(uint32_t offset, const uint8_t *pData, uint32_t len);
+
+/**
+ * @brief  Verify the firmware package and commit by toggling SWAP_BANK.
+ *         On success: triggers a system reset — does NOT return.
+ *         On failure: returns FOTA_ERR_* error code.
+ * @param  total_size  Total bytes written (firmware + cert + 8-byte trailer)
+ * @retval FOTA_ERR_* on failure (does not return on success)
+ */
+uint32_t SECURE_FOTA_Commit(uint32_t total_size);
+
+/**
+ * @brief  Roll back to the previous firmware by toggling SWAP_BANK.
+ *         Triggers a system reset — does NOT return.
+ *         Call from NS startup if FOTA_VALID_FLAG is not set.
+ */
+void SECURE_FOTA_Rollback(void);
+
+/** @} */ /* FOTA_NSC */
+
+/* USER CODE END FOTA_NSC */
+
 #endif /* SECURE_NSC_H */
 /* USER CODE END Non_Secure_CallLib_h */
 

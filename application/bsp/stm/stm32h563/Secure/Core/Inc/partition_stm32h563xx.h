@@ -88,12 +88,12 @@
 /*
 //     <o>Start Address <0-0xFFFFFFE0>
 */
-#define SAU_INIT_START0     0x0C010000      /* NSC veneer: Bank 1 sector 8 (Secure alias) */
+#define SAU_INIT_START0     0x0C03E000      /* NSC veneer: Bank 1 sector 31 (Secure alias) */
 
 /*
 //     <o>End Address <0x1F-0xFFFFFFFF>
 */
-#define SAU_INIT_END0       0x0C011FFF      /* end of 8KB NSC veneer sector */
+#define SAU_INIT_END0       0x0C03FFFF      /* end of 8KB NSC veneer sector */
 
 /*
 //     <o>Region is
@@ -119,7 +119,7 @@
 /*
 //     <o>Start Address <0-0xFFFFFFE0>
 */
-#define SAU_INIT_START1     0x08012000      /* NS firmware start: Bank 1 sector 9 */
+#define SAU_INIT_START1     0x08040000      /* NS firmware start: Bank 1 sector 32 */
 
 /*
 //     <o>End Address <0x1F-0xFFFFFFFF>

@@ -87,7 +87,7 @@ class OptionByteConfig:
     #   SECWM1_END  = 8  (sector 8 = NSC veneer, last Secure sector)
     # [RM0481 §7.6.1: NSC region must be inside Secure watermark]
     secwm1_strt: int = 0x00
-    secwm1_end: int = 0x08
+    secwm1_end: int = 0x1F
 
     # Secure watermark for Bank 2 (start and end)
     # Setting STRT > END makes Bank 2 non-secure
@@ -107,7 +107,7 @@ class OptionByteConfig:
     # STM32_Programmer_CLI takes the REGISTER VALUE (address >> 8), same as SECBOOTADD.
     # 0x0801_2000 >> 8 = 0x80120  →  decoded back: 0x80120 << 8 = 0x0801_2000 ✓
     # [RM0481 §7.4.6: NSBOOTADD register stores address[28:8]]
-    nsbootadd: int = 0x80120
+    nsbootadd: int = 0x80400
 
     # EDATA Bank 1: enable 8 sectors (120-127) for EEPROM emulation calibration storage.
     # EDATA1_STRT = 7 → 8 sectors (0=1 sector, 7=8 sectors).
@@ -131,7 +131,7 @@ class FlashConfig:
     # ELF files carry their own load addresses from the linker script, so this
     # value is used for logging/display only (not for actual ELF placement).
     # Must match NS linker script ORIGIN = 0x08012000.
-    nonsecure_app_address: int = 0x08012000
+    nonsecure_app_address: int = 0x08040000
 
 
 class STM32Programmer:

@@ -46,20 +46,20 @@ MEMORY
 {
   RAM      (xrw) : ORIGIN = 0x30000000, LENGTH = 320K    /* Secure SRAM (upper half) */
 
-  /* Secure firmware code: Bank 1 sectors 0-7 (8 sectors x 8KB = 64KB)
+  /* Secure firmware code: Bank 1 sectors 0-30 (31 sectors x 8KB = 248KB)
    * ORIGIN = 0x0C000000 = Secure alias of Bank 1 physical start
    * SECBOOTADD option byte must be set to 0x0C00_0000 (default)
+   * Budget: ~45KB current firmware + ~40KB mbedTLS crypto + ~163KB future headroom
    * [RM0481 §7.4.6 lines 1747-1749: "SECBOOTADD = 0x0C00 0000"]
-   * [RM0481 Table 48: Secure alias 0x0C000000 is NOT in the swappable range]
-   * Note: Actual Secure firmware size ~44.5KB, 8 sectors (64KB) provides future headroom */
-  FLASH    (rx)  : ORIGIN = 0x0C000000, LENGTH = 64K
+   * [RM0481 Table 48: Secure alias 0x0C000000 is NOT in the swappable range] */
+  FLASH    (rx)  : ORIGIN = 0x0C000000, LENGTH = 248K
 
-  /* NSC veneer: Bank 1 sector 8 (8KB)
-   * ORIGIN = 0x0C010000 = Secure alias base + 8 sectors x 8KB
-   * SECWM1_END = 8 means sectors 0-8 are Secure (watermark includes NSC sector)
-   * Total Secure partition = 72KB (sectors 0-8)
+  /* NSC veneer: Bank 1 sector 31 (8KB)
+   * ORIGIN = 0x0C03E000 = Secure alias base + 31 sectors x 8KB
+   * SECWM1_END = 31 (0x1F) means sectors 0-31 are Secure (watermark includes NSC sector)
+   * Total Secure partition = 256KB (sectors 0-31)
    * [RM0481 §7.6.1: NSC region is accessible by NS code via secure gateway stubs] */
-  FLASH_NSC (rx) : ORIGIN = 0x0C010000, LENGTH = 8K
+  FLASH_NSC (rx) : ORIGIN = 0x0C03E000, LENGTH = 8K
 
   /* EDATA1: Bank 1 high-cycle data area (sectors 120-127, 8 sectors x 6KB = 48KB)
    * Accessed via Secure AHB alias 0x0D000000 — STABLE, does NOT swap with SWAP_BANK

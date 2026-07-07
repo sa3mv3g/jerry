@@ -46,14 +46,14 @@ MEMORY
 {
   RAM    (xrw) : ORIGIN = 0x20050000, LENGTH = 320K    /* NonSecure SRAM (upper half) */
 
-  /* NonSecure firmware: Bank 1 sectors 9-119 (111 sectors x 8KB = 888KB)
-   * ORIGIN = 0x08012000 = Bank 1 base + 9 sectors x 8KB (skip Secure sectors 0-8)
-   * Secure partition = sectors 0-7 (64KB code) + sector 8 (8KB NSC) = 72KB total
-   * NSBOOTADD option byte must be set to 0x0801_2000
-   * After SWAP_BANK=1: this address maps to Bank 2 sector 9 (new firmware after FOTA)
-   * [RM0481 Table 48: sector 9 of Bank 1 starts at 0x0801_2000]
+  /* NonSecure firmware: Bank 1 sectors 32-119 (88 sectors x 8KB = 704KB)
+   * ORIGIN = 0x08040000 = Bank 1 base + 32 sectors x 8KB (skip Secure sectors 0-31)
+   * Secure partition = sectors 0-30 (248KB code) + sector 31 (8KB NSC) = 256KB total
+   * NSBOOTADD option byte must be set to 0x0804_0000
+   * After SWAP_BANK=1: this address maps to Bank 2 sector 32 (new firmware after FOTA)
+   * [RM0481 Table 48: sector 32 of Bank 1 starts at 0x0804_0000]
    * [RM0481 §7.3.10 lines 940-942: EDATA sectors are 120-127, so code ends at sector 119] */
-  FLASH  (rx)  : ORIGIN = 0x08012000, LENGTH = 888K
+  FLASH  (rx)  : ORIGIN = 0x08040000, LENGTH = 704K
 }
 
 /* Sections */

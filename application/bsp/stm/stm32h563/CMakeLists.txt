@@ -1,5 +1,20 @@
 cmake_minimum_required(VERSION 3.22)
 
+# wolfSSL is declared and fetched in application/CMakeLists.txt (parent).
+# FetchContent_MakeAvailable(FCD_wolfssl) is called there before add_subdirectory(BSP).
+# The wolfssl target is globally visible across the project.
+# WOLFSSL_INCLUDE_DIR cache variable is set in the parent after FetchContent_MakeAvailable.
+
+# wolfSSL is compiled as a generic ARM library by default.
+# secure_nsc.c is compiled with -mcmse (Secure code) and calls wolfSSL functions.
+# The linker requires that called functions are compiled for the same ARM/Thumb ISA.
+# Add the Cortex-M33 flags to the wolfssl target so the linker can resolve calls.
+if(TARGET wolfssl)
+    target_compile_options(wolfssl PRIVATE
+        -mcpu=cortex-m33 -mthumb -mfloat-abi=hard -mfpu=fpv5-sp-d16
+    )
+endif()
+
 # Define the BSP library
 add_library(stm32h563_bsp STATIC)
 
@@ -168,6 +183,11 @@ target_sources(jerry_secure_app PRIVATE
     # Located under Secure/Core/EEPROM_Emul to avoid CubeMX regeneration overwriting it.
     ${CMAKE_CURRENT_SOURCE_DIR}/Secure/Core/EEPROM_Emul/Core/eeprom_emul.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Secure/Core/EEPROM_Emul/Porting/STM32H5/flash_interface.c
+    # wolfSSL crypto wrappers (static pool, SHA-256, ECDSA-P256 verify, X.509 parse)
+    # secure_nsc.c is already in MX_Application_Src above
+    ${CMAKE_CURRENT_SOURCE_DIR}/Secure/Core/Src/fota_crypto.c
+    # FOTA NSC functions (EraseTarget, WriteChunk, Commit, Rollback)
+    # Note: secure_nsc.c is in MX_Application_Src; fota_crypto.c is the wolfSSL wrapper
 )
 
 target_include_directories(jerry_secure_app PUBLIC
@@ -176,6 +196,10 @@ target_include_directories(jerry_secure_app PUBLIC
     # EEPROM emulation headers (eeprom_emul.h, flash_interface.h, eeprom_emul_conf.h)
     ${CMAKE_CURRENT_SOURCE_DIR}/Secure/Core/EEPROM_Emul/Core
     ${CMAKE_CURRENT_SOURCE_DIR}/Secure/Core/EEPROM_Emul/Porting/STM32H5
+    # wolfSSL headers — path exported from application/CMakeLists.txt as WOLFSSL_INCLUDE_DIR
+    ${WOLFSSL_INCLUDE_DIR}
+    # user_settings.h is in Secure/Core/Inc (wolfSSL reads it via WOLFSSL_USER_SETTINGS)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Secure/Core/Inc
 )
 
 target_compile_options(jerry_secure_app PRIVATE
@@ -192,6 +216,11 @@ target_compile_definitions(jerry_secure_app PUBLIC
     # Do NOT define SECURE_FEATURES — that would force 0x09000000 (NS alias, swaps).
     EDATA_ENABLED
 )
+
+# Link wolfSSL for FOTA X.509 + ECDSA-P256 verification.
+# wolfssl target provides: X.509 parse, ECDSA verify, SHA-256 (all software, static memory).
+# Hardware acceleration (STM32H5 HASH/PKA) can be enabled later via user_settings.h.
+target_link_libraries(jerry_secure_app PUBLIC wolfssl)
 
 target_link_options(jerry_secure_app PRIVATE
     -T "${CMAKE_CURRENT_SOURCE_DIR}/Secure/STM32H563xx_FLASH_s.ld"

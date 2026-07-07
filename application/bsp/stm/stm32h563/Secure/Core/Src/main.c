@@ -44,7 +44,7 @@
  * After SWAP_BANK=1 (FOTA): NSBOOTADD maps 0x0801_2000 to Bank 2 sector 9.
  * [RM0481 Table 48: sector 9 of Bank 1 = 0x0801_2000]
  * [plans/flash_storage_and_fota_plan.md §2.2] */
-#define VTOR_TABLE_NS_START_ADDR  0x08012000UL
+#define VTOR_TABLE_NS_START_ADDR  0x08040000UL
 
 /* USER CODE END VTOR_TABLE*/
 

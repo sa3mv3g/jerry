@@ -163,7 +163,7 @@ FetchContent_Declare(
 )
 
 # 5. Download embedded-log
-message(STATUS "[5/6] Declaring embedded-log (master)...")
+message(STATUS "[5/7] Declaring embedded-log (master)...")
 FetchContent_Declare(
     FCD_embedded_log
     GIT_REPOSITORY https://github.com/to9/embedded-log.git
@@ -173,7 +173,7 @@ FetchContent_Declare(
 )
 
 # 6. Download SEGGER RTT
-message(STATUS "[6/6] Declaring SEGGER RTT (V8.58.0)...")
+message(STATUS "[6/7] Declaring SEGGER RTT (V8.58.0)...")
 FetchContent_Declare(
     FCD_segger_rtt
     GIT_REPOSITORY https://github.com/SEGGERMicro/RTT.git
@@ -182,30 +182,92 @@ FetchContent_Declare(
     GIT_PROGRESS   TRUE
 )
 
-# Populate the content at configure time
+# 7. Download wolfSSL (Secure firmware only — X.509 + ECDSA-P256 for FOTA verification)
+# wolfSSL uses user_settings.h for configuration (set WOLFSSL_USER_SETTINGS).
+# WOLFSSL_STATIC_MEMORY + WOLFSSL_NO_MALLOC = fully static, no heap.
+# Software crypto only for now; hardware accelerators (STM32H5 HASH/PKA) can be
+# enabled later by adding WOLFSSL_STM32H5 + WOLFSSL_STM32_HASH + WOLFSSL_STM32_PKA
+# to user_settings.h and adding the HAL HASH/PKA drivers to the project.
+set(BSP_STM32H563_DIR "${CMAKE_CURRENT_SOURCE_DIR}/bsp/stm/stm32h563")
+message(STATUS "[7/7] Declaring wolfSSL (v5.7.4-stable, Secure FOTA crypto)...")
+set(WOLFSSL_USER_SETTINGS ON CACHE BOOL "" FORCE)
+set(WOLFSSL_USER_SETTINGS_PATH
+    "${BSP_STM32H563_DIR}/Secure/Core/Inc/user_settings.h"
+    CACHE STRING "wolfSSL user_settings.h path" FORCE)
+FetchContent_Declare(
+    FCD_wolfssl
+    GIT_REPOSITORY https://github.com/wolfSSL/wolfssl.git
+    GIT_TAG        v5.7.4-stable
+    GIT_SHALLOW    TRUE
+)
+
+# Populate each dependency individually, checking if already present first.
 message(STATUS "")
-message(STATUS "Fetching dependencies (this may take a while on first run)...")
-message(STATUS "  - STM32 LwIP Middleware: ${LWIP_DEPS_PATH}/stm32-mw-lwip")
-message(STATUS "  - FreeRTOS-Kernel: ${DEPS_PATH}/FreeRTOS-Kernel")
-message(STATUS "  - CMSIS_6: ${DEPS_PATH}/CMSIS_6")
-message(STATUS "  - CMSIS-DSP: ${DEPS_PATH}/CMSIS-DSP")
-message(STATUS "  - embedded-log: ${DEPS_PATH}/embedded-log")
-message(STATUS "  - SEGGER RTT: ${DEPS_PATH}/segger_rtt")
+message(STATUS "Fetching dependencies (cached on subsequent runs)...")
 message(STATUS "")
 
-# Since embedded-log doesn't have a CMakeLists.txt, we populate it separately if we don't want CMake to try add_subdirectory
-FetchContent_MakeAvailable(FCD_stm32_mw_lwip FCD_freertos_kernel FCD_cmsis_6 FCD_cmsis_dsp)
+FetchContent_GetProperties(FCD_stm32_mw_lwip)
+if(NOT fcd_stm32_mw_lwip_POPULATED)
+    message(STATUS "  Downloading STM32 LwIP Middleware...")
+    FetchContent_MakeAvailable(FCD_stm32_mw_lwip)
+else()
+    message(STATUS "  STM32 LwIP Middleware: already cached")
+endif()
+
+FetchContent_GetProperties(FCD_freertos_kernel)
+if(NOT fcd_freertos_kernel_POPULATED)
+    message(STATUS "  Downloading FreeRTOS-Kernel...")
+    FetchContent_MakeAvailable(FCD_freertos_kernel)
+else()
+    message(STATUS "  FreeRTOS-Kernel: already cached")
+endif()
+
+FetchContent_GetProperties(FCD_cmsis_6)
+if(NOT fcd_cmsis_6_POPULATED)
+    message(STATUS "  Downloading CMSIS_6...")
+    FetchContent_MakeAvailable(FCD_cmsis_6)
+else()
+    message(STATUS "  CMSIS_6: already cached")
+endif()
+
+FetchContent_GetProperties(FCD_cmsis_dsp)
+if(NOT fcd_cmsis_dsp_POPULATED)
+    message(STATUS "  Downloading CMSIS-DSP...")
+    FetchContent_MakeAvailable(FCD_cmsis_dsp)
+else()
+    message(STATUS "  CMSIS-DSP: already cached")
+endif()
+
 FetchContent_GetProperties(FCD_embedded_log)
 if(NOT fcd_embedded_log_POPULATED)
+    message(STATUS "  Downloading embedded-log...")
     FetchContent_Populate(FCD_embedded_log)
     # Remove default log_cfg.h so our application/inc/log_cfg.h is used
     file(REMOVE "${fcd_embedded_log_SOURCE_DIR}/src/log_cfg.h")
+else()
+    message(STATUS "  embedded-log: already cached")
 endif()
 
 FetchContent_GetProperties(FCD_segger_rtt)
 if(NOT fcd_segger_rtt_POPULATED)
+    message(STATUS "  Downloading SEGGER RTT...")
     FetchContent_Populate(FCD_segger_rtt)
+else()
+    message(STATUS "  SEGGER RTT: already cached")
 endif()
+
+FetchContent_GetProperties(FCD_wolfssl)
+if(NOT fcd_wolfssl_POPULATED)
+    message(STATUS "  Downloading wolfSSL v5.7.4-stable...")
+    FetchContent_MakeAvailable(FCD_wolfssl)
+else()
+    message(STATUS "  wolfSSL: already cached")
+endif()
+
+# Export wolfSSL include path as a cache variable so subdirectories (BSP) can use it.
+# fcd_wolfssl_SOURCE_DIR is only available in this scope after FetchContent_MakeAvailable/GetProperties.
+set(WOLFSSL_INCLUDE_DIR "${fcd_wolfssl_SOURCE_DIR}"
+    CACHE PATH "wolfSSL include directory (root — wolfssl/ headers are under root)" FORCE)
 
 message(STATUS "")
 message(STATUS "=== Dependencies fetched successfully ===")
