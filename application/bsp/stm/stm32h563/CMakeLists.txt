@@ -1,19 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 
-# wolfSSL is declared and fetched in application/CMakeLists.txt (parent).
-# FetchContent_MakeAvailable(FCD_wolfssl) is called there before add_subdirectory(BSP).
-# The wolfssl target is globally visible across the project.
+# wolfSSL is declared, fetched, and fully configured in application/CMakeLists.txt (parent).
+# All wolfssl target_compile_options / target_include_directories are set there.
 # WOLFSSL_INCLUDE_DIR cache variable is set in the parent after FetchContent_MakeAvailable.
-
-# wolfSSL is compiled as a generic ARM library by default.
-# secure_nsc.c is compiled with -mcmse (Secure code) and calls wolfSSL functions.
-# The linker requires that called functions are compiled for the same ARM/Thumb ISA.
-# Add the Cortex-M33 flags to the wolfssl target so the linker can resolve calls.
-if(TARGET wolfssl)
-    target_compile_options(wolfssl PRIVATE
-        -mcpu=cortex-m33 -mthumb -mfloat-abi=hard -mfpu=fpv5-sp-d16
-    )
-endif()
 
 # Define the BSP library
 add_library(stm32h563_bsp STATIC)

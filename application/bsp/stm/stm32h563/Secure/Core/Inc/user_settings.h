@@ -57,7 +57,8 @@
 #define HAVE_ECC_VERIFY              /* Only need verify, not sign */
 #define ECC_TIMING_RESISTANT         /* Side-channel protection */
 #define HAVE_ECC_SECPR1              /* secp256r1 = P-256 */
-#define ECC_SHAMIR                   /* Shamir's trick for faster verify */
+/* ECC_SHAMIR removed: causes 'lcl_precomp undeclared' compile error with
+ * WOLFSSL_SMALL_STACK on this wolfSSL version. SP ECC is used instead. */
 #define WOLFSSL_HAVE_SP_ECC          /* Use SP (single precision) ECC */
 #define WOLFSSL_SP_SMALL             /* Smaller SP code */
 #define WOLFSSL_SP_NO_MALLOC         /* SP uses no malloc */
@@ -88,16 +89,30 @@
 #define NO_HMAC
 #define NO_PWDBASED
 #define NO_FILESYSTEM
-#define NO_STDIO_FILESYSTEM
+/* Note: NO_STDIO_FILESYSTEM removed — wolfSSL's asn.c uses XSNPRINTF (→ snprintf)
+ * which requires <stdio.h>. Keeping stdio available for snprintf only. */
 #define NO_WOLFSSL_CLIENT
 #define NO_WOLFSSL_SERVER
 #define NO_SESSION_CACHE
 #define NO_ERROR_STRINGS             /* Save flash — remove error strings */
 
+/* WC_NO_RNG: disable wolfSSL's RNG typedef (#define RNG WC_RNG).
+ * STM32H5 HAL already defines RNG as RNG_S (the hardware peripheral).
+ * We don't need random number generation for verify-only FOTA. */
+#define WC_NO_RNG
+
+/* NO_ASN_TIME: disable certificate validity period checking (NotBefore/NotAfter).
+ * The Secure firmware has no reliable wall-clock time source at FOTA verify time.
+ * The CA cert is trusted by embedding its DER bytes — time checks are unnecessary.
+ * This also prevents wolfSSL from calling time() → _gettimeofday (not available). */
+#define NO_ASN_TIME
+
 /* ==========================================================================
  * Misc
  * ========================================================================== */
 #define SINGLE_THREADED              /* Secure firmware is single-threaded */
+#ifndef WOLFSSL_IGNORE_FILE_WARN
 #define WOLFSSL_IGNORE_FILE_WARN     /* Suppress file-not-found warnings */
+#endif
 
 #endif /* WOLFSSL_USER_SETTINGS_H */

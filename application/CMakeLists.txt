@@ -194,6 +194,10 @@ set(WOLFSSL_USER_SETTINGS ON CACHE BOOL "" FORCE)
 set(WOLFSSL_USER_SETTINGS_PATH
     "${BSP_STM32H563_DIR}/Secure/Core/Inc/user_settings.h"
     CACHE STRING "wolfSSL user_settings.h path" FORCE)
+# WOLFSSL_SINGLE_THREADED: prevents wolfSSL CMake from adding -lpthreads.
+# The Secure firmware is single-threaded (SINGLE_THREADED in user_settings.h).
+# This CMake variable must be set BEFORE FetchContent_MakeAvailable.
+set(WOLFSSL_SINGLE_THREADED ON CACHE BOOL "wolfSSL single-threaded (no pthreads)" FORCE)
 FetchContent_Declare(
     FCD_wolfssl
     GIT_REPOSITORY https://github.com/wolfSSL/wolfssl.git
@@ -268,6 +272,27 @@ endif()
 # fcd_wolfssl_SOURCE_DIR is only available in this scope after FetchContent_MakeAvailable/GetProperties.
 set(WOLFSSL_INCLUDE_DIR "${fcd_wolfssl_SOURCE_DIR}"
     CACHE PATH "wolfSSL include directory (root — wolfssl/ headers are under root)" FORCE)
+
+# ==========================================================================
+# Configure wolfSSL target
+# All wolfssl target configuration lives here — the target is created by
+# FetchContent_MakeAvailable above, so this is the natural place to configure it.
+# ==========================================================================
+if(TARGET wolfssl)
+    # Cortex-M33 ISA flags — required so the linker can resolve calls from
+    # secure_nsc.c (compiled with -mcmse) into wolfSSL.
+    # -Wno-pedantic: wolfSSL sources become empty TUs when features are disabled
+    # (e.g. NO_SHA, NO_AES) — -Wpedantic treats empty TUs as errors.
+    target_compile_options(wolfssl PRIVATE
+        -mcpu=cortex-m33 -mthumb -mfloat-abi=hard -mfpu=fpv5-sp-d16
+        -Wno-pedantic
+    )
+    # wolfSSL settings.h does: #include "user_settings.h" when WOLFSSL_USER_SETTINGS is defined.
+    # Add Secure/Core/Inc so the wolfssl build can find our user_settings.h.
+    target_include_directories(wolfssl PRIVATE
+        "${BSP_STM32H563_DIR}/Secure/Core/Inc"
+    )
+endif()
 
 message(STATUS "")
 message(STATUS "=== Dependencies fetched successfully ===")

@@ -13,23 +13,39 @@
  * Custom X.509 extension OID for firmware SHA-256 hash:
  *   OID 1.3.6.1.4.1.99999.1 (private enterprise, Jerry FOTA)
  *   DER encoding: 06 0A 2B 06 01 04 01 86 8D 1F 01 01
+ *
+ * wolfcrypt-only: no TLS stack, no ssl.h, no sys/socket.h.
+ * Certificate chain verification uses DecodedCert + ParseCertRelative.
  */
 
+/* wolfSSL headers MUST come before STM32 HAL headers.
+ * WOLFSSL_USER_SETTINGS is already defined by CMake (-DWOLFSSL_USER_SETTINGS).
+ * Guard the local define to avoid redefinition error. */
+#ifndef WOLFSSL_USER_SETTINGS
 #define WOLFSSL_USER_SETTINGS
+#endif
 #include "user_settings.h"
 
-#include "fota_crypto.h"
-#include "main.h"
-#include <string.h>
-
-/* wolfSSL headers */
+/* wolfcrypt-only headers — do NOT include <wolfssl/ssl.h> (requires sys/socket.h) */
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/memory.h>
-#include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/wc_port.h>
+
+/* wolfSSL's random.h (pulled in by ecc.h) defines: #define RNG WC_RNG
+ * STM32H5 HAL defines RNG as RNG_S (the hardware peripheral register).
+ * Undefine wolfSSL's RNG alias before including STM32 HAL headers. */
+#ifdef RNG
+#undef RNG
+#endif
+
+#include "fota_crypto.h"
+#include "main.h"
+#include <string.h>
+#include <stdbool.h>
 
 /* ==========================================================================
  * Static memory pool
@@ -42,13 +58,18 @@
 static uint8_t  fota_wolfssl_heap[FOTA_WOLFSSL_HEAP_SIZE];
 static uint8_t  fota_crypto_initialized = 0U;
 
+/* Heap hint for wc_LoadStaticMemory — NULL means use global pool */
+static WOLFSSL_HEAP_HINT *fota_heap_hint = NULL;
+
 /* ==========================================================================
  * Static wolfSSL contexts (no dynamic allocation)
  * ========================================================================== */
 
-static wc_Sha256  fota_sha256_ctx;
-static ecc_key    fota_ecc_key;
+static wc_Sha256   fota_sha256_ctx;
+static ecc_key     fota_ecc_key;
 static DecodedCert fota_decoded_cert;
+static DecodedCert fota_ca_decoded_cert;
+static Signer      fota_signer;
 
 /* ==========================================================================
  * Custom OID for firmware SHA-256 hash in X.509 cert extension
@@ -71,11 +92,18 @@ void fota_crypto_init(void)
         return;
     }
 
-    wolfSSL_Init();
+    /* wolfCrypt_Init() is the wolfcrypt-only initialiser (no TLS stack) */
+    if (wolfCrypt_Init() != 0)
+    {
+        return;
+    }
 
-    /* Register static memory pool with wolfSSL */
-    if (wolfSSL_StaticBufferSz(fota_wolfssl_heap, sizeof(fota_wolfssl_heap),
-                                WOLFMEM_GENERAL) < 0)
+    /* Register static memory pool with wolfSSL memory subsystem.
+     * Pass NULL for pHint to use the global static pool. */
+    if (wc_LoadStaticMemory(&fota_heap_hint,
+                             fota_wolfssl_heap,
+                             sizeof(fota_wolfssl_heap),
+                             WOLFMEM_GENERAL, 1) != 0)
     {
         /* Pool too small — increase FOTA_WOLFSSL_HEAP_SIZE */
         return;
@@ -89,6 +117,8 @@ void fota_crypto_reset(void)
     /* Reset the static pool by re-registering it.
      * This reclaims all allocations made during the previous FOTA operation. */
     fota_crypto_initialized = 0U;
+    fota_heap_hint = NULL;
+    (void)wolfCrypt_Cleanup();
     memset(fota_wolfssl_heap, 0, sizeof(fota_wolfssl_heap));
     fota_crypto_init();
 }
@@ -101,10 +131,14 @@ int fota_sha256(const uint8_t *data, uint32_t len, uint8_t digest[FOTA_SHA256_SI
     }
 
     int ret = wc_InitSha256(&fota_sha256_ctx);
-    if (ret != 0) return ret;
+    if (ret != 0) { return ret; }
 
     ret = wc_Sha256Update(&fota_sha256_ctx, data, len);
-    if (ret != 0) return ret;
+    if (ret != 0)
+    {
+        wc_Sha256Free(&fota_sha256_ctx);
+        return ret;
+    }
 
     ret = wc_Sha256Final(&fota_sha256_ctx, digest);
     wc_Sha256Free(&fota_sha256_ctx);
@@ -112,8 +146,8 @@ int fota_sha256(const uint8_t *data, uint32_t len, uint8_t digest[FOTA_SHA256_SI
 }
 
 int fota_ecdsa_verify(const uint8_t hash[FOTA_SHA256_SIZE],
-                      const uint8_t *sig_der,     uint32_t sig_der_len,
-                      const uint8_t *pub_key_der,  uint32_t pub_key_len)
+                      const uint8_t *sig_der,    uint32_t sig_der_len,
+                      const uint8_t *pub_key_der, uint32_t pub_key_len)
 {
     if (hash == NULL || sig_der == NULL || pub_key_der == NULL)
     {
@@ -121,10 +155,10 @@ int fota_ecdsa_verify(const uint8_t hash[FOTA_SHA256_SIZE],
     }
 
     int ret = wc_ecc_init(&fota_ecc_key);
-    if (ret != 0) return ret;
+    if (ret != 0) { return ret; }
 
     /* Import SubjectPublicKeyInfo DER public key */
-    uint32_t idx = 0U;
+    word32 idx = 0U;
     ret = wc_EccPublicKeyDecode(pub_key_der, &idx, &fota_ecc_key, pub_key_len);
     if (ret != 0)
     {
@@ -179,7 +213,7 @@ int fota_x509_parse(const uint8_t *cert_der,    uint32_t cert_der_len,
     /* Walk extensions to find our custom OID containing the firmware SHA-256 hash */
     bool hash_found = false;
     const uint8_t *ext = fota_decoded_cert.extensions;
-    uint32_t ext_len   = fota_decoded_cert.extensionsSz;
+    word32 ext_len     = fota_decoded_cert.extensionsSz;
 
     if (ext != NULL && ext_len > 0U)
     {
@@ -191,15 +225,15 @@ int fota_x509_parse(const uint8_t *cert_der,    uint32_t cert_der_len,
             /* Each extension is a SEQUENCE { OID, [BOOLEAN,] OCTET STRING } */
             if (*p != 0x30U) { p++; continue; }  /* SEQUENCE tag */
             p++;
-            if (p >= end) break;
+            if (p >= end) { break; }
 
             /* Read sequence length (simplified: assume < 128 bytes) */
-            uint32_t seq_len = (uint32_t)*p++;
-            if (p + seq_len > end) break;
+            word32 seq_len = (word32)*p++;
+            if (p + seq_len > end) { break; }
             const uint8_t *seq_end = p + seq_len;
 
             /* Check if OID matches our custom OID */
-            if ((uint32_t)(seq_end - p) >= sizeof(FOTA_HASH_OID_DER) &&
+            if ((word32)(seq_end - p) >= (word32)sizeof(FOTA_HASH_OID_DER) &&
                 memcmp(p, FOTA_HASH_OID_DER, sizeof(FOTA_HASH_OID_DER)) == 0)
             {
                 p += sizeof(FOTA_HASH_OID_DER);
@@ -211,15 +245,16 @@ int fota_x509_parse(const uint8_t *cert_der,    uint32_t cert_der_len,
                 if (p < seq_end && *p == 0x04U)
                 {
                     p++;  /* tag */
-                    uint32_t outer_len = (uint32_t)*p++;
+                    word32 outer_len = (word32)*p++;
                     if (p + outer_len <= seq_end)
                     {
                         /* Inner OCTET STRING containing the 32-byte hash */
                         if (*p == 0x04U)
                         {
                             p++;
-                            uint32_t inner_len = (uint32_t)*p++;
-                            if (inner_len == FOTA_SHA256_SIZE && p + inner_len <= seq_end)
+                            word32 inner_len = (word32)*p++;
+                            if (inner_len == FOTA_SHA256_SIZE &&
+                                p + inner_len <= seq_end)
                             {
                                 memcpy(fw_hash_out, p, FOTA_SHA256_SIZE);
                                 hash_found = true;
@@ -245,26 +280,45 @@ int fota_x509_verify_cert(const uint8_t *cert_der, uint32_t cert_der_len,
         return -1;
     }
 
-    /* Use wolfSSL certificate manager for chain verification */
-    WOLFSSL_CERT_MANAGER *cm = wolfSSL_CertManagerNew();
-    if (cm == NULL)
+    /* Parse CA certificate (self-signed, trusted by embedding — use NO_VERIFY).
+     * wolfcrypt-only path: DecodedCert + ParseCertRelative. */
+    InitDecodedCert(&fota_ca_decoded_cert, ca_der, ca_der_len, NULL);
+    int ret = ParseCert(&fota_ca_decoded_cert, CA_TYPE, NO_VERIFY, NULL);
+    if (ret != 0)
     {
+        FreeDecodedCert(&fota_ca_decoded_cert);
         return -1;
     }
 
-    /* Load CA certificate as trusted root */
-    int ret = wolfSSL_CertManagerLoadCABuffer(cm, ca_der, (long)ca_der_len,
-                                               WOLFSSL_FILETYPE_ASN1);
-    if (ret != WOLFSSL_SUCCESS)
-    {
-        wolfSSL_CertManagerFree(cm);
-        return -1;
-    }
+    /* Build a Signer from the CA decoded cert.
+     * ParseCertRelative uses the extraCa signer to verify the firmware cert. */
+    memset(&fota_signer, 0, sizeof(fota_signer));
+    fota_signer.publicKey  = fota_ca_decoded_cert.publicKey;
+    fota_signer.pubKeySize = fota_ca_decoded_cert.pubKeySize;
+    fota_signer.keyOID     = fota_ca_decoded_cert.keyOID;
+    fota_signer.next       = NULL;
 
-    /* Verify firmware certificate against CA */
-    ret = wolfSSL_CertManagerVerifyBuffer(cm, cert_der, (long)cert_der_len,
-                                           WOLFSSL_FILETYPE_ASN1);
-    wolfSSL_CertManagerFree(cm);
+    /* Copy CA subject name hash — used by ParseCertRelative to match issuer */
+    memcpy(fota_signer.subjectNameHash, fota_ca_decoded_cert.subjectHash,
+           SIGNER_DIGEST_SIZE);
+#ifndef NO_SKID
+    memcpy(fota_signer.subjectKeyIdHash, fota_ca_decoded_cert.extSubjKeyId,
+           SIGNER_DIGEST_SIZE);
+#endif
 
-    return (ret == WOLFSSL_SUCCESS) ? 0 : -1;
+    /* Parse firmware certificate and verify its signature against the CA signer.
+     * ParseCertRelative(cert, type, verify, cm, extraCa)
+     *   cm       = NULL (no cert manager)
+     *   extraCa  = &fota_signer (our embedded CA) */
+    InitDecodedCert(&fota_decoded_cert, cert_der, cert_der_len, NULL);
+    ret = ParseCertRelative(&fota_decoded_cert, CERT_TYPE, VERIFY, NULL,
+                             &fota_signer);
+
+    FreeDecodedCert(&fota_decoded_cert);
+    FreeDecodedCert(&fota_ca_decoded_cert);
+
+    /* Clear signer (public key pointer was borrowed, not allocated) */
+    memset(&fota_signer, 0, sizeof(fota_signer));
+
+    return (ret == 0) ? 0 : -1;
 }
