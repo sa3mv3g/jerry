@@ -44,9 +44,33 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  RAM    (xrw)    : ORIGIN = 0x30000000,    LENGTH = 320K    /* Memory is divided. Actual start is 0x20000000 and actual length is 640K */
-  FLASH    (rx)    : ORIGIN = 0xc000000,    LENGTH = 1016K    /* Memory is divided. Actual start is 0x8000000 and actual length is 2048K */
-  FLASH_NSC    (rx)    : ORIGIN = 0xc0fe000,    LENGTH = 8K    /* Non-Secure Call-able region */
+  RAM      (xrw) : ORIGIN = 0x30000000, LENGTH = 320K    /* Secure SRAM (upper half) */
+
+  /* Secure firmware code: Bank 1 sectors 0-7 (8 sectors x 8KB = 64KB)
+   * ORIGIN = 0x0C000000 = Secure alias of Bank 1 physical start
+   * SECBOOTADD option byte must be set to 0x0C00_0000 (default)
+   * [RM0481 §7.4.6 lines 1747-1749: "SECBOOTADD = 0x0C00 0000"]
+   * [RM0481 Table 48: Secure alias 0x0C000000 is NOT in the swappable range]
+   * Note: Actual Secure firmware size ~44.5KB, 8 sectors (64KB) provides future headroom */
+  FLASH    (rx)  : ORIGIN = 0x0C000000, LENGTH = 64K
+
+  /* NSC veneer: Bank 1 sector 8 (8KB)
+   * ORIGIN = 0x0C010000 = Secure alias base + 8 sectors x 8KB
+   * SECWM1_END = 8 means sectors 0-8 are Secure (watermark includes NSC sector)
+   * Total Secure partition = 72KB (sectors 0-8)
+   * [RM0481 §7.6.1: NSC region is accessible by NS code via secure gateway stubs] */
+  FLASH_NSC (rx) : ORIGIN = 0x0C010000, LENGTH = 8K
+
+  /* EDATA1: Bank 1 high-cycle data area (sectors 120-127, 8 sectors x 6KB = 48KB)
+   * Accessed via Secure AHB alias 0x0D000000 — STABLE, does NOT swap with SWAP_BANK
+   * [RM0481 §7.3.10 lines 940-942: "120-127 for STM32H562/563/573xx devices"]
+   * [RM0481 §7.3.10 lines 913-915: "data are accessible from 0x0900_0000 to 0x0900_BFFF for Bank 1"]
+   * [stm32h563xx.h: FLASH_EDATA_BASE_S = 0x0D000000UL — Secure alias, not in Table 48 swap range]
+   * MPU must mark this region as non-cacheable (6-bit ECC on 16-bit words)
+   * Used by EEPROM emulation middleware (EDATA_ENABLED defined in Secure build)
+   * HAL driver: FLASH_TYPEPROGRAM_HALFWORD_EDATA / FLASH_TYPEPROGRAM_WORD_EDATA
+   *             guarded by #if defined(FLASH_EDATAR_EDATA_EN) */
+  EDATA_S   (rw) : ORIGIN = 0x0D000000, LENGTH = 48K
 }
 
 /* Sections */
@@ -155,6 +179,19 @@ SECTIONS
     *(.gnu.sgstubs*)   /* Secure Gateway stubs */
     . = ALIGN(4);
   } >FLASH_NSC
+
+  /* EDATA1 region symbols — used by EEPROM emulation middleware (EE_Init, EE_WriteVariable32bits)
+   * NOLOAD: linker reserves the address range but generates no load data.
+   * The EEPROM emulation middleware manages this region entirely at runtime.
+   * __edata_s_start and __edata_s_end are available as extern symbols in Secure C code.
+   * MPU_Config_Secure() must mark 0x0D000000-0x0D00BFFF as non-cacheable before EE_Init(). */
+  .edata_s (NOLOAD) :
+  {
+    . = ALIGN(16);
+    __edata_s_start = .;
+    . = . + LENGTH(EDATA_S);
+    __edata_s_end = .;
+  } >EDATA_S
 
   /* Uninitialized data section into "RAM" Ram type memory */
   . = ALIGN(4);

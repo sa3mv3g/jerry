@@ -50,7 +50,7 @@
 //   <q> Enable SAU
 //   <i> Value for SAU->CTRL register bit ENABLE
 */
-#define SAU_INIT_CTRL_ENABLE   0
+#define SAU_INIT_CTRL_ENABLE   1   /* SAU enabled — explicit region-based security */
 
 /*
 //   <o> When SAU is disabled
@@ -59,7 +59,7 @@
 //   <i> Value for SAU->CTRL register bit ALLNS
 //   <i> When all Memory is Non-Secure (ALLNS is 1), IDAU can override memory map configuration.
 */
-#define SAU_INIT_CTRL_ALLNS    1
+#define SAU_INIT_CTRL_ALLNS    0   /* SAU enabled: ALLNS=0 means unlisted regions are Secure */
 
 /*
 // </e>
@@ -78,22 +78,27 @@
 //   <e>Initialize SAU Region 0
 //   <i> Setup SAU Region 0 memory attributes
 */
-#define SAU_INIT_REGION0    0
+/* SAU Region 0: NSC veneer — Bank 1 sector 8 (Secure alias 0x0C010000)
+ * The linker places .gnu.sgstubs (NSC gateway stubs) in FLASH_NSC region.
+ * NS code calls SECURE_CAL_Read/Write etc. through these stubs.
+ * Must be marked NSC (Secure, Non-Secure Callable).
+ * Layout: FLASH_NSC ORIGIN=0x0C010000, LENGTH=8K → end=0x0C011FFF */
+#define SAU_INIT_REGION0    1
 
 /*
 //     <o>Start Address <0-0xFFFFFFE0>
 */
-#define SAU_INIT_START0     0x0C0FE000      /* start address of SAU region 0 */
+#define SAU_INIT_START0     0x0C010000      /* NSC veneer: Bank 1 sector 8 (Secure alias) */
 
 /*
 //     <o>End Address <0x1F-0xFFFFFFFF>
 */
-#define SAU_INIT_END0       0x0C0FFFFF      /* end address of SAU region 0 */
+#define SAU_INIT_END0       0x0C011FFF      /* end of 8KB NSC veneer sector */
 
 /*
 //     <o>Region is
-//         <0=>Non-Secure
-//         <1=>Secure, Non-Secure Callable
+//       <0=>Non-Secure
+//       <1=>Secure, Non-Secure Callable
 */
 #define SAU_INIT_NSC0       1
 /*
@@ -104,22 +109,27 @@
 //   <e>Initialize SAU Region 1
 //   <i> Setup SAU Region 1 memory attributes
 */
-#define SAU_INIT_REGION1    0
+/* SAU Region 1: NS user flash — Bank 1 sectors 9-127 + Bank 2 sectors 0-127
+ * NS firmware starts at 0x08012000 (sector 9). Bank 2 (0x08100000-0x081FFFFF)
+ * is used as FOTA target. Both must be NS-accessible.
+ * Start: 0x08012000 (NS firmware start, sector 9)
+ * End:   0x081FFFFF (end of Bank 2) */
+#define SAU_INIT_REGION1    1
 
 /*
 //     <o>Start Address <0-0xFFFFFFE0>
 */
-#define SAU_INIT_START1     0x08100000      /* start address of SAU region 1 */
+#define SAU_INIT_START1     0x08012000      /* NS firmware start: Bank 1 sector 9 */
 
 /*
 //     <o>End Address <0x1F-0xFFFFFFFF>
 */
-#define SAU_INIT_END1       0x081FFFFF      /* end address of SAU region 1 */
+#define SAU_INIT_END1       0x081FFFFF      /* end of Bank 2 (FOTA target) */
 
 /*
 //     <o>Region is
-//         <0=>Non-Secure
-//         <1=>Secure, Non-Secure Callable
+//       <0=>Non-Secure
+//       <1=>Secure, Non-Secure Callable
 */
 #define SAU_INIT_NSC1       0
 /*
@@ -130,22 +140,26 @@
 //   <e>Initialize SAU Region 2
 //   <i> Setup SAU Region 2 memory attributes
 */
-#define SAU_INIT_REGION2    0
+/* SAU Region 2: NS SRAM — upper half of SRAM (0x20050000-0x2009FFFF = 320KB NS)
+ * The NS application uses SRAM starting at 0x20050000 (NS linker RAM region).
+ * Lower SRAM (0x20000000-0x2004FFFF) is Secure — do NOT expose to NS.
+ * [NS linker: RAM ORIGIN=0x20050000, LENGTH=320K → end=0x2009FFFF] */
+#define SAU_INIT_REGION2    1
 
 /*
 //     <o>Start Address <0-0xFFFFFFE0>
 */
-#define SAU_INIT_START2     0x20050000      /* start address of SAU region 2 */
+#define SAU_INIT_START2     0x20050000      /* NS SRAM start (matches NS linker RAM) */
 
 /*
 //     <o>End Address <0x1F-0xFFFFFFFF>
 */
-#define SAU_INIT_END2       0x2009FFFF      /* end address of SAU region 2 */
+#define SAU_INIT_END2       0x2009FFFF      /* end of NS SRAM (320KB) */
 
 /*
 //     <o>Region is
-//         <0=>Non-Secure
-//         <1=>Secure, Non-Secure Callable
+//       <0=>Non-Secure
+//       <1=>Secure, Non-Secure Callable
 */
 #define SAU_INIT_NSC2       0
 /*
@@ -156,22 +170,25 @@
 //   <e>Initialize SAU Region 3
 //   <i> Setup SAU Region 3 memory attributes
 */
-#define SAU_INIT_REGION3    0
+/* SAU Region 3: NS peripherals — AHB/APB peripheral space
+ * All peripherals configured as NS via GTZC (ETH, I2C, etc.)
+ * 0x40000000-0x4FFFFFFF covers all STM32H5 peripheral address space */
+#define SAU_INIT_REGION3    1
 
 /*
 //     <o>Start Address <0-0xFFFFFFE0>
 */
-#define SAU_INIT_START3     0x40000000      /* start address of SAU region 3 */
+#define SAU_INIT_START3     0x40000000      /* peripheral base */
 
 /*
 //     <o>End Address <0x1F-0xFFFFFFFF>
 */
-#define SAU_INIT_END3       0x4FFFFFFF      /* end address of SAU region 3 */
+#define SAU_INIT_END3       0x4FFFFFFF      /* end of peripheral space */
 
 /*
 //     <o>Region is
-//         <0=>Non-Secure
-//         <1=>Secure, Non-Secure Callable
+//       <0=>Non-Secure
+//       <1=>Secure, Non-Secure Callable
 */
 #define SAU_INIT_NSC3       0
 /*
@@ -182,17 +199,22 @@
 //   <e>Initialize SAU Region 4
 //   <i> Setup SAU Region 4 memory attributes
 */
-#define SAU_INIT_REGION4    0
+/* SAU Region 4: OTP + Read-Only area (0x08FFF000-0x08FFFFFF, 8KB)
+ * NS code needs to read UID_BASE (0x08FFF800) for HAL_GetUIDw0/1/2() and
+ * FLASHSIZE_BASE (0x08FFF80C) for HAL_GetFlashSize().
+ * [RM0481 §7.3.9: OTP 0x08FFF000-0x08FFF7FF, RO 0x08FFF800-0x08FFFFFF]
+ * [stm32h563xx.h: UID_BASE=0x08FFF800, FLASHSIZE_BASE=0x08FFF80C] */
+#define SAU_INIT_REGION4    1
 
 /*
 //     <o>Start Address <0-0xFFFFFFE0>
 */
-#define SAU_INIT_START4     0x60000000      /* start address of SAU region 4 */
+#define SAU_INIT_START4     0x08FFF000      /* OTP + RO area start */
 
 /*
 //     <o>End Address <0x1F-0xFFFFFFFF>
 */
-#define SAU_INIT_END4       0x9FFFFFFF      /* end address of SAU region 4 */
+#define SAU_INIT_END4       0x08FFFFFF      /* end of OTP + RO area (8KB) */
 
 /*
 //     <o>Region is
@@ -208,22 +230,25 @@
 //   <e>Initialize SAU Region 5
 //   <i> Setup SAU Region 5 memory attributes
 */
-#define SAU_INIT_REGION5    0
+/* SAU Region 5: NS system flash (bootloader/RSS NS library)
+ * 0x0BF90000-0x0BFA8FFF = NS system flash (Bank 2 system memory)
+ * Required for NSSLIB access when TrustZone is enabled */
+#define SAU_INIT_REGION5    1
 
 /*
 //     <o>Start Address <0-0xFFFFFFE0>
 */
-#define SAU_INIT_START5     0x0BF90000      /* start address of SAU region 5 */
+#define SAU_INIT_START5     0x0BF90000      /* NS system flash start */
 
 /*
 //     <o>End Address <0x1F-0xFFFFFFFF>
 */
-#define SAU_INIT_END5       0x0BFA8FFF      /* end address of SAU region 5 */
+#define SAU_INIT_END5       0x0BFA8FFF      /* NS system flash end */
 
 /*
 //     <o>Region is
-//         <0=>Non-Secure
-//         <1=>Secure, Non-Secure Callable
+//       <0=>Non-Secure
+//       <1=>Secure, Non-Secure Callable
 */
 #define SAU_INIT_NSC5       0
 /*
@@ -379,7 +404,7 @@
 
 /*
 // Interrupts 0..31
-//   <o.0>  WWDG_IRQn             <0=> Secure state
+//   <o.0>  WWDG_IRQn             <1=> Non-Secure state  (no WWDG handler in Secure; route to NS so counter expires and resets SOC)
 //   <o.1>  PVD_AVD_IRQn          <0=> Secure state
 //   <o.2>  RTC_IRQn              <0=> Secure state
 //   <o.3>  RTC_S_IRQn            <0=> Secure state
@@ -412,7 +437,10 @@
 //   <o.30> GPDMA1_Channel3_IRQn  <1=> Non-Secure state
 //   <o.31> GPDMA1_Channel4_IRQn  <1=> Non-Secure state
 */
-#define NVIC_INIT_ITNS0_VAL      0xF9000000
+/* Bit 0 (WWDG_IRQn) = 1 → Non-Secure: no WWDG handler in Secure firmware;
+ * routing to NS allows WWDG counter to expire and reset the SOC correctly.
+ * Bits 24,27-31 = 1 → NS: EXTI13, GPDMA channels (used by NS firmware) */
+#define NVIC_INIT_ITNS0_VAL      0xF9000001
 
 /*
 //   </e>

@@ -1,0 +1,444 @@
+/*********************************************************************
+*                 (c) SEGGER Microcontroller GmbH                    *
+*                      The Embedded Experts                          *
+*                         www.segger.com                             *
+**********************************************************************
+
+File          : 
+Created       : 06. Jul 2026 11:16
+Ozone Version : V3.40j
+*/
+
+/*********************************************************************
+*
+*       OnProjectLoad
+*
+* Function description
+*   Project load routine. Required.
+*
+**********************************************************************
+*/
+void OnProjectLoad (void) {
+  //
+  // Dialog-generated settings
+  //
+  Project.AddPathSubstitute ("/home/a0500224local/ti/workarea/mpcs/jerry", "$(ProjectDir)");
+  Project.AddPathSubstitute ("/home/a0500224local/ti/workarea/mpcs/jerry", "$(ProjectDir)");
+  Project.SetDevice ("STM32H563ZI");
+  Project.SetHostIF ("USB", "");
+  Project.SetTargetIF ("SWD");
+  Project.SetTIFSpeed ("4 MHz");
+  Project.AddSvdFile ("$(InstallDir)/Config/CPU/Cortex-M33F.svd");
+  //
+  // User settings
+  //
+  // Load NS application ELF (primary debug target)
+  File.Open ("$(ProjectDir)/build/stm-Debug/application/jerry_app.elf");
+  // Also load Secure ELF for full symbol resolution across TrustZone boundary
+  // File.Open ("$(ProjectDir)/build/stm-Debug/application/bsp/stm/stm32h563/jerry_secure_app.elf");
+  Project.SetOSPlugin ("FreeRTOSPlugin_Cortex-M");
+}
+
+/*********************************************************************
+*
+*       OnStartupComplete
+*
+* Function description
+*   Called when program execution has reached/passed
+*   the startup completion point. Optional.
+*
+**********************************************************************
+*/
+//void OnStartupComplete (void) {
+//}
+
+/*********************************************************************
+*
+*      TargetReset
+*
+* Function description
+*   Replaces the default target device reset routine. Optional.
+*
+* Notes
+*   This example demonstrates the usage when
+*   debugging an application in RAM on a Cortex-M target device.
+*
+**********************************************************************
+*/
+//void TargetReset (void) {
+//
+//  unsigned int SP;
+//  unsigned int PC;
+//  unsigned int VectorTableAddr;
+//
+//  VectorTableAddr = Elf.GetBaseAddr();
+//  //
+//  // Set up initial stack pointer
+//  //
+//  if (VectorTableAddr != 0xFFFFFFFF) {
+//    SP = Target.ReadU32(VectorTableAddr);
+//    Target.SetReg("SP", SP);
+//  }
+//  //
+//  // Set up entry point PC
+//  //
+//  PC = Elf.GetEntryPointPC();
+//
+//  if (PC != 0xFFFFFFFF) {
+//    Target.SetReg("PC", PC);
+//  } else if (VectorTableAddr != 0xFFFFFFFF) {
+//    PC = Target.ReadU32(VectorTableAddr + 4);
+//    Target.SetReg("PC", PC);
+//  } else {
+//    Util.Error("Project file error: failed to set entry point PC", 1);
+//  }
+//}
+
+/*********************************************************************
+*
+*       BeforeTargetReset
+*
+* Function description
+*   Event handler routine. Optional.
+*
+**********************************************************************
+*/
+//void BeforeTargetReset (void) {
+//}
+
+/*********************************************************************
+*
+*       AfterTargetReset
+*
+* Function description
+*   Event handler routine. Optional.
+*   The default implementation initializes SP and PC to reset values.
+**
+**********************************************************************
+*/
+void AfterTargetReset (void) {
+  _SetupTarget();
+}
+
+/*********************************************************************
+*
+*       DebugStart
+*
+* Function description
+*   Replaces the default debug session startup routine. Optional.
+*
+**********************************************************************
+*/
+//void DebugStart (void) {
+//}
+
+/*********************************************************************
+*
+*       TargetConnect
+*
+* Function description
+*   Replaces the default target IF connection routine. Optional.
+*
+**********************************************************************
+*/
+//void TargetConnect (void) {
+//}
+
+/*********************************************************************
+*
+*       BeforeTargetConnect
+*
+* Function description
+*   Event handler routine. Optional.
+*
+**********************************************************************
+*/
+//void BeforeTargetConnect (void) {
+//}
+
+/*********************************************************************
+*
+*       AfterTargetConnect
+*
+* Function description
+*   Event handler routine. Optional.
+*   Reads and prints key option bytes to the Ozone log for verification.
+*
+**********************************************************************
+*/
+void AfterTargetConnect (void) {
+  unsigned int nsbootadd_raw;
+  unsigned int nsbootadd_addr;
+  unsigned int secbootadd_raw;
+  unsigned int secbootadd_addr;
+  unsigned int secwm1_end;
+  unsigned int tzen;
+  unsigned int edata1_en;
+  unsigned int edata1_strt;
+  unsigned int swap_bank;
+
+  // Read FLASH_NSBOOTR_CUR (offset 0x080 from FLASH base 0x40022000)
+  // NSBOOTADD[23:0] = bits[31:8], decoded address = NSBOOTADD << 8
+  nsbootadd_raw  = (Target.ReadU32(0x40022080) >> 8) & 0xFFFFFF;
+  nsbootadd_addr = nsbootadd_raw << 8;
+
+  // Read FLASH_SECBOOTR_CUR (offset 0x088)
+  secbootadd_raw  = (Target.ReadU32(0x40022088) >> 8) & 0xFFFFFF;
+  secbootadd_addr = secbootadd_raw << 8;
+
+  // Read FLASH_SECWM1R_CUR (offset 0x0E0): SECWM1_END = bits[22:16]
+  secwm1_end = (Target.ReadU32(0x400220E0) >> 16) & 0x7F;
+
+  // Read FLASH_OPTSR2_CUR (offset 0x070): TZEN = bits[31:24]
+  tzen = (Target.ReadU32(0x40022070) >> 24) & 0xFF;
+
+  // Read FLASH_EDATA1R_CUR (offset 0x0F0): EDATA1_EN = bit15, EDATA1_STRT = bits[2:0]
+  edata1_en   = (Target.ReadU32(0x400220F0) >> 15) & 0x1;
+  edata1_strt = Target.ReadU32(0x400220F0) & 0x7;
+
+  // Read FLASH_OPTSR_CUR (offset 0x050): SWAP_BANK = bit31
+  swap_bank = (Target.ReadU32(0x40022050) >> 31) & 0x1;
+
+  JLINK.SYS_Report("=== Option Bytes ===");
+  JLINK.SYS_Report1("  TZEN         = 0x", tzen);
+  JLINK.SYS_Report1("  NSBOOTADD    = 0x", nsbootadd_addr);
+  JLINK.SYS_Report1("  SECBOOTADD   = 0x", secbootadd_addr);
+  JLINK.SYS_Report1("  SECWM1_END   = sector ", secwm1_end);
+  JLINK.SYS_Report1("  EDATA1_EN    = ", edata1_en);
+  JLINK.SYS_Report1("  EDATA1_STRT  = ", edata1_strt);
+  JLINK.SYS_Report1("  SWAP_BANK    = ", swap_bank);
+  JLINK.SYS_Report("====================");
+
+  // Warn if NSBOOTADD is wrong
+  if (nsbootadd_addr != 0x08012000) {
+    JLINK.SYS_Report("  WARNING: NSBOOTADD should be 0x08012000!");
+    JLINK.SYS_Report("  Run: uv run tools/flash_nucleo.py --option-bytes-only --force");
+  }
+  if (tzen != 0xB4) {
+    JLINK.SYS_Report("  WARNING: TZEN should be 0xB4 (TrustZone enabled)!");
+  }
+  if (edata1_en == 0) {
+    JLINK.SYS_Report("  NOTE: EDATA1_EN=0 — Secure firmware will program it on first boot (triggers one reset).");
+  }
+}
+
+/*********************************************************************
+*
+*       TargetDownload
+*
+* Function description
+*   Replaces the default program download routine. Optional.
+*
+**********************************************************************
+*/
+void TargetDownload (void) {
+  // TrustZone dual-image download:
+  //   1. Erase Secure flash (0x0C000000, 72KB = sectors 0-8) to force re-flash
+  //   2. Flash Secure ELF  → Bank 1 sectors 0-7  (0x0C000000, Secure alias)
+  //   3. Flash NonSecure ELF → Bank 1 sectors 9-127 (0x08012000)
+  //
+  // Option bytes (NSBOOTADD=0x08012000, SECWM1_END=8, TZEN=0xB4) must be
+  // programmed once before first use:
+  //   uv run tools/flash_nucleo.py --option-bytes-only --force
+  //
+  // After download, AfterTargetDownload() sets PC to Secure Reset_Handler
+  // so the full boot sequence runs: Secure init → SAU/GTZC → NS firmware.
+  //
+  // Erase is required because Target.LoadMemory() skips unchanged regions.
+  // Without erase, a rebuild with minor changes may not be re-flashed.
+
+  JLINK.SYS_Report("Erasing Secure flash (0x0C000000 - 0x0C011FFF, 72KB)...");
+  Target.EraseRange(0x0C000000, 0x0C011FFF);
+
+  JLINK.SYS_Report("Downloading Secure firmware (jerry_secure_app.elf)...");
+  Target.LoadMemory("$(ProjectDir)/build/stm-Debug/application/bsp/stm/stm32h563/jerry_secure_app.elf");
+
+  JLINK.SYS_Report("Downloading NonSecure firmware (jerry_app.elf)...");
+  Target.LoadMemory("$(ProjectDir)/build/stm-Debug/application/jerry_app.elf");
+
+  JLINK.SYS_Report("Download complete.");
+}
+
+/*********************************************************************
+*
+*       BeforeTargetDownload
+*
+* Function description
+*   Event handler routine. Optional.
+*
+**********************************************************************
+*/
+//void BeforeTargetDownload (void) {
+//}
+
+/*********************************************************************
+*
+*      AfterTargetDownload
+*
+* Function description
+*   Event handler routine. Optional.
+*   The default implementation initializes SP and PC to reset values.
+*
+**********************************************************************
+*/
+void AfterTargetDownload (void) {
+  _SetupTarget();
+}
+
+/*********************************************************************
+*
+*       BeforeTargetDisconnect
+*
+* Function description
+*   Event handler routine. Optional.
+*
+**********************************************************************
+*/
+//void BeforeTargetDisconnect (void) {
+//}
+
+/*********************************************************************
+*
+*       AfterTargetDisconnect
+*
+* Function description
+*   Event handler routine. Optional.
+*
+**********************************************************************
+*/
+//void AfterTargetDisconnect (void) {
+//}
+
+/*********************************************************************
+*
+*       AfterTargetHalt
+*
+* Function description
+*   Event handler routine. Optional.
+*
+**********************************************************************
+*/
+//void AfterTargetHalt (void) {
+//}
+
+/*********************************************************************
+*
+*       BeforeTargetResume
+*
+* Function description
+*   Event handler routine. Optional.
+*
+**********************************************************************
+*/
+//void BeforeTargetResume (void) {
+//}
+
+/*********************************************************************
+*
+*       OnSnapshotLoad
+*
+* Function description
+*   Called upon loading a snapshot. Optional.
+*
+* Additional information
+*   This function is used to restore the target state in cases
+*   where values cannot simply be written to the target.
+*   Typical use: GPIO clock needs to be enabled, before
+*   GPIO is configured.
+*
+**********************************************************************
+*/
+//void OnSnapshotLoad (void) {
+//}
+
+/*********************************************************************
+*
+*       OnSnapshotSave
+*
+* Function description
+*   Called upon saving a snapshot. Optional.
+*
+* Additional information
+*   This function is usually used to save values of the target
+*   state which can either not be trivially read,
+*   or need to be restored in a specific way or order.
+*   Typically use: Memory Mapped Registers,
+*   such as PLL and GPIO configuration.
+*
+**********************************************************************
+*/
+//void OnSnapshotSave (void) {
+//}
+
+/*********************************************************************
+*
+*       OnError
+*
+* Function description
+*   Called when an error ocurred. Optional.
+*
+**********************************************************************
+*/
+//void OnError (void) {
+//}
+
+/*********************************************************************
+*
+*       AfterProjectLoad
+*
+* Function description
+*   After Project load routine. Optional.
+*
+**********************************************************************
+*/
+//void AfterProjectLoad (void) {
+//}
+
+/*********************************************************************
+*
+*       OnDebugStartBreakSymbolReached
+*
+* Function description
+*   Called when program execution has reached/passed
+*   the symbol to be breaked at during debug start. Optional.
+*
+**********************************************************************
+*/
+//void OnDebugStartBreakSymReached (void) {
+//}
+
+/*********************************************************************
+*
+*       _SetupTarget
+*
+* Function description
+*   Setup the target.
+*   Called by AfterTargetReset() and AfterTargetDownload().
+*
+*   Auto-generated function. May be overridden by Ozone.
+*
+**********************************************************************
+*/
+void _SetupTarget(void) {
+  unsigned int SP;
+  unsigned int PC;
+  // TrustZone project: Secure firmware boots first from 0x0C000000.
+  // The NS firmware vector table is at 0x08012000 (NSBOOTADD).
+  // We set PC to the Secure firmware Reset_Handler so the full boot
+  // sequence runs: Secure init → GTZC/SAU setup → jump to NS firmware.
+  // This ensures EDATA, MPU, and TrustZone are properly initialized.
+  unsigned int SecureVectorTable = 0x0C000000;
+
+  // Read initial SP from Secure vector table word 0
+  SP = Target.ReadU32(SecureVectorTable);
+  if (SP != 0xFFFFFFFF) {
+    Target.SetReg("SP", SP);
+  }
+  // Read Reset_Handler from Secure vector table word 1 (clear thumb bit)
+  PC = Target.ReadU32(SecureVectorTable + 4) & 0xFFFFFFFE;
+  if (PC != 0xFFFFFFFF && PC != 0) {
+    Target.SetReg("PC", PC);
+  } else {
+    Util.Error("Project script error: failed to read Secure Reset_Handler from 0x0C000004", 1);
+  }
+}

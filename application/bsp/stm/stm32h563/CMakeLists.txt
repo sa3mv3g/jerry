@@ -76,16 +76,13 @@ target_sources(stm32h563_bsp PRIVATE
     ${STM32_Drivers_Src}
     ${MX_Application_Src}
     NonSecure/Core/Src/system_stm32h5xx_ns.c
-    Middlewares/ST/EEPROM_Emul/Core/eeprom_emul.c
-    Middlewares/ST/EEPROM_Emul/Porting/STM32H5/flash_interface.c
+    # EEPROM emulation removed from NS BSP — it is now Secure-only.
+    # The Secure firmware owns EEPROM emulation via FLASH_EDATA_BASE_S (0x0D000000).
 )
 
 # Include Directories
 target_include_directories(stm32h563_bsp PUBLIC
     ${MX_Include_Dirs}
-    Middlewares/ST/EEPROM_Emul
-    Middlewares/ST/EEPROM_Emul/Core
-    Middlewares/ST/EEPROM_Emul/Porting/STM32H5
     ../../../../application/bsp
 )
 target_compile_options(stm32h563_bsp PRIVATE
@@ -166,11 +163,19 @@ add_executable(jerry_secure_app)
 target_sources(jerry_secure_app PRIVATE
     ${MX_Application_Src}
     ${STM32_Drivers_Src}
+    # EEPROM emulation middleware — Secure build only.
+    # Uses FLASH_EDATA_BASE_S = 0x0D000000 (Secure alias, stable across SWAP_BANK).
+    # Located under Secure/Core/EEPROM_Emul to avoid CubeMX regeneration overwriting it.
+    ${CMAKE_CURRENT_SOURCE_DIR}/Secure/Core/EEPROM_Emul/Core/eeprom_emul.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Secure/Core/EEPROM_Emul/Porting/STM32H5/flash_interface.c
 )
 
 target_include_directories(jerry_secure_app PUBLIC
     ${MX_Include_Dirs}
     Drivers/BSP/STM32H5xx_Nucleo
+    # EEPROM emulation headers (eeprom_emul.h, flash_interface.h, eeprom_emul_conf.h)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Secure/Core/EEPROM_Emul/Core
+    ${CMAKE_CURRENT_SOURCE_DIR}/Secure/Core/EEPROM_Emul/Porting/STM32H5
 )
 
 target_compile_options(jerry_secure_app PRIVATE
@@ -181,6 +186,11 @@ target_compile_options(jerry_secure_app PRIVATE
 
 target_compile_definitions(jerry_secure_app PUBLIC
     ${MX_Defines_Syms}
+    # EDATA_ENABLED: switches EEPROM emulation to use Bank 1 high-cycle data area.
+    # In Secure build (CMSE=3), FLASH_EDATA_BASE = FLASH_EDATA_BASE_S = 0x0D000000
+    # (Secure alias, stable across SWAP_BANK changes — calibration survives FOTA).
+    # Do NOT define SECURE_FEATURES — that would force 0x09000000 (NS alias, swaps).
+    EDATA_ENABLED
 )
 
 target_link_options(jerry_secure_app PRIVATE

@@ -70,23 +70,54 @@ class ConnectionType(Enum):
 
 @dataclass
 class OptionByteConfig:
-    """Configuration for STM32H563 TrustZone option bytes."""
+    """Configuration for STM32H563 TrustZone option bytes.
+
+    Memory layout (64KB Secure + 8KB NSC + 888KB NS):
+      Sectors 0-7  (64KB) = Secure firmware code
+      Sector  8    (8KB)  = NSC veneer  → SECWM1_END = 8
+      Sectors 9-119       = NS firmware → NSBOOTADD  = 0x08012000
+      Sectors 120-127     = EDATA (Bank 1, 8 sectors, 100K-cycle calibration storage)
+    """
 
     # TrustZone enable value (0xB4 enables TrustZone)
     tzen: int = 0xB4
 
-    # Secure watermark for Bank 1 (start and end)
-    # Default: entire Bank 1 is secure (0x00 to 0x7F = 1MB)
+    # Secure watermark for Bank 1:
+    #   SECWM1_STRT = 0  (sector 0 = start of Secure area)
+    #   SECWM1_END  = 8  (sector 8 = NSC veneer, last Secure sector)
+    # [RM0481 §7.6.1: NSC region must be inside Secure watermark]
     secwm1_strt: int = 0x00
-    secwm1_end: int = 0x7F
+    secwm1_end: int = 0x08
 
     # Secure watermark for Bank 2 (start and end)
     # Setting STRT > END makes Bank 2 non-secure
     secwm2_strt: int = 0x7F
     secwm2_end: int = 0x00
 
-    # Secure boot address (0x0C0000 = 0x0C000000 >> 8)
-    secbootadd: int = 0x0C0000
+    # Secure boot address — Bank 1 physical sector 0 via Secure alias.
+    # Stored as address >> 7 in the option byte register.
+    # 0x0C000000 >> 7 = 0x180000 (STM32_Programmer_CLI takes raw address)
+    # [RM0481 §7.4.6: SECBOOTADD = 0x0C00_0000 → always Bank 1 physical]
+    secbootadd: int = 0x0C0000  # STM32_Programmer_CLI format: address >> 8
+
+    # NS boot address — where MCU jumps to NS firmware after Secure init.
+    # Must match NS linker script ORIGIN and VTOR_TABLE_NS_START_ADDR in Secure main.c.
+    # Sector 9 of Bank 1 = 0x0800_0000 + 9 × 8KB = 0x0801_2000
+    # After SWAP_BANK=1 (FOTA): this address maps to Bank 2 sector 9 (new firmware).
+    # STM32_Programmer_CLI takes the REGISTER VALUE (address >> 8), same as SECBOOTADD.
+    # 0x0801_2000 >> 8 = 0x80120  →  decoded back: 0x80120 << 8 = 0x0801_2000 ✓
+    # [RM0481 §7.4.6: NSBOOTADD register stores address[28:8]]
+    nsbootadd: int = 0x80120
+
+    # EDATA Bank 1: enable 8 sectors (120-127) for EEPROM emulation calibration storage.
+    # EDATA1_STRT = 7 → 8 sectors (0=1 sector, 7=8 sectors).
+    # [RM0481 §7.3.10: EDATA sectors 120-127, 100K erase cycles]
+    edata1_en: int = 1     # 1 = enabled
+    edata1_strt: int = 7   # 7 = 8 sectors (sectors 120-127)
+
+    # EDATA Bank 2: must be DISABLED (calibration is Bank 1 only).
+    edata2_en: int = 0     # 0 = disabled
+    edata2_strt: int = 0   # irrelevant when disabled, set to 0
 
 
 @dataclass
@@ -96,8 +127,11 @@ class FlashConfig:
     # Secure application address (Bank 1, secure flash)
     secure_app_address: int = 0x0C000000
 
-    # Non-secure application address (Bank 2, non-secure flash)
-    nonsecure_app_address: int = 0x08100000
+    # Non-secure application address — Bank 1 sector 9 (NS firmware start).
+    # ELF files carry their own load addresses from the linker script, so this
+    # value is used for logging/display only (not for actual ELF placement).
+    # Must match NS linker script ORIGIN = 0x08012000.
+    nonsecure_app_address: int = 0x08012000
 
 
 class STM32Programmer:
@@ -494,14 +528,29 @@ def configure_trustzone(
         time.sleep(2)
 
     logger.info("=" * 60)
-    logger.info("STEP 2: Configuring Secure Regions and Boot Address")
+    logger.info("STEP 2: Configuring Secure Regions, Boot Address and EDATA")
     logger.info("=" * 60)
 
-    # Step 2: Configure secure watermarks and boot address
+    # Step 2a: Configure secure watermarks and boot addresses
     programmer.write_option_bytes(
+        SECWM1_STRT=config.secwm1_strt,
+        SECWM1_END=config.secwm1_end,
         SECWM2_STRT=config.secwm2_strt,
         SECWM2_END=config.secwm2_end,
         SECBOOTADD=config.secbootadd,
+        NSBOOTADD=config.nsbootadd,
+    )
+
+    # Step 2b: Configure EDATA option bytes.
+    # EDATA1: Bank 1 sectors 120-127 (8 sectors, 100K-cycle calibration storage).
+    # EDATA2: Bank 2 EDATA must be DISABLED (calibration is Bank 1 only).
+    # STM32_Programmer_CLI uses individual field names: EDATA1_EN, EDATA1_STRT, etc.
+    logger.info("Configuring EDATA option bytes (Bank1=enabled/8sectors, Bank2=disabled)...")
+    programmer.write_option_bytes(
+        EDATA1_EN=config.edata1_en,      # 1 = Bank 1 EDATA enabled
+        EDATA1_STRT=config.edata1_strt,  # 7 = 8 sectors (120-127)
+        EDATA2_EN=config.edata2_en,      # 0 = Bank 2 EDATA disabled
+        EDATA2_STRT=config.edata2_strt,  # 0 = irrelevant when disabled
     )
 
     logger.info("TrustZone configuration complete!")

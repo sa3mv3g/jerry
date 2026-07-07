@@ -22,6 +22,7 @@
 #include "stm32h5xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "eeprom_emul.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,7 +58,9 @@
 /* External variables --------------------------------------------------------*/
 
 /* USER CODE BEGIN EV */
-
+/* EEPROM emulation globals defined in eeprom_emul.c — needed by NMI_Handler */
+extern __IO uint32_t AddressRead;   /*!< Address being read during cleanup phase */
+extern __IO uint8_t  CleanupPhase;  /*!< 1 when EE_Init cleanup is in progress  */
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -69,10 +72,69 @@
 void NMI_Handler(void)
 {
   /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
+  uint32_t Address;
 
+  /* Check if NMI is due to flash ECCD (double-bit ECC error detection) in EDATA region.
+   * The Secure firmware owns FLASH_EDATA_BASE_S (0x0D000000) and all EEPROM emulation
+   * state. This handler mirrors the ST EEPROM emulation example NMI handler.
+   * [RM0481 §7.3.10: EDATA 6-bit ECC on 16-bit words; ECCD triggers NMI] */
+  if (__HAL_FLASH_GET_FLAG(FLASH_FLAG_ECCD))
+  {
+#ifdef EDATA_ENABLED
+    /* Check if NMI is related to a 0xFFFF value (empty value or possible header) */
+    if (READ_REG(FLASH->ECCDR) == 0xFFFF)
+    {
+      /* Clear the flag and exit — do not invalidate; may be an empty/header line */
+      __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ECCD);
+      return;
+    }
+#endif
+    if (CleanupPhase == 1)
+    {
+      if ((AddressRead >= START_PAGE_ADDRESS) && (AddressRead <= END_EEPROM_ADDRESS))
+      {
+        /* Delete the corrupted flash address */
+#ifdef EDATA_ENABLED
+        Address = (uint32_t)(AddressRead & 0xFFFFFFF8U);
+#else
+        Address = (uint32_t)(AddressRead & 0xFFFFFFF0U);
+#endif
+        if (EE_DeleteCorruptedFlashAddress((uint32_t)Address) == EE_OK)
+        {
+          /* Resume execution if deletion succeeds */
+          return;
+        }
+        /* Deletion failed — check for programming error flags */
+        else
+        {
+          if ((__HAL_FLASH_GET_FLAG(FLASH_FLAG_WRPERR))  ||
+              (__HAL_FLASH_GET_FLAG(FLASH_FLAG_PGSERR))  ||
+              (__HAL_FLASH_GET_FLAG(FLASH_FLAG_STRBERR)) ||
+              (__HAL_FLASH_GET_FLAG(FLASH_FLAG_INCERR)))
+          {
+            __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_WRPERR);
+            __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_PGSERR);
+            __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_STRBERR);
+            __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_INCERR);
+            return;
+          }
+        }
+      }
+    }
+    else
+    {
+      __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ECCD);
+      return;
+    }
+  }
   /* USER CODE END NonMaskableInt_IRQn 0 */
+
   /* USER CODE BEGIN NonMaskableInt_IRQn 1 */
-   while (1)
+  /* Go to infinite loop when NMI occurs in case:
+   * - ECCD raised in EDATA pages but corrupted address deletion fails
+   * - ECCD raised outside EDATA pages
+   * - no ECCD raised */
+  while (1)
   {
   }
   /* USER CODE END NonMaskableInt_IRQn 1 */
@@ -257,5 +319,41 @@ void DebugMon_Handler(void)
 /******************************************************************************/
 
 /* USER CODE BEGIN 1 */
+
+/**
+  * @brief This function handles System tick timer.
+  */
+void SysTick_Handler(void)
+{
+  /* USER CODE BEGIN SysTick_IRQn 0 */
+
+  /* USER CODE END SysTick_IRQn 0 */
+  HAL_IncTick();
+  /* USER CODE BEGIN SysTick_IRQn 1 */
+
+  /* USER CODE END SysTick_IRQn 1 */
+}
+
+/**
+  * @brief This function handles WWDG interrupt (for debugging).
+  */
+void WWDG_IRQHandler(void)
+{
+  while (1)
+  {
+    /* If we get here, WWDG actually fired */
+  }
+}
+
+/**
+  * @brief This function handles FLASH secure interrupts (for debugging).
+  */
+void FLASH_S_IRQHandler(void)
+{
+  while (1)
+  {
+    /* If we get here, FLASH_S triggered an interrupt */
+  }
+}
 
 /* USER CODE END 1 */

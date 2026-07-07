@@ -255,6 +255,9 @@ static bsp_error_t update_digital_input(unsigned int channel, bool *pCoil,
     return apiStatus;
 }
 
+#include "calibration_storage.h"
+#include "secure_nsc.h"
+
 /*
  * Always write the new calibration value to EEPROM (BUG-05).
  *
@@ -267,9 +270,9 @@ static bsp_error_t update_digital_input(unsigned int channel, bool *pCoil,
  * write-suppression is ever genuinely required, compare the raw bytes with
  * memcmp() rather than float `==`.
  */
-static inline bsp_error_t update_calibration(uint32_t address, float newValue)
+static inline bsp_error_t update_calibration(uint16_t vaddr, float newValue)
 {
-    return BSP_EEPROM_Write(address, (uint8_t *)&newValue, sizeof(newValue));
+    return (CalibrationStorage_WriteFloat(vaddr, newValue) == 0) ? BSP_OK : BSP_ERROR;
 }
 
 /* ==========================================================================
@@ -1339,61 +1342,61 @@ modbus_exception_t modbus_cb_write_single_register(uint16_t address,
             {
                 do
                 {
-                    err = update_calibration(MODBUS_NVM_ADC_0_SCALE_FACTOR,
+                    err = update_calibration(CAL_ADC_VADDR(0, CAL_ADC_SCALING_FACTOR_OFF),
                                              regs->adc_0_scale_factor);
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(MODBUS_NVM_ADC_0_OFFSET_TERM,
+                    err = update_calibration(CAL_ADC_VADDR(0, CAL_ADC_OFFSET_TERM_OFF),
                                              regs->adc_0_offset_term);
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(MODBUS_NVM_ADC_0_DEAD_ZONE,
+                    err = update_calibration(CAL_ADC_VADDR(0, CAL_ADC_DEADZONE_OFF),
                                              regs->adc_0_dead_zone);
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(MODBUS_NVM_ADC_1_SCALE_FACTOR,
+                    err = update_calibration(CAL_ADC_VADDR(1, CAL_ADC_SCALING_FACTOR_OFF),
                                              (regs->adc_1_scale_factor));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(MODBUS_NVM_ADC_1_OFFSET_TERM,
+                    err = update_calibration(CAL_ADC_VADDR(1, CAL_ADC_OFFSET_TERM_OFF),
                                              (regs->adc_1_offset_term));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(MODBUS_NVM_ADC_1_DEAD_ZONE,
+                    err = update_calibration(CAL_ADC_VADDR(1, CAL_ADC_DEADZONE_OFF),
                                              (regs->adc_1_dead_zone));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(MODBUS_NVM_ADC_2_SCALE_FACTOR,
+                    err = update_calibration(CAL_ADC_VADDR(2, CAL_ADC_SCALING_FACTOR_OFF),
                                              (regs->adc_2_scale_factor));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(MODBUS_NVM_ADC_2_OFFSET_TERM,
+                    err = update_calibration(CAL_ADC_VADDR(2, CAL_ADC_OFFSET_TERM_OFF),
                                              (regs->adc_2_offset_term));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(MODBUS_NVM_ADC_2_DEAD_ZONE,
+                    err = update_calibration(CAL_ADC_VADDR(2, CAL_ADC_DEADZONE_OFF),
                                              (regs->adc_2_dead_zone));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(MODBUS_NVM_ADC_3_SCALE_FACTOR,
+                    err = update_calibration(CAL_ADC_VADDR(3, CAL_ADC_SCALING_FACTOR_OFF),
                                              (regs->adc_3_scale_factor));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(MODBUS_NVM_ADC_3_OFFSET_TERM,
+                    err = update_calibration(CAL_ADC_VADDR(3, CAL_ADC_OFFSET_TERM_OFF),
                                              (regs->adc_3_offset_term));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(MODBUS_NVM_ADC_3_DEAD_ZONE,
+                    err = update_calibration(CAL_ADC_VADDR(3, CAL_ADC_DEADZONE_OFF),
                                              (regs->adc_3_dead_zone));
 
                     if (err != BSP_OK) break;

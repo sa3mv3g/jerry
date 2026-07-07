@@ -153,5 +153,54 @@ CMSE_NS_ENTRY uint32_t SECURE_RTC_SetTimeDate(const App_RTC_TimeTypeDef *pTimeDa
 /**
   * @}
   */
+
+/* USER CODE BEGIN Calibration_NSC_Impl */
+
+/* Include EEPROM emulation API (compiled in Secure build with EDATA_ENABLED).
+ * The middleware uses FLASH_EDATA_BASE_S = 0x0D000000 (Secure alias) because
+ * this is a Secure build (CMSE=3), making calibration data stable across
+ * SWAP_BANK changes. */
+#include "eeprom_emul.h"
+
+/**
+  * @brief  Read a calibration variable from EEPROM emulation.
+  *         EEPROM emulation runs on Bank 1 EDATA via Secure alias 0x0D000000.
+  *         This alias is NOT affected by SWAP_BANK — calibration survives FOTA.
+  * @param  vaddr   Virtual address (see CAL_*_VADDR in secure_nsc.h)
+  * @param  pValue  Output: value read
+  * @retval 0 = EE_OK, non-zero = error
+  */
+CMSE_NS_ENTRY uint32_t SECURE_CAL_Read(uint16_t vaddr, uint32_t *pValue)
+{
+  if (pValue == NULL)
+  {
+    return 1U; /* Invalid argument */
+  }
+
+  /* Validate pointer is in NonSecure memory before writing to it */
+  if (cmse_check_address_range(pValue, sizeof(uint32_t), CMSE_NONSECURE) == NULL)
+  {
+    return 2U; /* Pointer not in NonSecure memory */
+  }
+
+  EE_Status status = EE_ReadVariable32bits(vaddr, pValue);
+  return (status == EE_OK) ? 0U : (uint32_t)status;
+}
+
+/**
+  * @brief  Write a calibration variable to EEPROM emulation.
+  *         EEPROM emulation runs on Bank 1 EDATA via Secure alias 0x0D000000.
+  *         This alias is NOT affected by SWAP_BANK — calibration survives FOTA.
+  * @param  vaddr   Virtual address (see CAL_*_VADDR in secure_nsc.h)
+  * @param  value   Value to write
+  * @retval 0 = EE_OK, non-zero = error
+  */
+CMSE_NS_ENTRY uint32_t SECURE_CAL_Write(uint16_t vaddr, uint32_t value)
+{
+  EE_Status status = EE_WriteVariable32bits(vaddr, value);
+  return (status == EE_OK) ? 0U : (uint32_t)status;
+}
+
+/* USER CODE END Calibration_NSC_Impl */
 /* USER CODE END Non_Secure_CallLib */
 

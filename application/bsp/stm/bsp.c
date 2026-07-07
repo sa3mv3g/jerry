@@ -5,7 +5,7 @@
 
 #include "adc_filter.h"
 #include "bsp_i2c/bsp_i2c.h"
-#include "eeprom_emul.h"
+#include "secure_nsc.h"
 #include "log.h"
 #include "main.h"
 #include "stm32h5xx_hal.h"
@@ -171,15 +171,10 @@ bsp_error_t BSP_Init(void)
     MX_I2C4_Init();
     MX_TIM7_Init();
     MX_CRC_Init();
-    /*
-        Enable and set FLASH Interrupt priority
-        FLASH interrupt is used for the purpose of pages clean up under
-        interrupt
-     */
-    HAL_NVIC_SetPriority(FLASH_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(FLASH_IRQn);
-
-    HAL_FLASH_Unlock();
+    /* FLASH interrupt and HAL_FLASH_Unlock() removed:
+     * EEPROM emulation is now Secure-only (runs on Bank 1 EDATA via 0x0D000000).
+     * The NS firmware no longer performs any flash operations directly.
+     * All flash access goes through Secure NSC functions (SECURE_CAL_Read/Write). */
     /* Configure Programmable Voltage Detector (PVD) */
     /* PVD interrupt is used to suspend the current application flow in case
        a power-down is detected, allowing the flash interface to finish any
@@ -207,10 +202,9 @@ bsp_error_t BSP_Init(void)
     MX_ETH_Init();
     MX_USB_HCD_Init();
 
-    /* Set EEPROM emulation firmware to erase all potentially incompletely
-       erased pages if the system came from an asynchronous reset. Conditional
-       erase is safe to use if all Flash operations where completed before the
-       system reset */
+    /* EEPROM emulation is initialised by the Secure firmware before jumping to NS.
+     * The Secure firmware calls EE_Init() with the appropriate erase mode.
+     * NS world accesses calibration data via SECURE_CAL_Read/Write NSC calls. */
     if (__HAL_PWR_GET_FLAG(PWR_FLAG_SBF) == RESET)
     {
         /* Blink LED_OK (Green) twice at startup */
@@ -222,14 +216,6 @@ bsp_error_t BSP_Init(void)
         BSP_LED_On(LED_OK);
         HAL_Delay(100);
         BSP_LED_Off(LED_OK);
-
-        /* System reset comes from a power-on reset: Forced Erase */
-        /* Initialize EEPROM emulation driver (mandatory) */
-        EE_Status ee_status = EE_Init(EE_FORCED_ERASE);
-        if (ee_status != EE_OK)
-        {
-            Error_Handler();
-        }
     }
     else
     {
@@ -247,14 +233,6 @@ bsp_error_t BSP_Init(void)
         if (__HAL_PWR_GET_FLAG(PWR_FLAG_WUF) != RESET)
         {
             __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WUF);
-        }
-
-        /* System reset comes from a STANDBY wakeup: Conditional Erase*/
-        /* Initialize EEPROM emulation driver (mandatory) */
-        EE_Status ee_status = EE_Init(EE_CONDITIONAL_ERASE);
-        if (ee_status != EE_OK)
-        {
-            Error_Handler();
         }
     }
 
@@ -728,15 +706,16 @@ bsp_error_t BSP_EEPROM_Read(uint32_t address, uint8_t *pBuff,
 
     for (uint32_t i = 0; i < sizeBytes; i++)
     {
-        EE_Status ee_status =
-            EE_ReadVariable8bits((uint16_t)(address + i), &pBuff[i]);
-        if (ee_status != EE_OK)
+        uint32_t val = 0U;
+        uint32_t nsc_status = SECURE_CAL_Read((uint16_t)(address + i), &val);
+        if (nsc_status != 0U)
         {
-            LOG_ERR("[BSP] EEPROM read error %d at address %u", (int)ee_status,
-                    (unsigned int)(address + i));
+            LOG_ERR("[BSP] EEPROM read error %u at address %u",
+                    (unsigned int)nsc_status, (unsigned int)(address + i));
             ret = BSP_ERROR;
             break;
         }
+        pBuff[i] = (uint8_t)(val & 0xFFU);
     }
 
     BSP_I2C_Controller_MutexUnlock();
@@ -759,12 +738,12 @@ bsp_error_t BSP_EEPROM_Write(uint32_t address, uint8_t *pBuff,
 
     for (uint32_t i = 0; i < sizeBytes; i++)
     {
-        EE_Status ee_status =
-            EE_WriteVariable8bits((uint16_t)(address + i), pBuff[i]);
-        if (ee_status != EE_OK)
+        uint32_t nsc_status = SECURE_CAL_Write((uint16_t)(address + i),
+                                               (uint32_t)pBuff[i]);
+        if (nsc_status != 0U)
         {
-            LOG_ERR("[BSP] EEPROM write error %d at address %u", (int)ee_status,
-                    (unsigned int)(address + i));
+            LOG_ERR("[BSP] EEPROM write error %u at address %u",
+                    (unsigned int)nsc_status, (unsigned int)(address + i));
             ret = BSP_ERROR;
             break;
         }

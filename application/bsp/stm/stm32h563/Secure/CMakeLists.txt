@@ -47,8 +47,12 @@ include("mx-generated.cmake")
 set(CMAKE_CXX_COMPILER_FORCED "true") 
 
 # Add project symbols (macros)
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
-    # Add user defined symbols
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+    # EDATA_ENABLED: switches EEPROM emulation to use Bank 1 high-cycle data area.
+    # In Secure build (CMSE=3), FLASH_EDATA_BASE resolves to FLASH_EDATA_BASE_S = 0x0D000000
+    # (Secure alias, stable across SWAP_BANK changes).
+    # Do NOT define SECURE_FEATURES — that would force 0x09000000 (NS alias, swaps after FOTA).
+    EDATA_ENABLED
 )
 
 # Enable CMake support for ASM and C languages
@@ -56,13 +60,22 @@ enable_language(C ASM)
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user defined include paths
+    # EEPROM emulation middleware headers (Secure build only)
+    # Located under Secure/Core/EEPROM_Emul to avoid CubeMX regeneration overwriting it
+    # (CubeMX only regenerates Middlewares/ST/ under the STM32H563 root)
+    ${CMAKE_CURRENT_SOURCE_DIR}/core/EEPROM_Emul/Core
+    ${CMAKE_CURRENT_SOURCE_DIR}/core/EEPROM_Emul/Porting/STM32H5
+    # eeprom_emul_conf.h is co-located in EEPROM_Emul/Core/ (copied from application/bsp/)
+    # No separate BSP path needed
 )
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     core/Src/main.c
+    # EEPROM emulation middleware (Secure build — uses FLASH_EDATA_BASE_S = 0x0D000000)
+    core/EEPROM_Emul/Core/eeprom_emul.c
+    core/EEPROM_Emul/Porting/STM32H5/flash_interface.c
 )
 
 # Link directories setup

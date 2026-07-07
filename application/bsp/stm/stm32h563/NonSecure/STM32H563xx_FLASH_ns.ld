@@ -44,8 +44,16 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  RAM    (xrw)    : ORIGIN = 0x20050000,    LENGTH = 320K    /* Memory is divided. Actual start is 0x20000000 and actual length is 640K */
-  FLASH    (rx)    : ORIGIN = 0x8100000,    LENGTH = 1024K    /* Memory is divided. Actual start is 0x8000000 and actual length is 2048K */
+  RAM    (xrw) : ORIGIN = 0x20050000, LENGTH = 320K    /* NonSecure SRAM (upper half) */
+
+  /* NonSecure firmware: Bank 1 sectors 9-119 (111 sectors x 8KB = 888KB)
+   * ORIGIN = 0x08012000 = Bank 1 base + 9 sectors x 8KB (skip Secure sectors 0-8)
+   * Secure partition = sectors 0-7 (64KB code) + sector 8 (8KB NSC) = 72KB total
+   * NSBOOTADD option byte must be set to 0x0801_2000
+   * After SWAP_BANK=1: this address maps to Bank 2 sector 9 (new firmware after FOTA)
+   * [RM0481 Table 48: sector 9 of Bank 1 starts at 0x0801_2000]
+   * [RM0481 §7.3.10 lines 940-942: EDATA sectors are 120-127, so code ends at sector 119] */
+  FLASH  (rx)  : ORIGIN = 0x08012000, LENGTH = 888K
 }
 
 /* Sections */

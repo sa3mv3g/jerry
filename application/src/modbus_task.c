@@ -44,8 +44,11 @@
 /** Receive timeout in milliseconds */
 #define MODBUS_RECV_TIMEOUT_MS 5000U
 
-#define BSP_EEPROM_READ(A, B, C) \
-    if (BSP_OK != BSP_EEPROM_Read(A, B, C)) break;
+#include "calibration_storage.h"
+#include "secure_nsc.h"
+
+#define CALIBRATION_STORAGE_READ_FLOAT(VADDR, PTR) \
+    if (0 != CalibrationStorage_ReadFloat(VADDR, PTR)) { err = BSP_ERROR; break; }
 
 /* ==========================================================================
  * Private Types
@@ -117,45 +120,45 @@ void vModbusTask(void *pvParameters)
     hrRegs = jerry_device_get_holding_registers();
     do
     {
-        err = BSP_EEPROM_Read(MODBUS_NVM_ADC_0_SCALE_FACTOR,
-                              (uint8_t *)&hrRegs->adc_0_scale_factor,
-                              sizeof(float));
-        if (err != BSP_OK)
+        uint32_t status = CalibrationStorage_ReadFloat(CAL_ADC_VADDR(0, CAL_ADC_SCALING_FACTOR_OFF),
+                                                       &hrRegs->adc_0_scale_factor);
+
+        if (status != 0)
         {
             LOG_INF(
                 "[Modbus] Virgin MCU detected (EEPROM uninitialized). Using "
                 "default calibration.");
-            /* Reset err to OK so we don't print the generic failure message
-             * below */
             err = BSP_OK;
             break;
         }
 
-        BSP_EEPROM_READ(MODBUS_NVM_ADC_0_OFFSET_TERM,
-                        (uint8_t *)&hrRegs->adc_0_offset_term, sizeof(float));
-        BSP_EEPROM_READ(MODBUS_NVM_ADC_0_DEAD_ZONE,
-                        (uint8_t *)&hrRegs->adc_0_dead_zone, sizeof(float));
+        /* If scale factor is exactly 0xffffffff (erased EEPROM state), this is
+         * likely a virgin MCU or one where the EEPROM was wiped. Since 0xffffffff
+         * as a float is NaN, this would break all calibration math. Use defaults.
+         */
+        if (isnan(hrRegs->adc_0_scale_factor))
+        {
+            LOG_INF(
+                "[Modbus] Virgin MCU detected (EEPROM uninitialized). Using "
+                "default calibration.");
+            err = BSP_OK;
+            break;
+        }
 
-        BSP_EEPROM_READ(MODBUS_NVM_ADC_1_SCALE_FACTOR,
-                        (uint8_t *)&hrRegs->adc_1_scale_factor, sizeof(float));
-        BSP_EEPROM_READ(MODBUS_NVM_ADC_1_OFFSET_TERM,
-                        (uint8_t *)&hrRegs->adc_1_offset_term, sizeof(float));
-        BSP_EEPROM_READ(MODBUS_NVM_ADC_1_DEAD_ZONE,
-                        (uint8_t *)&hrRegs->adc_1_dead_zone, sizeof(float));
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(0, CAL_ADC_OFFSET_TERM_OFF),    &hrRegs->adc_0_offset_term);
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(0, CAL_ADC_DEADZONE_OFF),       &hrRegs->adc_0_dead_zone);
 
-        BSP_EEPROM_READ(MODBUS_NVM_ADC_2_SCALE_FACTOR,
-                        (uint8_t *)&hrRegs->adc_2_scale_factor, sizeof(float));
-        BSP_EEPROM_READ(MODBUS_NVM_ADC_2_OFFSET_TERM,
-                        (uint8_t *)&hrRegs->adc_2_offset_term, sizeof(float));
-        BSP_EEPROM_READ(MODBUS_NVM_ADC_2_DEAD_ZONE,
-                        (uint8_t *)&hrRegs->adc_2_dead_zone, sizeof(float));
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(1, CAL_ADC_SCALING_FACTOR_OFF), &hrRegs->adc_1_scale_factor);
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(1, CAL_ADC_OFFSET_TERM_OFF),    &hrRegs->adc_1_offset_term);
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(1, CAL_ADC_DEADZONE_OFF),       &hrRegs->adc_1_dead_zone);
 
-        BSP_EEPROM_READ(MODBUS_NVM_ADC_3_SCALE_FACTOR,
-                        (uint8_t *)&hrRegs->adc_3_scale_factor, sizeof(float));
-        BSP_EEPROM_READ(MODBUS_NVM_ADC_3_OFFSET_TERM,
-                        (uint8_t *)&hrRegs->adc_3_offset_term, sizeof(float));
-        BSP_EEPROM_READ(MODBUS_NVM_ADC_3_DEAD_ZONE,
-                        (uint8_t *)&hrRegs->adc_3_dead_zone, sizeof(float));
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(2, CAL_ADC_SCALING_FACTOR_OFF), &hrRegs->adc_2_scale_factor);
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(2, CAL_ADC_OFFSET_TERM_OFF),    &hrRegs->adc_2_offset_term);
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(2, CAL_ADC_DEADZONE_OFF),       &hrRegs->adc_2_dead_zone);
+
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(3, CAL_ADC_SCALING_FACTOR_OFF), &hrRegs->adc_3_scale_factor);
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(3, CAL_ADC_OFFSET_TERM_OFF),    &hrRegs->adc_3_offset_term);
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(3, CAL_ADC_DEADZONE_OFF),       &hrRegs->adc_3_dead_zone);
         err = BSP_OK;
 
     } while (0);
