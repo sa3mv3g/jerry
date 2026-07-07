@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2026
- * All rights reserved.
- */
+   * Copyright (c) 2026
+   * All rights reserved.
+   */
 
 /**
  * @file    fota_http_server.c
@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "log.h"
 #include "lwip/api.h"
 #include "lwip/sys.h"
 #include "secure_nsc.h"
@@ -51,14 +52,14 @@ static char hdr_buf[512];
 /** Sent immediately when Expect: 100-continue is present */
 static const char HTTP_100[] = "HTTP/1.1 100 Continue\r\n\r\n";
 
-/** Sent before SECURE_FOTA_Commit() — device resets on success */
+/** Sent after SECURE_FOTA_Stage() succeeds — current firmware keeps running */
 static const char HTTP_200[] =
     "HTTP/1.1 200 OK\r\n"
     "Content-Type: text/plain\r\n"
-    "Content-Length: 22\r\n"
+    "Content-Length: 43\r\n"
     "Connection: close\r\n"
     "\r\n"
-    "FOTA accepted, rebooting";
+    "FOTA downloaded, activates on next power cycle";
 
 static const char HTTP_404[] =
     "HTTP/1.1 404 Not Found\r\n"
@@ -310,10 +311,23 @@ static void handle_fota_connection(struct netconn *conn)
          * Erase inactive flash bank
          * -----------------------------------------------------------------------
          */
-        if (SECURE_FOTA_EraseTarget() != FOTA_OK)
+        uint32_t erase_ret = SECURE_FOTA_EraseTarget();
+        if (erase_ret != FOTA_OK)
         {
             netbuf_delete(inbuf);
-            send_close(conn, HTTP_500, sizeof(HTTP_500) - 1U);
+            /* Include error code in response body for diagnosis */
+            static char erase_err_body[128];
+            int erase_err_len = snprintf(
+                erase_err_body, sizeof(erase_err_body),
+                "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n"
+                "Connection: close\r\n\r\nFlash erase failed: %lu\r\n",
+                (unsigned long)erase_ret);
+            if (erase_err_len > 0)
+            {
+                netconn_write(conn, erase_err_body, (size_t)erase_err_len,
+                              NETCONN_COPY);
+            }
+            netconn_close(conn);
             return;
         }
 
@@ -391,21 +405,35 @@ static void handle_fota_connection(struct netconn *conn)
         }
 
         /* -----------------------------------------------------------------------
-         * Phase 3: Verify and commit
-         * Send HTTP 200 BEFORE calling Commit — the device resets on success
-         * so the response must be flushed to the client first.
-         * SECURE_FOTA_Commit does NOT return on success.
-         * On failure it returns a FOTA_ERR_* code.
+         * Phase 3: Stage firmware for activation on next external POR.
+         * SECURE_FOTA_Stage() writes FOTA_PENDING flag to EEPROM and returns.
+         * No crypto verification here — that happens in Secure main.c on POR.
+         * No reset — current firmware keeps running after staging.
          * -----------------------------------------------------------------------
          */
-        send_close(conn, HTTP_200, sizeof(HTTP_200) - 1U);
+        uint32_t stage_ret = SECURE_FOTA_Stage();
 
-        uint32_t commit_ret = SECURE_FOTA_Commit((uint32_t)content_length);
-
-        /* Only reached on verification failure — connection already closed
-         * above, but log the error code for debugging via a new connection
-         * attempt. */
-        (void)commit_ret;
+        if (stage_ret == FOTA_OK)
+        {
+            /* Staging succeeded — send HTTP 200, current firmware keeps running
+             */
+            send_close(conn, HTTP_200, sizeof(HTTP_200) - 1U);
+        }
+        else
+        {
+            /* Staging failed (EEPROM write error) — send HTTP 400 */
+            static char err_body[128];
+            int         err_len = snprintf(
+                err_body, sizeof(err_body),
+                "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n"
+                        "Connection: close\r\n\r\nFOTA staging failed: %lu\r\n",
+                (unsigned long)stage_ret);
+            if (err_len > 0)
+            {
+                netconn_write(conn, err_body, (size_t)err_len, NETCONN_COPY);
+            }
+            netconn_close(conn);
+        }
         return;
     }
 }
@@ -432,10 +460,12 @@ void fota_http_server_run(void)
             client_conn != NULL)
         {
             /* 30-second receive timeout — prevents hanging on slow/stalled
-             * uploads */
+             * uploads or unresponsive clients. */
             netconn_set_recvtimeout(client_conn, 30000U);
             handle_fota_connection(client_conn);
-            netconn_close(client_conn);
+            /* Do NOT call netconn_close() here — every code path through
+             * handle_fota_connection() already calls send_close() which calls
+             * netconn_close(). Calling it again would be a double-close. */
             netconn_delete(client_conn);
         }
     }

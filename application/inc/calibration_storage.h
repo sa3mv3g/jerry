@@ -47,22 +47,6 @@ extern "C"
      */
     uint32_t CalibrationStorage_ReadU32(uint16_t vaddr, uint32_t *pValue);
 
-    /**
-     * @brief  Check FOTA valid flag on startup and roll back if not set.
-     *         Reads FOTA_VALID_FLAG_VADDR from EDATA via SECURE_CAL_Read().
-     *         If the flag is not 0xA5A5A5A5, calls SECURE_FOTA_Rollback()
-     *         which triggers a system reset — this function does NOT return
-     *         in that case. If the flag is set, returns normally.
-     */
-    void fota_startup_check(void);
-
-    /**
-     * @brief  Mark the current firmware as valid after a successful self-test.
-     *         Writes 0xA5A5A5A5 to FOTA_VALID_FLAG_VADDR in EDATA.
-     *         Call after the application has verified it is running correctly.
-     */
-    void fota_mark_valid(void);
-
 #ifdef __cplusplus
 }
 #endif

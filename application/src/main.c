@@ -36,7 +36,14 @@
 #define MAIN_TASK_STACK_SIZE       512U
 #define LOG_TASK_STACK_SIZE        configMINIMAL_STACK_SIZE
 #define MODBUS_TASK_STACK_SIZE     1024U
-#define FOTA_TASK_STACK_SIZE       configMINIMAL_STACK_SIZE
+/* FOTA task needs a larger stack than the minimum:
+ * - netconn API allocates api_msg structs on the stack via API_MSG_VAR_DECLARE
+ * - handle_fota_connection() has local variables + netconn call chain depth
+ * - SECURE_FOTA_WriteChunk() NSC calls cross TrustZone boundary (extra stack)
+ * - 512 bytes (configMINIMAL_STACK_SIZE) causes stack overflow → HardFault
+ * - 4096 bytes (×8) is sufficient for HTTP + lwIP but may be tight for write loop
+ * - Use ×16 = 8192 bytes to give ample headroom for the full FOTA write path */
+#define FOTA_TASK_STACK_SIZE       (configMINIMAL_STACK_SIZE * 16U)
 #define MONITOR_TASK_STACK_SIZE    512U
 #define TCP_ECHO_TASK_STACK_SIZE   1024U
 #define LCD_MANAGE_TASK_STACK_SIZE 1024U

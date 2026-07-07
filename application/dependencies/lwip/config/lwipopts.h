@@ -52,6 +52,11 @@
 /* Reduce TIME_WAIT duration for faster connection recycling */
 #define TCP_MSL                         1000 /* 1 second MSL (default is 60000ms) */
 
+/* Reduce close timeout so netconn_close() gives up quickly when the peer has
+ * already disconnected. Default is 20000ms which hangs the FOTA task for 20s
+ * on every aborted connection. 1000ms is enough for a local network. */
+#define LWIP_TCP_CLOSE_TIMEOUT_MS_DEFAULT  1000
+
 /* Enable send timeout to prevent blocking forever */
 #define LWIP_SO_SNDTIMEO                1
 

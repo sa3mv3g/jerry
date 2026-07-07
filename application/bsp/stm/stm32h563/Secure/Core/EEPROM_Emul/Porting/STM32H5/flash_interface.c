@@ -21,10 +21,13 @@
 /* Includes ------------------------------------------------------------------*/
 #include "eeprom_emul.h"
 #include "flash_interface.h"
+#include "eeprom_emul_types.h"
+#include <stdint.h>
+#include "stm32h5xx_hal.h"
 
 /** @addtogroup EEPROM_Emulation
-  * @{
-  */
+ * @{
+ */
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private constants ---------------------------------------------------------*/
@@ -37,10 +40,10 @@ uint64_t FlashWord[2] =
 uint8_t FlashWord_status = 0; /* 0 is FlashWord is empty, 1 it is full */
 const uint32_t QuadWord[4] =
 {
-0x00000000,
-0x00000000,
-0x00000000,
-0x00000000
+ 0x00000000,
+ 0x00000000,
+ 0x00000000,
+ 0x00000000
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -209,46 +212,43 @@ void FI_CacheFlush()
 
 #ifdef FLASH_BANK_2
 /**
-  * @brief  Gets the bank of a given address
-  * @param  Address Address of the FLASH Memory
-  * @retval Bank_Number The bank of a given address
-  */
+ * @brief  Gets the bank of a given address
+ * @param  Address Address of the FLASH Memory
+ * @retval Bank_Number The bank of a given address
+ */
 static uint32_t GetBankNumber(uint32_t Address)
 {
   uint32_t bank = 0U;
 
-  if (READ_BIT(FLASH->OPTSR_CUR, FLASH_OPTSR_SWAP_BANK) == 0U)
-  {
-    /* No Bank swap */
-#if EDATA_ENABLED
-    if (Address < (FLASH_EDATA_BASE + (FLASH_EDATA_SIZE/2)))
-#else
-    if (Address < (FLASH_BASE + FLASH_BANK_SIZE))
-#endif
+  #ifdef EDATA_ENABLED
+    /* EDATA is always in bank1 */
+    bank = FLASH_BANK_1;
+  #else
+    if (READ_BIT(FLASH->OPTSR_CUR, FLASH_OPTSR_SWAP_BANK) == 0U)
     {
-      bank = FLASH_BANK_1;
+      /* No Bank swap */
+      if (Address < (FLASH_BASE + FLASH_BANK_SIZE))
+      {
+        bank = FLASH_BANK_1;
+      }
+      else
+      {
+        bank = FLASH_BANK_2;
+      }
     }
     else
     {
-      bank = FLASH_BANK_2;
+      /* Bank swap */
+      if (Address < (FLASH_BASE + FLASH_BANK_SIZE))
+      {
+        bank = FLASH_BANK_2;
+      }
+      else
+      {
+        bank = FLASH_BANK_1;
+      }
     }
-  }
-  else
-  {
-    /* Bank swap */
-#if USE_EDATA_AREA
-    if (Address < (FLASH_EDATA_BASE + (FLASH_EDATA_SIZE/2)))
-#else
-    if (Address < (FLASH_BASE + FLASH_BANK_SIZE))
-#endif
-    {
-      bank = FLASH_BANK_2;
-    }
-    else
-    {
-      bank = FLASH_BANK_1;
-    }
-  }
+  #endif
 
   return bank;
 }
@@ -281,14 +281,14 @@ EE_Status FI_DeleteCorruptedFlashAddress(uint32_t Address)
   /* Program quad word of value 0 */
 
 #ifdef EDATA_ENABLED
-  HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD_EDATA, Address, (uint32_t)&(HalfWord[0]));
-  HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD_EDATA, Address+2, (uint32_t)&(HalfWord[1]));
-  HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD_EDATA, Address+4, (uint32_t)&(HalfWord[2]));
-  HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD_EDATA, Address+6, (uint32_t)&(HalfWord[3]));
+   HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD_EDATA_NS, Address, (uint32_t)&(HalfWord[0]));
+   HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD_EDATA_NS, Address+2, (uint32_t)&(HalfWord[1]));
+   HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD_EDATA_NS, Address+4, (uint32_t)&(HalfWord[2]));
+   HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD_EDATA_NS, Address+6, (uint32_t)&(HalfWord[3]));
 #else
- // HAL_FLASH_Program(FLASH_TYPEPROGRAM_QUADWORD, Address, ((uint32_t)QuadWord));
-  *(__IO uint64_t*)(Address) = (uint64_t)0U;
-  *(__IO uint64_t*)(Address+8U) = (uint64_t)0U;
+  // HAL_FLASH_Program(FLASH_TYPEPROGRAM_QUADWORD, Address, ((uint32_t)QuadWord));
+   *(__IO uint64_t*)(Address) = (uint64_t)0U;
+   *(__IO uint64_t*)(Address+8U) = (uint64_t)0U;
 #endif
   /* Wait programmation completion */
   while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY))

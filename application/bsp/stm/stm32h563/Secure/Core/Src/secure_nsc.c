@@ -254,7 +254,8 @@ CMSE_NS_ENTRY uint32_t SECURE_CAL_Write(uint16_t vaddr, uint32_t value)
  * keys/fota_ca.crt \ -subj "/CN=Jerry FOTA CA" -days 3650 To regenerate: delete
  * keys/fota_ca.key and keys/fota_ca.crt, re-run above commands, then update
  * this array with: openssl x509 -in keys/fota_ca.crt -outform DER | xxd -i */
-static const uint8_t fota_ca_cert_der[] = {
+/* Not static — accessible from main.c via extern for fota_verify_at_boot() */
+const uint8_t fota_ca_cert_der[] = {
     0x30, 0x82, 0x01, 0x85, 0x30, 0x82, 0x01, 0x2B, 0xA0, 0x03, 0x02, 0x01,
     0x02, 0x02, 0x14, 0x38, 0xB8, 0x8A, 0xC8, 0xCB, 0x51, 0x4A, 0x29, 0x63,
     0xE3, 0x53, 0xFD, 0xB5, 0x81, 0x85, 0x44, 0x9B, 0x28, 0xE2, 0xEE, 0x30,
@@ -288,7 +289,7 @@ static const uint8_t fota_ca_cert_der[] = {
     0x00, 0xCB, 0xFC, 0x65, 0x53, 0xF1, 0x62, 0x23, 0x3D, 0xDE, 0xF3, 0x2F,
     0x41, 0xDF, 0xFF, 0x16, 0x04, 0xE2, 0xB1, 0xC0, 0xA2, 0xD5, 0xD4, 0xF2,
     0x54, 0xFD, 0xD1, 0x40, 0xA9, 0xDC, 0xB4, 0x3F, 0x5C};
-static const uint32_t fota_ca_cert_der_len = 393U;
+const uint32_t fota_ca_cert_der_len = 393U;
 
 /**
  * @brief  Get the base address of the inactive bank for FOTA writes.
@@ -317,7 +318,15 @@ CMSE_NS_ENTRY uint32_t SECURE_FOTA_EraseTarget(void)
     FLASH_EraseInitTypeDef erase      = {0};
     uint32_t               page_error = 0U;
 
-    erase.TypeErase = FLASH_TYPEERASE_SECTORS;
+    /* FIX: Use FLASH_TYPEERASE_SECTORS_NS (not FLASH_TYPEERASE_SECTORS).
+     *
+     * Bank 2 sectors 32-119 are Non-Secure flash. Erasing them from Secure
+     * context requires FLASH_TYPEERASE_SECTORS_NS so the HAL uses NSCR
+     * (Non-Secure Control Register) instead of SECCR. Using FLASH_TYPEERASE_SECTORS
+     * causes IS_FLASH_SECURE_OPERATION() to return true, which routes the erase
+     * through SECCR — but SECCR cannot erase NS sectors, so HAL_FLASHEx_Erase()
+     * returns HAL_ERROR immediately with page_error = first sector. */
+    erase.TypeErase = FLASH_TYPEERASE_SECTORS_NS;
     erase.Banks     = fota_get_target_bank();
     erase.Sector    = FOTA_NS_SECTOR_OFFSET;
     erase.NbSectors =
@@ -364,7 +373,10 @@ CMSE_NS_ENTRY uint32_t SECURE_FOTA_WriteChunk(uint32_t       offset,
     HAL_StatusTypeDef ret = HAL_OK;
     for (uint32_t i = 0U; i < len; i += 16U)
     {
-        ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_QUADWORD, base + offset + i,
+        /* FIX: Use FLASH_TYPEPROGRAM_QUADWORD_NS — Bank 2 is NS flash.
+         * Using FLASH_TYPEPROGRAM_QUADWORD routes through SECCR which
+         * cannot program NS sectors. */
+        ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_QUADWORD_NS, base + offset + i,
                                 (uint32_t)(pData + i));
         if (ret != HAL_OK)
         {
@@ -372,121 +384,121 @@ CMSE_NS_ENTRY uint32_t SECURE_FOTA_WriteChunk(uint32_t       offset,
         }
     }
 
+    /* FIX: HAL_FLASH_Program() (blocking path) does NOT clear
+     * pFlash.ProcedureOnGoing — only the interrupt handler does.
+     * If ProcedureOnGoing has FLASH_NON_SECURE_MASK set, subsequent
+     * Secure flash operations (EEPROM emulation) will incorrectly use
+     * NSCR instead of SECCR, causing EE_ERROR_NOERASING_PAGE.
+     * Explicitly reset it here so the next Secure operation works. */
+    extern FLASH_ProcessTypeDef pFlash;
+    pFlash.ProcedureOnGoing = 0U;
+
     HAL_FLASH_Lock();
     return (ret == HAL_OK) ? FOTA_OK : FOTA_ERR_WRITE;
 }
 
 /**
- * @brief  Verify the firmware package and commit by toggling SWAP_BANK.
- *         Does NOT return on success — device resets.
- *         Returns FOTA_ERR_* on failure.
+ * @brief  Stage the firmware for activation on next external POR.
+ *
+ * Sets FOTA_PENDING flag in EEPROM to signal the Secure firmware to verify
+ * and activate the staged firmware on the next power-on reset.
+ *
+ * Does NOT toggle SWAP_BANK. Does NOT reset.
+ * The current firmware keeps running after this call.
+ *
+ * On the next external POR, Secure main.c fota_boot_check():
+ *   1. Reads FOTA_PENDING — if set, toggles SWAP_BANK
+ *   2. Verifies the firmware at 0x08040000 (X.509 + SHA-256)
+ *   3. Valid:   clears FOTA_PENDING, boots NS from new firmware
+ *   4. Invalid: toggles SWAP_BANK back, clears FOTA_PENDING, boots old firmware
+ *
+ * @retval FOTA_OK on success, FOTA_ERR_* on failure
  */
-CMSE_NS_ENTRY uint32_t SECURE_FOTA_Commit(uint32_t total_size)
+CMSE_NS_ENTRY uint32_t SECURE_FOTA_Stage(void)
 {
-    if (total_size < (FOTA_TRAILER_SIZE + 1U))
+    /* Write FOTA_PENDING flag to EEPROM.
+     * Value 0xF0F0F0F0 = "FOTA staged, verify and activate on next POR".
+     * Secure main.c clears this flag after verification (pass or fail).
+     *
+     * FIX: SECURE_FOTA_WriteChunk() calls HAL_FLASH_Lock() after writing,
+     * which locks NSCR. The EEPROM emulation uses FLASH_TYPEPROGRAM_HALFWORD_EDATA_NS
+     * which routes through NSCR. If NSCR is locked, the write fails with
+     * EE_ERROR_NOACTIVE_PAGE (no active page can be written).
+     * Unlock the flash before calling EE_WriteVariable32bits(). */
+    if (HAL_FLASH_Unlock() != HAL_OK)
     {
-        return FOTA_ERR_BAD_SIZE;
+        return FOTA_ERR_FLASH_UNLOCK;
     }
 
-    uint32_t base = fota_get_target_base();
+    EE_Status status =
+        EE_WriteVariable32bits(FOTA_PENDING_VADDR, FOTA_PENDING_MAGIC);
 
-    /* Step 1: Read and validate trailer */
-    const uint8_t *trailer =
-        (const uint8_t *)(base + total_size - FOTA_TRAILER_SIZE);
-    uint32_t cert_size = ((uint32_t)trailer[0]) | ((uint32_t)trailer[1] << 8U) |
-                         ((uint32_t)trailer[2] << 16U) |
-                         ((uint32_t)trailer[3] << 24U);
-    uint32_t magic = ((uint32_t)trailer[4]) | ((uint32_t)trailer[5] << 8U) |
-                     ((uint32_t)trailer[6] << 16U) |
-                     ((uint32_t)trailer[7] << 24U);
-
-    if (magic != FOTA_MAGIC)
+    /* Recovery: EE_ERROR_NOERASING_PAGE means the EEPROM page state machine
+     * is inconsistent (first page of a group is STATE_PAGE_ERASING but
+     * subsequent pages are not). Force a full reformat and retry. */
+    if ((status & EE_STATUSMASK_ERROR) == EE_ERROR_NOACTIVE_PAGE ||
+        (status & EE_STATUSMASK_ERROR) == EE_ERROR_NOERASING_PAGE)
     {
-        return FOTA_ERR_BAD_MAGIC;
-    }
-    if (cert_size == 0U || cert_size > (total_size - FOTA_TRAILER_SIZE))
-    {
-        return FOTA_ERR_BAD_SIZE;
-    }
+        /* FIX: Reset pFlash state and clear any stale flash error flags before
+         * calling EE_Format(). HAL_FLASH_Program() (blocking path) does not
+         * call __HAL_UNLOCK() or clear pFlash.ProcedureOnGoing. Also clear
+         * OPTCHANGEERR in NSSR which is set after option byte writes and causes
+         * FLASH_WaitForLastOperation() to return HAL_ERROR immediately. */
+        extern FLASH_ProcessTypeDef pFlash;
+        pFlash.Lock             = HAL_UNLOCKED;
+        pFlash.ProcedureOnGoing = 0U;
+        pFlash.ErrorCode        = HAL_FLASH_ERROR_NONE;
+        /* Clear OPTCHANGEERR and all other error flags in NSSR and SECSR */
+        WRITE_REG(FLASH_NS->NSCCR, FLASH_FLAG_OPTCHANGEERR | FLASH_FLAG_SR_ERRORS);
+        WRITE_REG(FLASH->SECCCR,   FLASH_FLAG_OPTCHANGEERR | FLASH_FLAG_SR_ERRORS);
 
-    uint32_t       fw_size  = total_size - FOTA_TRAILER_SIZE - cert_size;
-    const uint8_t *cert_ptr = (const uint8_t *)(base + fw_size);
-
-    /* Step 2: Initialize wolfSSL static pool */
-    fota_crypto_init();
-
-    /* Step 3: Verify firmware cert against CA */
-    if (fota_x509_verify_cert(cert_ptr, cert_size, fota_ca_cert_der,
-                              fota_ca_cert_der_len) != 0)
-    {
-        fota_crypto_reset();
-        return FOTA_ERR_CERT_VERIFY;
-    }
-
-    /* Step 4: Extract SHA-256 hash and public key from cert */
-    uint8_t  cert_hash[32]                     = {0};
-    uint8_t  pub_key_buf[FOTA_PUBKEY_BUF_SIZE] = {0};
-    uint32_t pub_key_len                       = 0U;
-
-    if (fota_x509_parse(cert_ptr, cert_size, cert_hash, pub_key_buf,
-                        sizeof(pub_key_buf), &pub_key_len) != 0)
-    {
-        fota_crypto_reset();
-        return FOTA_ERR_NO_HASH;
-    }
-
-    /* Step 5: Compute SHA-256 over firmware region */
-    uint8_t computed_hash[32] = {0};
-    if (fota_sha256((const uint8_t *)base, fw_size, computed_hash) != 0)
-    {
-        fota_crypto_reset();
-        return FOTA_ERR_HASH_COMPUTE;
-    }
-
-    /* Step 6: Compare hashes */
-    if (memcmp(computed_hash, cert_hash, 32U) != 0)
-    {
-        fota_crypto_reset();
-        return FOTA_ERR_HASH_MISMATCH;
+        EE_Status fmt_status = EE_Format(EE_FORCED_ERASE);
+        if (fmt_status != EE_OK)
+        {
+            /* EE_Format failed: marker=0xEE, fmt_status in bits [23:16] */
+            return FOTA_ERR_WRITE | (((uint32_t)fmt_status & 0xFFU) << 16U) | (0xEEU << 24U);
+        }
+        /* EE_Format erased all pages but did not set up an active page.
+         * Reset pFlash state again (EE_Format's FI_WriteDoubleWord calls
+         * __HAL_LOCK which leaves pFlash.Lock = HAL_LOCKED in blocking path).
+         * Then call EE_Init() to initialize the EEPROM state machine. */
+        pFlash.Lock             = HAL_UNLOCKED;
+        pFlash.ProcedureOnGoing = 0U;
+        pFlash.ErrorCode        = HAL_FLASH_ERROR_NONE;
+        WRITE_REG(FLASH_NS->NSCCR, FLASH_FLAG_OPTCHANGEERR | FLASH_FLAG_SR_ERRORS);
+        WRITE_REG(FLASH->SECCCR,   FLASH_FLAG_OPTCHANGEERR | FLASH_FLAG_SR_ERRORS);
+        EE_Status init_status = EE_Init(EE_CONDITIONAL_ERASE);
+        if ((init_status & EE_STATUSMASK_ERROR) != 0U)
+        {
+            return FOTA_ERR_WRITE | (((uint32_t)init_status & 0xFFU) << 16U) | (0xCCU << 24U);
+        }
+        /* Retry the write after re-initialization */
+        status = EE_WriteVariable32bits(FOTA_PENDING_VADDR, FOTA_PENDING_MAGIC);
+        if ((status & EE_STATUSMASK_ERROR) != 0U)
+        {
+            /* Retry failed after format+init: marker=0xBB, retry status in bits [23:16] */
+            return FOTA_ERR_WRITE | (((uint32_t)(uint16_t)status) << 16U) | (0xBBU << 24U);
+        }
+        /* Retry succeeded */
+        if ((status & EE_STATUSMASK_CLEANUP) != 0U)
+        {
+            (void)EE_CleanUp();
+        }
+        return FOTA_OK;
     }
 
-    fota_crypto_reset();
-
-    /* Step 7: All checks passed — toggle SWAP_BANK and reset */
-    bool swapped = (READ_BIT(FLASH->OPTSR_CUR, FLASH_OPTSR_SWAP_BANK) != 0U);
-
-    FLASH_OBProgramInitTypeDef ob = {0};
-    ob.OptionType                 = OPTIONBYTE_USER;
-    ob.USERType                   = OB_USER_SWAP_BANK;
-    ob.USERConfig = swapped ? OB_SWAP_BANK_DISABLE : OB_SWAP_BANK_ENABLE;
-
-    HAL_FLASH_OB_Unlock();
-    HAL_FLASHEx_OBProgram(&ob);
-    HAL_FLASH_OB_Launch(); /* Triggers system reset — does not return */
-
-    return FOTA_OK; /* Never reached */
-}
-
-/**
- * @brief  Roll back to the previous firmware by toggling SWAP_BANK.
- *         Does NOT return — triggers a system reset.
- */
-CMSE_NS_ENTRY void SECURE_FOTA_Rollback(void)
-{
-    bool swapped = (READ_BIT(FLASH->OPTSR_CUR, FLASH_OPTSR_SWAP_BANK) != 0U);
-
-    FLASH_OBProgramInitTypeDef ob = {0};
-    ob.OptionType                 = OPTIONBYTE_USER;
-    ob.USERType                   = OB_USER_SWAP_BANK;
-    ob.USERConfig = swapped ? OB_SWAP_BANK_DISABLE : OB_SWAP_BANK_ENABLE;
-
-    HAL_FLASH_OB_Unlock();
-    HAL_FLASHEx_OBProgram(&ob);
-    HAL_FLASH_OB_Launch(); /* Triggers system reset — does not return */
-
-    while (1)
+    /* Success: EE_OK or EE_CLEANUP_REQUIRED (write succeeded, cleanup needed) */
+    if ((status & EE_STATUSMASK_ERROR) == 0U)
     {
+        if ((status & EE_STATUSMASK_CLEANUP) != 0U)
+        {
+            (void)EE_CleanUp();
+        }
+        return FOTA_OK;
     }
+
+    /* Failure: encode raw EE_Status in bits [31:16] for diagnosis */
+    return FOTA_ERR_WRITE | (((uint32_t)(uint16_t)status) << 16U);
 }
 
 /* USER CODE END FOTA_NSC_Impl */

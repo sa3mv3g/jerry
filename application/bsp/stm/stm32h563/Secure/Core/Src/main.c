@@ -23,6 +23,10 @@
 /* USER CODE BEGIN Includes */
 #include "eeprom_emul.h"
 #include "flash_interface.h"
+#include "fota_crypto.h"
+#include "secure_nsc.h"
+#include <stdbool.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -66,7 +70,9 @@ static void NonSecure_Init(void);
 void        SystemClock_Config(void);
 static void MX_RTC_Init(void);
 /* USER CODE BEGIN PFP */
-static void MPU_Config_EDATA(void);
+static void     MPU_Config_EDATA(void);
+static void     fota_boot_check(void);
+static uint32_t fota_verify_at_boot(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -122,6 +128,11 @@ int main(void)
     {
         Error_Handler();
     }
+
+    /* FOTA boot check: if FOTA_PENDING flag is set, toggle SWAP_BANK and verify
+     * the staged firmware before booting NS. Must run after EE_Init() so EEPROM
+     * is accessible, and before NonSecure_Init() so NS never runs unverified code. */
+    fota_boot_check();
 
     /* Disable Secure SysTick before jumping to Non-Secure */
     SysTick->CTRL = 0;
@@ -514,6 +525,176 @@ void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+/* CA certificate DER — same array as in secure_nsc.c.
+ * Defined here so fota_verify_at_boot() can use it without an NSC call.
+ * This is Secure-world-only code; the CA cert is never exposed to NS. */
+extern const uint8_t  fota_ca_cert_der[];
+extern const uint32_t fota_ca_cert_der_len;
+
+/* Firmware package trailer constants (must match secure_nsc.c) */
+#define FOTA_TRAILER_SIZE_MAIN 8U
+#define FOTA_MAGIC_MAIN        0x464F5441UL /* "FOTA" */
+#define FOTA_PUBKEY_BUF_MAIN   128U
+
+/**
+ * @brief  Verify the firmware package at 0x08040000 (active bank after SWAP_BANK toggle).
+ *
+ * Reads the 8-byte trailer, parses the X.509 cert, verifies the cert against
+ * the embedded CA, extracts the SHA-256 hash, computes SHA-256 of the firmware,
+ * and compares. Called from fota_boot_check() on every POR with FOTA_PENDING set.
+ *
+ * @retval FOTA_OK on success, FOTA_ERR_* on failure
+ */
+static uint32_t fota_verify_at_boot(void)
+{
+    /* The active NS firmware is always at VTOR_TABLE_NS_START_ADDR = 0x08040000.
+     * After SWAP_BANK toggle, this address points to the staged firmware. */
+    const uint32_t base = VTOR_TABLE_NS_START_ADDR;
+
+    /* We need to know total_size to find the trailer.
+     * The trailer is at the end of the written package.
+     * We scan backwards from the end of the NS flash region for the magic. */
+    const uint32_t ns_flash_size = 704U * 1024U; /* 704KB NS region */
+    const uint8_t *region_end    = (const uint8_t *)(base + ns_flash_size);
+
+    /* Scan backwards for the FOTA magic in the last 8 bytes of written data.
+     * We search the last 4KB to find the trailer efficiently. */
+    const uint8_t *search_start = region_end - 4096U;
+    const uint8_t *trailer      = NULL;
+
+    for (const uint8_t *p = region_end - FOTA_TRAILER_SIZE_MAIN;
+         p >= search_start; p -= 4U)
+    {
+        uint32_t magic = ((uint32_t)p[4]) | ((uint32_t)p[5] << 8U) |
+                         ((uint32_t)p[6] << 16U) | ((uint32_t)p[7] << 24U);
+        if (magic == FOTA_MAGIC_MAIN)
+        {
+            trailer = p;
+            break;
+        }
+    }
+
+    if (trailer == NULL)
+    {
+        return FOTA_ERR_BAD_MAGIC;
+    }
+
+    uint32_t total_size = (uint32_t)(trailer - (const uint8_t *)base) +
+                          FOTA_TRAILER_SIZE_MAIN;
+    uint32_t cert_size  = ((uint32_t)trailer[0]) | ((uint32_t)trailer[1] << 8U) |
+                          ((uint32_t)trailer[2] << 16U) |
+                          ((uint32_t)trailer[3] << 24U);
+
+    if (cert_size == 0U || cert_size > (total_size - FOTA_TRAILER_SIZE_MAIN))
+    {
+        return FOTA_ERR_BAD_SIZE;
+    }
+
+    uint32_t       fw_size  = total_size - FOTA_TRAILER_SIZE_MAIN - cert_size;
+    const uint8_t *cert_ptr = (const uint8_t *)(base + fw_size);
+
+    /* Initialize wolfSSL static pool */
+    fota_crypto_init();
+
+    /* Verify firmware cert against CA */
+    if (fota_x509_verify_cert(cert_ptr, cert_size, fota_ca_cert_der,
+                              fota_ca_cert_der_len) != 0)
+    {
+        fota_crypto_reset();
+        return FOTA_ERR_CERT_VERIFY;
+    }
+
+    /* Extract SHA-256 hash from cert */
+    uint8_t  cert_hash[32]                    = {0};
+    uint8_t  pub_key_buf[FOTA_PUBKEY_BUF_MAIN] = {0};
+    uint32_t pub_key_len                       = 0U;
+
+    if (fota_x509_parse(cert_ptr, cert_size, cert_hash, pub_key_buf,
+                        sizeof(pub_key_buf), &pub_key_len) != 0)
+    {
+        fota_crypto_reset();
+        return FOTA_ERR_NO_HASH;
+    }
+
+    /* Compute SHA-256 of firmware region */
+    uint8_t computed_hash[32] = {0};
+    if (fota_sha256((const uint8_t *)base, fw_size, computed_hash) != 0)
+    {
+        fota_crypto_reset();
+        return FOTA_ERR_HASH_COMPUTE;
+    }
+
+    /* Compare hashes */
+    if (memcmp(computed_hash, cert_hash, 32U) != 0)
+    {
+        fota_crypto_reset();
+        return FOTA_ERR_HASH_MISMATCH;
+    }
+
+    fota_crypto_reset();
+    return FOTA_OK;
+}
+
+/**
+ * @brief  FOTA boot check — runs on every POR before NS firmware starts.
+ *
+ * If FOTA_PENDING_VADDR == FOTA_PENDING_MAGIC in EEPROM, a firmware was staged
+ * by SECURE_FOTA_Stage(). This function:
+ *   1. Toggles SWAP_BANK to activate the staged firmware at 0x08040000
+ *   2. Verifies the firmware package (X.509 cert + SHA-256 hash)
+ *   3. Valid:   clears FOTA_PENDING, continues boot (NS runs new firmware)
+ *   4. Invalid: toggles SWAP_BANK back, clears FOTA_PENDING, continues boot
+ *              (NS runs old firmware — silent rollback)
+ *
+ * Must be called after EE_Init() (EEPROM must be accessible) and before
+ * NonSecure_Init() (NS must never run unverified code).
+ *
+ * @retval None
+ */
+static void fota_boot_check(void)
+{
+    uint32_t pending = 0U;
+
+    /* Read FOTA_PENDING flag from EEPROM */
+    EE_Status ee_ret = EE_ReadVariable32bits(FOTA_PENDING_VADDR, &pending);
+
+    /* If flag is not set (or EEPROM read error), boot normally */
+    if (ee_ret != EE_OK || pending != FOTA_PENDING_MAGIC)
+    {
+        return;
+    }
+
+    /* FOTA pending — toggle SWAP_BANK to activate staged firmware */
+    bool swapped = (READ_BIT(FLASH->OPTSR_CUR, FLASH_OPTSR_SWAP_BANK) != 0U);
+
+    FLASH_OBProgramInitTypeDef ob = {0};
+    ob.OptionType                 = OPTIONBYTE_USER;
+    ob.USERType                   = OB_USER_SWAP_BANK;
+    ob.USERConfig = swapped ? OB_SWAP_BANK_DISABLE : OB_SWAP_BANK_ENABLE;
+
+    HAL_FLASH_OB_Unlock();
+    HAL_FLASHEx_OBProgram(&ob);
+    HAL_FLASH_OB_Launch(); /* Programs OB, returns (no reset on STM32H5) */
+    HAL_FLASH_OB_Lock();
+
+    /* Verify the firmware now at 0x08040000 (active bank after toggle).
+     * The firmware package format: [binary][X.509 cert DER][cert_size u32 LE]["FOTA"] */
+    uint32_t verify_result = fota_verify_at_boot();
+
+    if (verify_result != FOTA_OK)
+    {
+        /* Verification failed — toggle SWAP_BANK back to restore old firmware */
+        ob.USERConfig = swapped ? OB_SWAP_BANK_ENABLE : OB_SWAP_BANK_DISABLE;
+        HAL_FLASH_OB_Unlock();
+        HAL_FLASHEx_OBProgram(&ob);
+        HAL_FLASH_OB_Launch();
+        HAL_FLASH_OB_Lock();
+    }
+
+    /* Clear FOTA_PENDING flag regardless of verification result */
+    (void)EE_WriteVariable32bits(FOTA_PENDING_VADDR, 0x00000000U);
+}
 
 /**
  * @brief  Configure the Secure MPU for the EDATA1 high-cycle data area.

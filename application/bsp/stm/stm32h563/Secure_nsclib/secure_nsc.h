@@ -109,9 +109,12 @@ uint32_t SECURE_RTC_SetTimeDate(const App_RTC_TimeTypeDef *pTimeDate);
     0x0010U /*!< uint32_t: Modbus device address (1–247) */
 #define CAL_BAUD_RATE_VADDR 0x0011U /*!< uint32_t: Baud rate configuration */
 
-/* FOTA control */
-#define FOTA_VALID_FLAG_VADDR \
-    0x0030U /*!< uint32_t: FOTA firmware valid flag (0xA5A5A5A5) */
+/* FOTA control — FOTA_PENDING flag (set by SECURE_FOTA_Stage, cleared by Secure
+ * main.c) */
+#define FOTA_PENDING_VADDR \
+    0x0030U /*!< EEPROM virtual address for FOTA pending flag */
+#define FOTA_PENDING_MAGIC \
+    0xF0F0F0F0U /*!< Value: FOTA staged, verify on next external POR */
 
 /**
  * @brief  Read a calibration variable from EEPROM emulation (Bank 1 EDATA).
@@ -146,17 +149,19 @@ uint32_t SECURE_CAL_Write(uint16_t vaddr, uint32_t value);
  * STRING Bytes [total-8 .. total-5]      cert_size (uint32_t LE) Bytes [total-4
  * .. total-1]      magic = 0x464F5441 ("FOTA")
  *
- * Typical usage:
+ * Typical usage (NS firmware — write-only, no crypto, no reset):
  *   1. SECURE_FOTA_EraseTarget()              — erase inactive bank
  *   2. SECURE_FOTA_WriteChunk(0, buf, len)    — write first chunk
  *   3. SECURE_FOTA_WriteChunk(len, buf2, len) — write next chunk
  *   ...
- *   4. SECURE_FOTA_Commit(total_size)         — verify + swap + reset
+ *   4. SECURE_FOTA_Stage()                    — set FOTA_PENDING flag
+ *      Current firmware keeps running. New firmware activates on next POR.
  *
- * On startup after FOTA reset:
- *   5. SECURE_CAL_Read(FOTA_VALID_FLAG_VADDR, &flag)
- *   6. If flag != 0xA5A5A5A5 → SECURE_FOTA_Rollback()
- *   7. After self-test: SECURE_CAL_Write(FOTA_VALID_FLAG_VADDR, 0xA5A5A5A5)
+ * On next external POR, Secure main.c fota_boot_check():
+ *   - Reads FOTA_PENDING_VADDR — if FOTA_PENDING_MAGIC, toggles SWAP_BANK
+ *   - Verifies firmware (X.509 + SHA-256)
+ *   - Valid:   clears FOTA_PENDING, boots NS from new firmware
+ *   - Invalid: toggles SWAP_BANK back, clears FOTA_PENDING, boots old firmware
  * @{
  */
 
@@ -195,20 +200,18 @@ uint32_t SECURE_FOTA_WriteChunk(uint32_t offset, const uint8_t *pData,
                                 uint32_t len);
 
 /**
- * @brief  Verify the firmware package and commit by toggling SWAP_BANK.
- *         On success: triggers a system reset — does NOT return.
- *         On failure: returns FOTA_ERR_* error code.
- * @param  total_size  Total bytes written (firmware + cert + 8-byte trailer)
- * @retval FOTA_ERR_* on failure (does not return on success)
+ * @brief  Stage the firmware for activation on next external POR.
+ *
+ * Sets FOTA_PENDING_VADDR = FOTA_PENDING_MAGIC in EEPROM.
+ * Does NOT toggle SWAP_BANK. Does NOT reset.
+ * Current firmware keeps running after this call.
+ *
+ * On the next external POR, Secure main.c verifies the staged firmware
+ * and activates it (or rolls back if invalid).
+ *
+ * @retval FOTA_OK (0) on success, FOTA_ERR_WRITE on EEPROM failure
  */
-uint32_t SECURE_FOTA_Commit(uint32_t total_size);
-
-/**
- * @brief  Roll back to the previous firmware by toggling SWAP_BANK.
- *         Triggers a system reset — does NOT return.
- *         Call from NS startup if FOTA_VALID_FLAG is not set.
- */
-void SECURE_FOTA_Rollback(void);
+uint32_t SECURE_FOTA_Stage(void);
 
 /** @} */ /* FOTA_NSC */
 

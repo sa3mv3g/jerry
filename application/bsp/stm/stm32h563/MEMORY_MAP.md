@@ -17,18 +17,18 @@
 ├──────────┬──────────────────┬────────┬──────────────────────────────────────┤
 │ Sectors  │ Physical Address │  Size  │ Contents                             │
 ├──────────┼──────────────────┼────────┼──────────────────────────────────────┤
-│  0 – 7   │ 0x0800_0000      │  64 KB │ Secure firmware code                 │
+│  0 – 30  │ 0x0800_0000      │ 248 KB │ Secure firmware code + wolfSSL       │
 │          │ (alias 0x0C00_0000)       │ Linker: FLASH (rx) @ 0x0C000000      │
-│          │                  │        │ SECWM1_STRT=0, SECWM1_END=8          │
+│          │                  │        │ SECWM1_STRT=0, SECWM1_END=0x1F      │
 ├──────────┼──────────────────┼────────┼──────────────────────────────────────┤
-│    8     │ 0x0801_0000      │   8 KB │ NSC veneer (.gnu.sgstubs)            │
-│          │ (alias 0x0C01_0000)       │ Linker: FLASH_NSC (rx) @ 0x0C010000  │
-│          │                  │        │ SAU Region 0: 0x0C010000–0x0C011FFF  │
+│   31     │ 0x0803_E000      │   8 KB │ NSC veneer (.gnu.sgstubs)            │
+│          │ (alias 0x0C03_E000)       │ Linker: FLASH_NSC (rx) @ 0x0C03E000  │
+│          │                  │        │ SAU Region 0: 0x0C03E000–0x0C03FFFF  │
 ├──────────┼──────────────────┼────────┼──────────────────────────────────────┤
-│  9 – 119 │ 0x0801_2000      │ 888 KB │ NonSecure firmware (active)          │
-│          │                  │        │ Linker: FLASH (rx) @ 0x08012000      │
-│          │                  │        │ NSBOOTADD = 0x0801_2000              │
-│          │                  │        │ SAU Region 1: 0x08012000–0x081FFFFF  │
+│ 32 – 119 │ 0x0804_0000      │ 704 KB │ NonSecure firmware (active)          │
+│          │                  │        │ Linker: FLASH (rx) @ 0x08040000      │
+│          │                  │        │ NSBOOTADD = 0x8040_0 → 0x0804_0000  │
+│          │                  │        │ SAU Region 1: 0x08040000–0x081FFFFF  │
 ├──────────┼──────────────────┼────────┼──────────────────────────────────────┤
 │ 120–127  │ remapped → EDATA │  48 KB │ EDATA1: EEPROM emulation             │
 │          │ 0x0D00_0000 (S)  │        │ Linker: EDATA_S (rw) @ 0x0D000000    │
@@ -43,13 +43,13 @@
 ├──────────┬──────────────────┬────────┬──────────────────────────────────────┤
 │ Sectors  │ Physical Address │  Size  │ Contents                             │
 ├──────────┼──────────────────┼────────┼──────────────────────────────────────┤
-│  0 – 8   │ 0x0810_0000      │  72 KB │ Reserved (mirrors Secure offset)     │
-│          │                  │        │ Not used — FOTA writes start at s9   │
+│  0 – 31  │ 0x0810_0000      │ 256 KB │ Reserved (mirrors Secure partition)  │
+│          │                  │        │ Not used — FOTA writes start at s32  │
 ├──────────┼──────────────────┼────────┼──────────────────────────────────────┤
-│  9 – 127 │ 0x0811_2000      │ 952 KB │ FOTA target: new NS firmware         │
+│ 32 – 119 │ 0x0814_0000      │ 704 KB │ FOTA target: new NS firmware         │
 │          │                  │        │ Written by SECURE_FOTA_WriteChunk()  │
 │          │                  │        │ After SWAP_BANK=1: NSBOOTADD maps    │
-│          │                  │        │ 0x0801_2000 → Bank 2 sector 9        │
+│          │                  │        │ 0x0804_0000 → Bank 2 sector 32       │
 └──────────┴──────────────────┴────────┴──────────────────────────────────────┘
 ```
 
@@ -87,15 +87,15 @@
 |----------------|------------|------------------------------------------------------|
 | `TZEN`         | `0xB4`     | TrustZone enabled                                    |
 | `SECWM1_STRT`  | `0x00`     | Secure watermark Bank 1 start: sector 0              |
-| `SECWM1_END`   | `0x08`     | Secure watermark Bank 1 end: sector 8 (incl. NSC)   |
+| `SECWM1_END`   | `0x1F`     | Secure watermark Bank 1 end: sector 31 (incl. NSC)  |
 | `SECWM2_STRT`  | `0x7F`     | Bank 2 fully Non-Secure (STRT > END)                 |
 | `SECWM2_END`   | `0x00`     |                                                      |
 | `SECBOOTADD`   | `0x0C0000` | Secure boot: `0x0C000000` (Bank 1 Secure alias)      |
-| `NSBOOTADD`    | `0x80120`  | NS boot: `0x08012000` (Bank 1 sector 9)              |
+| `NSBOOTADD`    | `0x80400`  | NS boot: `0x08040000` (Bank 1 sector 32)             |
 | `EDATA1_EN`    | `1`        | Bank 1 EDATA enabled                                 |
 | `EDATA1_STRT`  | `7`        | 8 sectors (120–127), 48 KB                           |
 | `EDATA2_EN`    | `0`        | Bank 2 EDATA disabled                                |
-| `SWAP_BANK`    | `0`        | Initial state (Bank 1 = active NS firmware)          |
+| `SWAP_BANK`    | managed    | Managed by FOTA boot check — not set by flash script |
 
 ---
 
@@ -103,8 +103,8 @@
 
 | Region | Start        | End          | Type | Purpose                              |
 |--------|--------------|--------------|------|--------------------------------------|
-| 0      | `0x0C010000` | `0x0C011FFF` | NSC  | NSC veneer (secure gateway stubs)    |
-| 1      | `0x08012000` | `0x081FFFFF` | NS   | NS flash (firmware + Bank 2 FOTA)    |
+| 0      | `0x0C03E000` | `0x0C03FFFF` | NSC  | NSC veneer (secure gateway stubs)    |
+| 1      | `0x08040000` | `0x081FFFFF` | NS   | NS flash (firmware + Bank 2 FOTA)    |
 | 2      | `0x20050000` | `0x2009FFFF` | NS   | NS SRAM                              |
 | 3      | `0x40000000` | `0x4FFFFFFF` | NS   | Peripherals (ETH, I2C, UART, etc.)   |
 | 4      | `0x08FFF000` | `0x08FFFFFF` | NS   | OTP + Read-Only (UID, flash size)    |
@@ -114,30 +114,49 @@
 
 ## Address Map Summary (SWAP_BANK=0 vs SWAP_BANK=1)
 
-| Address          | SWAP_BANK=0                  | SWAP_BANK=1                  |
-|------------------|------------------------------|------------------------------|
-| `0x0C00_0000`    | Bank 1 physical (Secure boot)| Bank 1 physical (Secure boot)|
-| `0x0C01_0000`    | Bank 1 sector 8 (NSC veneer) | Bank 1 sector 8 (NSC veneer) |
-| `0x0801_2000`    | Bank 1 sector 9 (active NS)  | Bank 2 sector 9 (new NS)     |
-| `0x0811_2000`    | Bank 2 sector 9 (FOTA target)| Bank 1 sector 9 (old NS)     |
-| `0x0D00_0000`    | Bank 1 EDATA (calibration)   | Bank 1 EDATA (calibration)   |
-| `0x0900_0000`    | Bank 1 EDATA (NS alias)      | Bank 2 EDATA (NS alias)      |
+| Address          | SWAP_BANK=0                   | SWAP_BANK=1                   |
+|------------------|-------------------------------|-------------------------------|
+| `0x0C00_0000`    | Bank 1 physical (Secure boot) | Bank 1 physical (Secure boot) |
+| `0x0C03_E000`    | Bank 1 sector 31 (NSC veneer) | Bank 1 sector 31 (NSC veneer) |
+| `0x0804_0000`    | Bank 1 sector 32 (active NS)  | Bank 2 sector 32 (new NS)     |
+| `0x0814_0000`    | Bank 2 sector 32 (FOTA target)| Bank 1 sector 32 (old NS)     |
+| `0x0D00_0000`    | Bank 1 EDATA (calibration)    | Bank 1 EDATA (calibration)    |
+| `0x0900_0000`    | Bank 1 EDATA (NS alias)       | Bank 2 EDATA (NS alias)       |
 
+> **Key property:** `0x0C00_0000` (Secure alias) **always maps to Bank 1 physical** regardless of `SWAP_BANK`.
+> The Secure firmware is safe to use `SWAP_BANK` for NS firmware updates.
+>
 > **Key property:** `0x0D00_0000` (Secure EDATA alias) **never changes** with `SWAP_BANK`.
 > Calibration data stored here survives all FOTA firmware updates.
 
 ---
 
-## Boot Sequence
+## Boot Sequence (FOTA v2)
 
 ```
-Reset → SECBOOTADD (0x0C00_0000) → Secure firmware (sectors 0–8)
-      → NSBOOTADD  (0x0801_2000) → NS firmware
-          SWAP_BANK=0: Bank 1 sector 9 (active)
-          SWAP_BANK=1: Bank 2 sector 9 (after FOTA)
+External POR
+  → SECBOOTADD (0x0C00_0000) → Secure firmware (Bank 1, always)
+  → fota_boot_check():
+      Read FOTA_PENDING_VADDR from EEPROM
+      If FOTA_PENDING_MAGIC (0xF0F0F0F0):
+        Toggle SWAP_BANK (HAL_FLASHEx_OBProgram + HAL_FLASH_OB_Launch)
+        Verify firmware at 0x08040000 (X.509 + SHA-256)
+        VALID:   clear FOTA_PENDING → boot NS from new firmware
+        INVALID: toggle SWAP_BANK back + clear FOTA_PENDING → boot old firmware
+      Else: boot NS normally
+  → NSBOOTADD (0x0804_0000) → NS firmware
+      SWAP_BANK=0: Bank 1 sector 32 (current/old firmware)
+      SWAP_BANK=1: Bank 2 sector 32 (new firmware after FOTA)
+
+FOTA download (NS firmware, no reset):
+  SECURE_FOTA_EraseTarget()   — erase inactive bank sectors 32-119
+  SECURE_FOTA_WriteChunk()    — write new firmware to inactive bank
+  SECURE_FOTA_Stage()         — set FOTA_PENDING=0xF0F0F0F0 in EEPROM
+  HTTP 200 "FOTA downloaded, activates on next power cycle"
+  Current firmware keeps running until external POR
 ```
 
-See [`Secure/Core/Src/main.c`](Secure/Core/Src/main.c) for the current Secure init sequence.
+See [`Secure/Core/Src/main.c`](Secure/Core/Src/main.c) for the `fota_boot_check()` implementation.
 
 ---
 
@@ -159,10 +178,10 @@ See [`Secure/Core/Src/main.c`](Secure/Core/Src/main.c) for the current Secure in
 
 | File | Purpose |
 |---|---|
-| [`Secure/STM32H563xx_FLASH_s.ld`](Secure/STM32H563xx_FLASH_s.ld) | Secure linker script (`FLASH=64K`, `FLASH_NSC=8K`, `EDATA_S=48K`) |
-| [`NonSecure/STM32H563xx_FLASH_ns.ld`](NonSecure/STM32H563xx_FLASH_ns.ld) | NS linker script (`FLASH=888K @ 0x08012000`) |
+| [`Secure/STM32H563xx_FLASH_s.ld`](Secure/STM32H563xx_FLASH_s.ld) | Secure linker script (`FLASH=248K @ 0x0C000000`, `FLASH_NSC=8K @ 0x0C03E000`) |
+| [`NonSecure/STM32H563xx_FLASH_ns.ld`](NonSecure/STM32H563xx_FLASH_ns.ld) | NS linker script (`FLASH=704K @ 0x08040000`) |
 | [`Secure/Core/Inc/partition_stm32h563xx.h`](Secure/Core/Inc/partition_stm32h563xx.h) | SAU regions, NVIC ITNS routing |
-| [`Secure/Core/Src/main.c`](Secure/Core/Src/main.c) | Secure init: MPU, flash unlock, EE_Init, NS jump |
+| [`Secure/Core/Src/main.c`](Secure/Core/Src/main.c) | Secure init: MPU, flash unlock, EE_Init, fota_boot_check, NS jump |
 | [`Secure/Core/EEPROM_Emul/Porting/STM32H5/flash_interface.c`](Secure/Core/EEPROM_Emul/Porting/STM32H5/flash_interface.c) | EEPROM porting layer (NS erase/write variants) |
 | [`../../tools/flash_nucleo.py`](../../tools/flash_nucleo.py) | Programs option bytes + flashes both ELFs |
 | [`../../../../plans/flash_storage_and_fota_plan.md`](../../../../plans/flash_storage_and_fota_plan.md) | Full architecture plan (EEPROM + FOTA) |
