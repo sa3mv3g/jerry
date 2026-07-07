@@ -5,9 +5,9 @@
 
 #include "FreeRTOS.h"
 #include "app_tasks.h"
-#include "task.h"
 #include "calibration_storage.h"
 #include "fota_http_server.h"
+#include "task.h"
 
 /**
  * @file    fota_task.c

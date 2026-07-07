@@ -47,8 +47,12 @@
 #include "calibration_storage.h"
 #include "secure_nsc.h"
 
-#define CALIBRATION_STORAGE_READ_FLOAT(VADDR, PTR) \
-    if (0 != CalibrationStorage_ReadFloat(VADDR, PTR)) { err = BSP_ERROR; break; }
+#define CALIBRATION_STORAGE_READ_FLOAT(VADDR, PTR)     \
+    if (0 != CalibrationStorage_ReadFloat(VADDR, PTR)) \
+    {                                                  \
+        err = BSP_ERROR;                               \
+        break;                                         \
+    }
 
 /* ==========================================================================
  * Private Types
@@ -120,8 +124,9 @@ void vModbusTask(void *pvParameters)
     hrRegs = jerry_device_get_holding_registers();
     do
     {
-        uint32_t status = CalibrationStorage_ReadFloat(CAL_ADC_VADDR(0, CAL_ADC_SCALING_FACTOR_OFF),
-                                                       &hrRegs->adc_0_scale_factor);
+        uint32_t status = CalibrationStorage_ReadFloat(
+            CAL_ADC_VADDR(0, CAL_ADC_SCALING_FACTOR_OFF),
+            &hrRegs->adc_0_scale_factor);
 
         if (status != 0)
         {
@@ -133,8 +138,9 @@ void vModbusTask(void *pvParameters)
         }
 
         /* If scale factor is exactly 0xffffffff (erased EEPROM state), this is
-         * likely a virgin MCU or one where the EEPROM was wiped. Since 0xffffffff
-         * as a float is NaN, this would break all calibration math. Use defaults.
+         * likely a virgin MCU or one where the EEPROM was wiped. Since
+         * 0xffffffff as a float is NaN, this would break all calibration math.
+         * Use defaults.
          */
         if (isnan(hrRegs->adc_0_scale_factor))
         {
@@ -145,20 +151,38 @@ void vModbusTask(void *pvParameters)
             break;
         }
 
-        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(0, CAL_ADC_OFFSET_TERM_OFF),    &hrRegs->adc_0_offset_term);
-        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(0, CAL_ADC_DEADZONE_OFF),       &hrRegs->adc_0_dead_zone);
+        CALIBRATION_STORAGE_READ_FLOAT(
+            CAL_ADC_VADDR(0, CAL_ADC_OFFSET_TERM_OFF),
+            &hrRegs->adc_0_offset_term);
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(0, CAL_ADC_DEADZONE_OFF),
+                                       &hrRegs->adc_0_dead_zone);
 
-        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(1, CAL_ADC_SCALING_FACTOR_OFF), &hrRegs->adc_1_scale_factor);
-        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(1, CAL_ADC_OFFSET_TERM_OFF),    &hrRegs->adc_1_offset_term);
-        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(1, CAL_ADC_DEADZONE_OFF),       &hrRegs->adc_1_dead_zone);
+        CALIBRATION_STORAGE_READ_FLOAT(
+            CAL_ADC_VADDR(1, CAL_ADC_SCALING_FACTOR_OFF),
+            &hrRegs->adc_1_scale_factor);
+        CALIBRATION_STORAGE_READ_FLOAT(
+            CAL_ADC_VADDR(1, CAL_ADC_OFFSET_TERM_OFF),
+            &hrRegs->adc_1_offset_term);
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(1, CAL_ADC_DEADZONE_OFF),
+                                       &hrRegs->adc_1_dead_zone);
 
-        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(2, CAL_ADC_SCALING_FACTOR_OFF), &hrRegs->adc_2_scale_factor);
-        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(2, CAL_ADC_OFFSET_TERM_OFF),    &hrRegs->adc_2_offset_term);
-        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(2, CAL_ADC_DEADZONE_OFF),       &hrRegs->adc_2_dead_zone);
+        CALIBRATION_STORAGE_READ_FLOAT(
+            CAL_ADC_VADDR(2, CAL_ADC_SCALING_FACTOR_OFF),
+            &hrRegs->adc_2_scale_factor);
+        CALIBRATION_STORAGE_READ_FLOAT(
+            CAL_ADC_VADDR(2, CAL_ADC_OFFSET_TERM_OFF),
+            &hrRegs->adc_2_offset_term);
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(2, CAL_ADC_DEADZONE_OFF),
+                                       &hrRegs->adc_2_dead_zone);
 
-        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(3, CAL_ADC_SCALING_FACTOR_OFF), &hrRegs->adc_3_scale_factor);
-        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(3, CAL_ADC_OFFSET_TERM_OFF),    &hrRegs->adc_3_offset_term);
-        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(3, CAL_ADC_DEADZONE_OFF),       &hrRegs->adc_3_dead_zone);
+        CALIBRATION_STORAGE_READ_FLOAT(
+            CAL_ADC_VADDR(3, CAL_ADC_SCALING_FACTOR_OFF),
+            &hrRegs->adc_3_scale_factor);
+        CALIBRATION_STORAGE_READ_FLOAT(
+            CAL_ADC_VADDR(3, CAL_ADC_OFFSET_TERM_OFF),
+            &hrRegs->adc_3_offset_term);
+        CALIBRATION_STORAGE_READ_FLOAT(CAL_ADC_VADDR(3, CAL_ADC_DEADZONE_OFF),
+                                       &hrRegs->adc_3_dead_zone);
         err = BSP_OK;
 
     } while (0);

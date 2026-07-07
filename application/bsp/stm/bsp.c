@@ -5,9 +5,9 @@
 
 #include "adc_filter.h"
 #include "bsp_i2c/bsp_i2c.h"
-#include "secure_nsc.h"
 #include "log.h"
 #include "main.h"
+#include "secure_nsc.h"
 #include "stm32h5xx_hal.h"
 #include "stm32h5xx_hal_tim.h"
 
@@ -172,9 +172,10 @@ bsp_error_t BSP_Init(void)
     MX_TIM7_Init();
     MX_CRC_Init();
     /* FLASH interrupt and HAL_FLASH_Unlock() removed:
-     * EEPROM emulation is now Secure-only (runs on Bank 1 EDATA via 0x0D000000).
-     * The NS firmware no longer performs any flash operations directly.
-     * All flash access goes through Secure NSC functions (SECURE_CAL_Read/Write). */
+     * EEPROM emulation is now Secure-only (runs on Bank 1 EDATA via
+     * 0x0D000000). The NS firmware no longer performs any flash operations
+     * directly. All flash access goes through Secure NSC functions
+     * (SECURE_CAL_Read/Write). */
     /* Configure Programmable Voltage Detector (PVD) */
     /* PVD interrupt is used to suspend the current application flow in case
        a power-down is detected, allowing the flash interface to finish any
@@ -202,9 +203,10 @@ bsp_error_t BSP_Init(void)
     MX_ETH_Init();
     MX_USB_HCD_Init();
 
-    /* EEPROM emulation is initialised by the Secure firmware before jumping to NS.
-     * The Secure firmware calls EE_Init() with the appropriate erase mode.
-     * NS world accesses calibration data via SECURE_CAL_Read/Write NSC calls. */
+    /* EEPROM emulation is initialised by the Secure firmware before jumping to
+     * NS. The Secure firmware calls EE_Init() with the appropriate erase mode.
+     * NS world accesses calibration data via SECURE_CAL_Read/Write NSC calls.
+     */
     if (__HAL_PWR_GET_FLAG(PWR_FLAG_SBF) == RESET)
     {
         /* Blink LED_OK (Green) twice at startup */
@@ -706,7 +708,7 @@ bsp_error_t BSP_EEPROM_Read(uint32_t address, uint8_t *pBuff,
 
     for (uint32_t i = 0; i < sizeBytes; i++)
     {
-        uint32_t val = 0U;
+        uint32_t val        = 0U;
         uint32_t nsc_status = SECURE_CAL_Read((uint16_t)(address + i), &val);
         if (nsc_status != 0U)
         {
@@ -738,8 +740,8 @@ bsp_error_t BSP_EEPROM_Write(uint32_t address, uint8_t *pBuff,
 
     for (uint32_t i = 0; i < sizeBytes; i++)
     {
-        uint32_t nsc_status = SECURE_CAL_Write((uint16_t)(address + i),
-                                               (uint32_t)pBuff[i]);
+        uint32_t nsc_status =
+            SECURE_CAL_Write((uint16_t)(address + i), (uint32_t)pBuff[i]);
         if (nsc_status != 0U)
         {
             LOG_ERR("[BSP] EEPROM write error %u at address %u",

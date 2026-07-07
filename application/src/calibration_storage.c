@@ -1,6 +1,8 @@
 #include "calibration_storage.h"
-#include "secure_nsc.h"
+
 #include <string.h>
+
+#include "secure_nsc.h"
 
 void CalibrationStorage_Init(void)
 {
@@ -22,7 +24,7 @@ uint32_t CalibrationStorage_ReadFloat(uint16_t vaddr, float *pValue)
         return 1U;
     }
 
-    uint32_t bits = 0;
+    uint32_t bits   = 0;
     uint32_t status = SECURE_CAL_Read(vaddr, &bits);
     if (status == 0)
     {
@@ -49,9 +51,12 @@ void fota_startup_check(void)
     if (ret != 0U || flag != 0xA5A5A5A5U)
     {
         /* Flag not set — roll back to previous firmware.
-         * SECURE_FOTA_Rollback() toggles SWAP_BANK and resets — does not return. */
+         * SECURE_FOTA_Rollback() toggles SWAP_BANK and resets — does not
+         * return. */
         SECURE_FOTA_Rollback();
-        while (1) {}  /* Should never reach here */
+        while (1)
+        {
+        } /* Should never reach here */
     }
     /* Flag is set — firmware is valid, continue normal boot */
 }

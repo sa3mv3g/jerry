@@ -22,9 +22,22 @@ def main():
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     config_file = os.path.join(root_dir, "config", ".clang-format")
 
+    # Secure BSP FOTA files — listed explicitly to avoid formatting
+    # CubeMX-generated headers (partition_stm32h563xx.h, stm32h5xx_hal_conf.h, etc.)
+    # which use preprocessor macro patterns that clang-format breaks.
+    secure_bsp = os.path.join(
+        root_dir, "application", "bsp", "stm", "stm32h563"
+    )
     exclusive_files_list: list[str] = [
         os.path.join(root_dir, "application/bsp/stm/bsp.c"),
         os.path.join(root_dir, "application/bsp/bsp.h"),
+        # FOTA crypto (Secure firmware)
+        os.path.join(secure_bsp, "Secure", "Core", "Inc", "fota_crypto.h"),
+        os.path.join(secure_bsp, "Secure", "Core", "Inc", "user_settings.h"),
+        os.path.join(secure_bsp, "Secure", "Core", "Src", "fota_crypto.c"),
+        os.path.join(secure_bsp, "Secure", "Core", "Src", "secure_nsc.c"),
+        # NSC shared header
+        os.path.join(secure_bsp, "Secure_nsclib", "secure_nsc.h"),
     ]
 
     # Files to ignore/exclude if any

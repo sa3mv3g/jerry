@@ -21,9 +21,10 @@
  *   MBEDTLS_ECDSA_VERIFY_ALT in mbedtls_config.h.
  */
 
-#include "main.h"
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "main.h"
 
 /* mbedTLS headers — available after FetchContent downloads mbedTLS */
 #include "mbedtls/platform.h"
@@ -39,7 +40,7 @@
 static void *fota_calloc(size_t n, size_t size)
 {
     size_t total = n * size;
-    void *p = malloc(total);
+    void  *p     = malloc(total);
     if (p != NULL)
     {
         memset(p, 0, total);
@@ -47,10 +48,7 @@ static void *fota_calloc(size_t n, size_t size)
     return p;
 }
 
-static void fota_free(void *ptr)
-{
-    free(ptr);
-}
+static void fota_free(void *ptr) { free(ptr); }
 
 /**
  * @brief  Initialize mbedTLS platform (memory allocator).

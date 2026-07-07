@@ -1,39 +1,42 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file    Secure/Src/secure_nsc.c
-  * @author  MCD Application Team
-  * @brief   This file contains the non-secure callable APIs (secure world)
-  ******************************************************************************
-    * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file    Secure/Src/secure_nsc.c
+ * @author  MCD Application Team
+ * @brief   This file contains the non-secure callable APIs (secure world)
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2026 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* USER CODE BEGIN Non_Secure_CallLib */
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
 #include "secure_nsc.h"
+
+#include "main.h"
 /** @addtogroup STM32H5xx_HAL_Examples
 
   * @{
   */
 
 /** @addtogroup Templates
-  * @{
-  */
+ * @{
+ */
 
 /* Global variables ----------------------------------------------------------*/
-void *pSecureFaultCallback = NULL;   /* Pointer to secure fault callback in Non-secure */
-void *pSecureErrorCallback = NULL;   /* Pointer to secure error callback in Non-secure */
+void *pSecureFaultCallback =
+    NULL; /* Pointer to secure fault callback in Non-secure */
+void *pSecureErrorCallback =
+    NULL; /* Pointer to secure error callback in Non-secure */
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -43,116 +46,118 @@ void *pSecureErrorCallback = NULL;   /* Pointer to secure error callback in Non-
 /* Private functions ---------------------------------------------------------*/
 
 /**
-  * @brief  Secure registration of non-secure callback.
-  * @param  CallbackId  callback identifier
-  * @param  func        pointer to non-secure function
-  * @retval None
-  */
-CMSE_NS_ENTRY void SECURE_RegisterCallback(SECURE_CallbackIDTypeDef CallbackId, void *func)
+ * @brief  Secure registration of non-secure callback.
+ * @param  CallbackId  callback identifier
+ * @param  func        pointer to non-secure function
+ * @retval None
+ */
+CMSE_NS_ENTRY void SECURE_RegisterCallback(SECURE_CallbackIDTypeDef CallbackId,
+                                           void                    *func)
 {
-  if(func != NULL)
-  {
-    switch(CallbackId)
+    if (func != NULL)
     {
-      case SECURE_FAULT_CB_ID:           /* SecureFault Interrupt occurred */
-        pSecureFaultCallback = func;
-        break;
-      case GTZC_ERROR_CB_ID:             /* GTZC Interrupt occurred */
-        pSecureErrorCallback = func;
-        break;
-      default:
-        /* unknown */
-        break;
+        switch (CallbackId)
+        {
+            case SECURE_FAULT_CB_ID: /* SecureFault Interrupt occurred */
+                pSecureFaultCallback = func;
+                break;
+            case GTZC_ERROR_CB_ID: /* GTZC Interrupt occurred */
+                pSecureErrorCallback = func;
+                break;
+            default:
+                /* unknown */
+                break;
+        }
     }
-  }
 }
 
 extern RTC_HandleTypeDef hrtc;
 
 /**
-  * @brief  Get RTC Time and Date from Secure world.
-  */
+ * @brief  Get RTC Time and Date from Secure world.
+ */
 CMSE_NS_ENTRY uint32_t SECURE_RTC_GetTimeDate(App_RTC_TimeTypeDef *pTimeDate)
 {
-  RTC_TimeTypeDef sTime = {0};
-  RTC_DateTypeDef sDate = {0};
+    RTC_TimeTypeDef sTime = {0};
+    RTC_DateTypeDef sDate = {0};
 
-  if (pTimeDate == NULL)
-  {
-    return 1; /* Error: Invalid argument */
-  }
+    if (pTimeDate == NULL)
+    {
+        return 1; /* Error: Invalid argument */
+    }
 
-  /* Get Time */
-  if (HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
-  {
-    return 1; /* Error */
-  }
+    /* Get Time */
+    if (HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
+    {
+        return 1; /* Error */
+    }
 
-  /* Get Date (Unlocks shadow registers) */
-  if (HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK)
-  {
-    return 1; /* Error */
-  }
+    /* Get Date (Unlocks shadow registers) */
+    if (HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK)
+    {
+        return 1; /* Error */
+    }
 
-  pTimeDate->hours = sTime.Hours;
-  pTimeDate->minutes = sTime.Minutes;
-  pTimeDate->seconds = sTime.Seconds;
-  pTimeDate->date = sDate.Date;
-  pTimeDate->month = sDate.Month;
-  pTimeDate->year = sDate.Year;
-  pTimeDate->weekday = sDate.WeekDay;
-  pTimeDate->subseconds = sTime.SubSeconds;
-  pTimeDate->second_fraction = sTime.SecondFraction;
+    pTimeDate->hours           = sTime.Hours;
+    pTimeDate->minutes         = sTime.Minutes;
+    pTimeDate->seconds         = sTime.Seconds;
+    pTimeDate->date            = sDate.Date;
+    pTimeDate->month           = sDate.Month;
+    pTimeDate->year            = sDate.Year;
+    pTimeDate->weekday         = sDate.WeekDay;
+    pTimeDate->subseconds      = sTime.SubSeconds;
+    pTimeDate->second_fraction = sTime.SecondFraction;
 
-  return 0; /* OK */
+    return 0; /* OK */
 }
 
 /**
-  * @brief  Set RTC Time and Date from Secure world.
-  */
-CMSE_NS_ENTRY uint32_t SECURE_RTC_SetTimeDate(const App_RTC_TimeTypeDef *pTimeDate)
+ * @brief  Set RTC Time and Date from Secure world.
+ */
+CMSE_NS_ENTRY uint32_t
+SECURE_RTC_SetTimeDate(const App_RTC_TimeTypeDef *pTimeDate)
 {
-  RTC_TimeTypeDef sTime = {0};
-  RTC_DateTypeDef sDate = {0};
+    RTC_TimeTypeDef sTime = {0};
+    RTC_DateTypeDef sDate = {0};
 
-  if (pTimeDate == NULL)
-  {
-    return 1; /* Error: Invalid argument */
-  }
-  
-  sTime.Hours = pTimeDate->hours;
-  sTime.Minutes = pTimeDate->minutes;
-  sTime.Seconds = pTimeDate->seconds;
-  sTime.TimeFormat = RTC_HOURFORMAT_24;
-  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
-  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
+    if (pTimeDate == NULL)
+    {
+        return 1; /* Error: Invalid argument */
+    }
 
-  sDate.Date = pTimeDate->date;
-  sDate.Month = pTimeDate->month;
-  sDate.Year = pTimeDate->year;
-  sDate.WeekDay = pTimeDate->weekday;
+    sTime.Hours          = pTimeDate->hours;
+    sTime.Minutes        = pTimeDate->minutes;
+    sTime.Seconds        = pTimeDate->seconds;
+    sTime.TimeFormat     = RTC_HOURFORMAT_24;
+    sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
+    sTime.StoreOperation = RTC_STOREOPERATION_RESET;
 
-  /* Set Time first, then Date */
-  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
-  {
-    return 1; /* Error */
-  }
+    sDate.Date    = pTimeDate->date;
+    sDate.Month   = pTimeDate->month;
+    sDate.Year    = pTimeDate->year;
+    sDate.WeekDay = pTimeDate->weekday;
 
-  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK)
-  {
-    return 1; /* Error */
-  }
+    /* Set Time first, then Date */
+    if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
+    {
+        return 1; /* Error */
+    }
 
-  return 0; /* OK */
+    if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK)
+    {
+        return 1; /* Error */
+    }
+
+    return 0; /* OK */
 }
 
 /**
-  * @}
-  */
+ * @}
+ */
 
 /**
-  * @}
-  */
+ * @}
+ */
 
 /* USER CODE BEGIN Calibration_NSC_Impl */
 
@@ -163,42 +168,43 @@ CMSE_NS_ENTRY uint32_t SECURE_RTC_SetTimeDate(const App_RTC_TimeTypeDef *pTimeDa
 #include "eeprom_emul.h"
 
 /**
-  * @brief  Read a calibration variable from EEPROM emulation.
-  *         EEPROM emulation runs on Bank 1 EDATA via Secure alias 0x0D000000.
-  *         This alias is NOT affected by SWAP_BANK — calibration survives FOTA.
-  * @param  vaddr   Virtual address (see CAL_*_VADDR in secure_nsc.h)
-  * @param  pValue  Output: value read
-  * @retval 0 = EE_OK, non-zero = error
-  */
+ * @brief  Read a calibration variable from EEPROM emulation.
+ *         EEPROM emulation runs on Bank 1 EDATA via Secure alias 0x0D000000.
+ *         This alias is NOT affected by SWAP_BANK — calibration survives FOTA.
+ * @param  vaddr   Virtual address (see CAL_*_VADDR in secure_nsc.h)
+ * @param  pValue  Output: value read
+ * @retval 0 = EE_OK, non-zero = error
+ */
 CMSE_NS_ENTRY uint32_t SECURE_CAL_Read(uint16_t vaddr, uint32_t *pValue)
 {
-  if (pValue == NULL)
-  {
-    return 1U; /* Invalid argument */
-  }
+    if (pValue == NULL)
+    {
+        return 1U; /* Invalid argument */
+    }
 
-  /* Validate pointer is in NonSecure memory before writing to it */
-  if (cmse_check_address_range(pValue, sizeof(uint32_t), CMSE_NONSECURE) == NULL)
-  {
-    return 2U; /* Pointer not in NonSecure memory */
-  }
+    /* Validate pointer is in NonSecure memory before writing to it */
+    if (cmse_check_address_range(pValue, sizeof(uint32_t), CMSE_NONSECURE) ==
+        NULL)
+    {
+        return 2U; /* Pointer not in NonSecure memory */
+    }
 
-  EE_Status status = EE_ReadVariable32bits(vaddr, pValue);
-  return (status == EE_OK) ? 0U : (uint32_t)status;
+    EE_Status status = EE_ReadVariable32bits(vaddr, pValue);
+    return (status == EE_OK) ? 0U : (uint32_t)status;
 }
 
 /**
-  * @brief  Write a calibration variable to EEPROM emulation.
-  *         EEPROM emulation runs on Bank 1 EDATA via Secure alias 0x0D000000.
-  *         This alias is NOT affected by SWAP_BANK — calibration survives FOTA.
-  * @param  vaddr   Virtual address (see CAL_*_VADDR in secure_nsc.h)
-  * @param  value   Value to write
-  * @retval 0 = EE_OK, non-zero = error
-  */
+ * @brief  Write a calibration variable to EEPROM emulation.
+ *         EEPROM emulation runs on Bank 1 EDATA via Secure alias 0x0D000000.
+ *         This alias is NOT affected by SWAP_BANK — calibration survives FOTA.
+ * @param  vaddr   Virtual address (see CAL_*_VADDR in secure_nsc.h)
+ * @param  value   Value to write
+ * @retval 0 = EE_OK, non-zero = error
+ */
 CMSE_NS_ENTRY uint32_t SECURE_CAL_Write(uint16_t vaddr, uint32_t value)
 {
-  EE_Status status = EE_WriteVariable32bits(vaddr, value);
-  return (status == EE_OK) ? 0U : (uint32_t)status;
+    EE_Status status = EE_WriteVariable32bits(vaddr, value);
+    return (status == EE_OK) ? 0U : (uint32_t)status;
 }
 
 /* USER CODE END Calibration_NSC_Impl */
@@ -224,27 +230,30 @@ CMSE_NS_ENTRY uint32_t SECURE_CAL_Write(uint16_t vaddr, uint32_t value)
  *   FOTA_NS_SECTOR_OFFSET = 32, FOTA_NS_BYTE_OFFSET = 32 * 8KB = 256KB
  */
 
-#include "fota_crypto.h"
 #include <stdbool.h>
 #include <string.h>
 
+#include "fota_crypto.h"
+
 /* FOTA target: skip first 256KB (sectors 0-31 = Secure partition) */
-#define FOTA_NS_SECTOR_OFFSET   32U
-#define FOTA_NS_BYTE_OFFSET     (FOTA_NS_SECTOR_OFFSET * 8192U)   /* 0x40000 = 256KB */
+#define FOTA_NS_SECTOR_OFFSET 32U
+#define FOTA_NS_BYTE_OFFSET \
+    (FOTA_NS_SECTOR_OFFSET * 8192U) /* 0x40000 = 256KB */
 
 /* Firmware package trailer */
-#define FOTA_TRAILER_SIZE       8U
-#define FOTA_MAGIC              0x464F5441UL   /* "FOTA" */
+#define FOTA_TRAILER_SIZE 8U
+#define FOTA_MAGIC        0x464F5441UL /* "FOTA" */
 
 /* Public key buffer size for P-256 SubjectPublicKeyInfo DER (91 bytes) */
-#define FOTA_PUBKEY_BUF_SIZE    128U
+#define FOTA_PUBKEY_BUF_SIZE 128U
 
 /* CA certificate DER — Jerry FOTA CA (ECDSA-P256, valid 2026-2036)
- * Generated by: openssl ecparam -name prime256v1 -genkey -noout -out keys/fota_ca.key
- *               openssl req -new -x509 -key keys/fota_ca.key -out keys/fota_ca.crt \
- *                   -subj "/CN=Jerry FOTA CA" -days 3650
- * To regenerate: delete keys/fota_ca.key and keys/fota_ca.crt, re-run above commands,
- *   then update this array with: openssl x509 -in keys/fota_ca.crt -outform DER | xxd -i */
+ * Generated by: openssl ecparam -name prime256v1 -genkey -noout -out
+ * keys/fota_ca.key
+ *               openssl req -new -x509 -key keys/fota_ca.key -out
+ * keys/fota_ca.crt \ -subj "/CN=Jerry FOTA CA" -days 3650 To regenerate: delete
+ * keys/fota_ca.key and keys/fota_ca.crt, re-run above commands, then update
+ * this array with: openssl x509 -in keys/fota_ca.crt -outform DER | xxd -i */
 static const uint8_t fota_ca_cert_der[] = {
     0x30, 0x82, 0x01, 0x85, 0x30, 0x82, 0x01, 0x2B, 0xA0, 0x03, 0x02, 0x01,
     0x02, 0x02, 0x14, 0x38, 0xB8, 0x8A, 0xC8, 0xCB, 0x51, 0x4A, 0x29, 0x63,
@@ -278,8 +287,7 @@ static const uint8_t fota_ca_cert_der[] = {
     0xE3, 0x59, 0xA9, 0x42, 0xFB, 0xC0, 0x8D, 0x39, 0x26, 0x4C, 0x02, 0x21,
     0x00, 0xCB, 0xFC, 0x65, 0x53, 0xF1, 0x62, 0x23, 0x3D, 0xDE, 0xF3, 0x2F,
     0x41, 0xDF, 0xFF, 0x16, 0x04, 0xE2, 0xB1, 0xC0, 0xA2, 0xD5, 0xD4, 0xF2,
-    0x54, 0xFD, 0xD1, 0x40, 0xA9, 0xDC, 0xB4, 0x3F, 0x5C
-};
+    0x54, 0xFD, 0xD1, 0x40, 0xA9, 0xDC, 0xB4, 0x3F, 0x5C};
 static const uint32_t fota_ca_cert_der_len = 393U;
 
 /**
@@ -306,13 +314,14 @@ static uint32_t fota_get_target_bank(void)
  */
 CMSE_NS_ENTRY uint32_t SECURE_FOTA_EraseTarget(void)
 {
-    FLASH_EraseInitTypeDef erase = {0};
-    uint32_t page_error = 0U;
+    FLASH_EraseInitTypeDef erase      = {0};
+    uint32_t               page_error = 0U;
 
     erase.TypeErase = FLASH_TYPEERASE_SECTORS;
     erase.Banks     = fota_get_target_bank();
     erase.Sector    = FOTA_NS_SECTOR_OFFSET;
-    erase.NbSectors = 120U - FOTA_NS_SECTOR_OFFSET;   /* Sectors 32-119 = 88 sectors */
+    erase.NbSectors =
+        120U - FOTA_NS_SECTOR_OFFSET; /* Sectors 32-119 = 88 sectors */
 
     if (HAL_FLASH_Unlock() != HAL_OK)
     {
@@ -332,9 +341,9 @@ CMSE_NS_ENTRY uint32_t SECURE_FOTA_EraseTarget(void)
 /**
  * @brief  Write a chunk of firmware data to the inactive bank.
  */
-CMSE_NS_ENTRY uint32_t SECURE_FOTA_WriteChunk(uint32_t offset,
-                                               const uint8_t *pData,
-                                               uint32_t len)
+CMSE_NS_ENTRY uint32_t SECURE_FOTA_WriteChunk(uint32_t       offset,
+                                              const uint8_t *pData,
+                                              uint32_t       len)
 {
     if (cmse_check_address_range((void *)pData, len, CMSE_NONSECURE) == NULL)
     {
@@ -355,10 +364,12 @@ CMSE_NS_ENTRY uint32_t SECURE_FOTA_WriteChunk(uint32_t offset,
     HAL_StatusTypeDef ret = HAL_OK;
     for (uint32_t i = 0U; i < len; i += 16U)
     {
-        ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_QUADWORD,
-                                base + offset + i,
+        ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_QUADWORD, base + offset + i,
                                 (uint32_t)(pData + i));
-        if (ret != HAL_OK) { break; }
+        if (ret != HAL_OK)
+        {
+            break;
+        }
     }
 
     HAL_FLASH_Lock();
@@ -380,41 +391,45 @@ CMSE_NS_ENTRY uint32_t SECURE_FOTA_Commit(uint32_t total_size)
     uint32_t base = fota_get_target_base();
 
     /* Step 1: Read and validate trailer */
-    const uint8_t *trailer = (const uint8_t *)(base + total_size - FOTA_TRAILER_SIZE);
-    uint32_t cert_size = ((uint32_t)trailer[0])
-                       | ((uint32_t)trailer[1] << 8U)
-                       | ((uint32_t)trailer[2] << 16U)
-                       | ((uint32_t)trailer[3] << 24U);
-    uint32_t magic = ((uint32_t)trailer[4])
-                   | ((uint32_t)trailer[5] << 8U)
-                   | ((uint32_t)trailer[6] << 16U)
-                   | ((uint32_t)trailer[7] << 24U);
+    const uint8_t *trailer =
+        (const uint8_t *)(base + total_size - FOTA_TRAILER_SIZE);
+    uint32_t cert_size = ((uint32_t)trailer[0]) | ((uint32_t)trailer[1] << 8U) |
+                         ((uint32_t)trailer[2] << 16U) |
+                         ((uint32_t)trailer[3] << 24U);
+    uint32_t magic = ((uint32_t)trailer[4]) | ((uint32_t)trailer[5] << 8U) |
+                     ((uint32_t)trailer[6] << 16U) |
+                     ((uint32_t)trailer[7] << 24U);
 
-    if (magic != FOTA_MAGIC)                                  { return FOTA_ERR_BAD_MAGIC; }
-    if (cert_size == 0U || cert_size > (total_size - FOTA_TRAILER_SIZE)) { return FOTA_ERR_BAD_SIZE; }
+    if (magic != FOTA_MAGIC)
+    {
+        return FOTA_ERR_BAD_MAGIC;
+    }
+    if (cert_size == 0U || cert_size > (total_size - FOTA_TRAILER_SIZE))
+    {
+        return FOTA_ERR_BAD_SIZE;
+    }
 
-    uint32_t fw_size  = total_size - FOTA_TRAILER_SIZE - cert_size;
+    uint32_t       fw_size  = total_size - FOTA_TRAILER_SIZE - cert_size;
     const uint8_t *cert_ptr = (const uint8_t *)(base + fw_size);
 
     /* Step 2: Initialize wolfSSL static pool */
     fota_crypto_init();
 
     /* Step 3: Verify firmware cert against CA */
-    if (fota_x509_verify_cert(cert_ptr, cert_size,
-                               fota_ca_cert_der, fota_ca_cert_der_len) != 0)
+    if (fota_x509_verify_cert(cert_ptr, cert_size, fota_ca_cert_der,
+                              fota_ca_cert_der_len) != 0)
     {
         fota_crypto_reset();
         return FOTA_ERR_CERT_VERIFY;
     }
 
     /* Step 4: Extract SHA-256 hash and public key from cert */
-    uint8_t  cert_hash[32]                  = {0};
+    uint8_t  cert_hash[32]                     = {0};
     uint8_t  pub_key_buf[FOTA_PUBKEY_BUF_SIZE] = {0};
-    uint32_t pub_key_len                    = 0U;
+    uint32_t pub_key_len                       = 0U;
 
-    if (fota_x509_parse(cert_ptr, cert_size,
-                         cert_hash,
-                         pub_key_buf, sizeof(pub_key_buf), &pub_key_len) != 0)
+    if (fota_x509_parse(cert_ptr, cert_size, cert_hash, pub_key_buf,
+                        sizeof(pub_key_buf), &pub_key_len) != 0)
     {
         fota_crypto_reset();
         return FOTA_ERR_NO_HASH;
@@ -441,15 +456,15 @@ CMSE_NS_ENTRY uint32_t SECURE_FOTA_Commit(uint32_t total_size)
     bool swapped = (READ_BIT(FLASH->OPTSR_CUR, FLASH_OPTSR_SWAP_BANK) != 0U);
 
     FLASH_OBProgramInitTypeDef ob = {0};
-    ob.OptionType = OPTIONBYTE_USER;
-    ob.USERType   = OB_USER_SWAP_BANK;
+    ob.OptionType                 = OPTIONBYTE_USER;
+    ob.USERType                   = OB_USER_SWAP_BANK;
     ob.USERConfig = swapped ? OB_SWAP_BANK_DISABLE : OB_SWAP_BANK_ENABLE;
 
     HAL_FLASH_OB_Unlock();
     HAL_FLASHEx_OBProgram(&ob);
-    HAL_FLASH_OB_Launch();  /* Triggers system reset — does not return */
+    HAL_FLASH_OB_Launch(); /* Triggers system reset — does not return */
 
-    return FOTA_OK;  /* Never reached */
+    return FOTA_OK; /* Never reached */
 }
 
 /**
@@ -461,17 +476,18 @@ CMSE_NS_ENTRY void SECURE_FOTA_Rollback(void)
     bool swapped = (READ_BIT(FLASH->OPTSR_CUR, FLASH_OPTSR_SWAP_BANK) != 0U);
 
     FLASH_OBProgramInitTypeDef ob = {0};
-    ob.OptionType = OPTIONBYTE_USER;
-    ob.USERType   = OB_USER_SWAP_BANK;
+    ob.OptionType                 = OPTIONBYTE_USER;
+    ob.USERType                   = OB_USER_SWAP_BANK;
     ob.USERConfig = swapped ? OB_SWAP_BANK_DISABLE : OB_SWAP_BANK_ENABLE;
 
     HAL_FLASH_OB_Unlock();
     HAL_FLASHEx_OBProgram(&ob);
-    HAL_FLASH_OB_Launch();  /* Triggers system reset — does not return */
+    HAL_FLASH_OB_Launch(); /* Triggers system reset — does not return */
 
-    while (1) {}
+    while (1)
+    {
+    }
 }
 
 /* USER CODE END FOTA_NSC_Impl */
 /* USER CODE END Non_Secure_CallLib */
-

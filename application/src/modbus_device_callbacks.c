@@ -272,7 +272,8 @@ static bsp_error_t update_digital_input(unsigned int channel, bool *pCoil,
  */
 static inline bsp_error_t update_calibration(uint16_t vaddr, float newValue)
 {
-    return (CalibrationStorage_WriteFloat(vaddr, newValue) == 0) ? BSP_OK : BSP_ERROR;
+    return (CalibrationStorage_WriteFloat(vaddr, newValue) == 0) ? BSP_OK
+                                                                 : BSP_ERROR;
 }
 
 /* ==========================================================================
@@ -1342,62 +1343,74 @@ modbus_exception_t modbus_cb_write_single_register(uint16_t address,
             {
                 do
                 {
-                    err = update_calibration(CAL_ADC_VADDR(0, CAL_ADC_SCALING_FACTOR_OFF),
-                                             regs->adc_0_scale_factor);
+                    err = update_calibration(
+                        CAL_ADC_VADDR(0, CAL_ADC_SCALING_FACTOR_OFF),
+                        regs->adc_0_scale_factor);
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(CAL_ADC_VADDR(0, CAL_ADC_OFFSET_TERM_OFF),
-                                             regs->adc_0_offset_term);
+                    err = update_calibration(
+                        CAL_ADC_VADDR(0, CAL_ADC_OFFSET_TERM_OFF),
+                        regs->adc_0_offset_term);
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(CAL_ADC_VADDR(0, CAL_ADC_DEADZONE_OFF),
-                                             regs->adc_0_dead_zone);
-
-                    if (err != BSP_OK) break;
-
-                    err = update_calibration(CAL_ADC_VADDR(1, CAL_ADC_SCALING_FACTOR_OFF),
-                                             (regs->adc_1_scale_factor));
+                    err = update_calibration(
+                        CAL_ADC_VADDR(0, CAL_ADC_DEADZONE_OFF),
+                        regs->adc_0_dead_zone);
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(CAL_ADC_VADDR(1, CAL_ADC_OFFSET_TERM_OFF),
-                                             (regs->adc_1_offset_term));
+                    err = update_calibration(
+                        CAL_ADC_VADDR(1, CAL_ADC_SCALING_FACTOR_OFF),
+                        (regs->adc_1_scale_factor));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(CAL_ADC_VADDR(1, CAL_ADC_DEADZONE_OFF),
-                                             (regs->adc_1_dead_zone));
+                    err = update_calibration(
+                        CAL_ADC_VADDR(1, CAL_ADC_OFFSET_TERM_OFF),
+                        (regs->adc_1_offset_term));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(CAL_ADC_VADDR(2, CAL_ADC_SCALING_FACTOR_OFF),
-                                             (regs->adc_2_scale_factor));
+                    err = update_calibration(
+                        CAL_ADC_VADDR(1, CAL_ADC_DEADZONE_OFF),
+                        (regs->adc_1_dead_zone));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(CAL_ADC_VADDR(2, CAL_ADC_OFFSET_TERM_OFF),
-                                             (regs->adc_2_offset_term));
+                    err = update_calibration(
+                        CAL_ADC_VADDR(2, CAL_ADC_SCALING_FACTOR_OFF),
+                        (regs->adc_2_scale_factor));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(CAL_ADC_VADDR(2, CAL_ADC_DEADZONE_OFF),
-                                             (regs->adc_2_dead_zone));
+                    err = update_calibration(
+                        CAL_ADC_VADDR(2, CAL_ADC_OFFSET_TERM_OFF),
+                        (regs->adc_2_offset_term));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(CAL_ADC_VADDR(3, CAL_ADC_SCALING_FACTOR_OFF),
-                                             (regs->adc_3_scale_factor));
+                    err = update_calibration(
+                        CAL_ADC_VADDR(2, CAL_ADC_DEADZONE_OFF),
+                        (regs->adc_2_dead_zone));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(CAL_ADC_VADDR(3, CAL_ADC_OFFSET_TERM_OFF),
-                                             (regs->adc_3_offset_term));
+                    err = update_calibration(
+                        CAL_ADC_VADDR(3, CAL_ADC_SCALING_FACTOR_OFF),
+                        (regs->adc_3_scale_factor));
 
                     if (err != BSP_OK) break;
 
-                    err = update_calibration(CAL_ADC_VADDR(3, CAL_ADC_DEADZONE_OFF),
-                                             (regs->adc_3_dead_zone));
+                    err = update_calibration(
+                        CAL_ADC_VADDR(3, CAL_ADC_OFFSET_TERM_OFF),
+                        (regs->adc_3_offset_term));
+
+                    if (err != BSP_OK) break;
+
+                    err = update_calibration(
+                        CAL_ADC_VADDR(3, CAL_ADC_DEADZONE_OFF),
+                        (regs->adc_3_dead_zone));
 
                     if (err != BSP_OK) break;
 
