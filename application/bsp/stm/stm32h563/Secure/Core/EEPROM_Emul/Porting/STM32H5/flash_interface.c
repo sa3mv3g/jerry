@@ -25,6 +25,8 @@
 #include <stdint.h>
 #include "stm32h5xx_hal.h"
 
+#define RAM_FUNC  __attribute__((section(".RamFunc")))
+
 /** @addtogroup EEPROM_Emulation
  * @{
  */
@@ -38,7 +40,7 @@ uint64_t FlashWord[2] =
   0x0, 0x0
 };
 uint8_t FlashWord_status = 0; /* 0 is FlashWord is empty, 1 it is full */
-const uint32_t QuadWord[4] =
+ const uint32_t QuadWord[4] =
 {
  0x00000000,
  0x00000000,
@@ -69,7 +71,7 @@ static uint32_t GetBankNumber(uint32_t Address);
   *           - EE_FLASH_USED: flash currently used by CPU2
   */
 #ifdef EDATA_ENABLED
-EE_Status FI_WriteDoubleWord(uint32_t Address, uint64_t Data)
+RAM_FUNC EE_Status FI_WriteDoubleWord(uint32_t Address, uint64_t Data)
 {
   /* EDATA sectors 120-127 are Non-Secure (outside SECWM1_END=8).
    * Must use FLASH_TYPEPROGRAM_HALFWORD_EDATA_NS (writes via FLASH->NSCR),
@@ -98,7 +100,7 @@ EE_Status FI_WriteDoubleWord(uint32_t Address, uint64_t Data)
   return status;
 }
 #else
-EE_Status FI_WriteDoubleWord(uint32_t Address, uint64_t* Data, EE_Write_type Write_type)
+RAM_FUNC EE_Status FI_WriteDoubleWord(uint32_t Address, uint64_t* Data, EE_Write_type Write_type)
 {
   EE_Status status = EE_OK;
   if(Write_type == EE_SET_PAGE)
@@ -128,7 +130,7 @@ EE_Status FI_WriteDoubleWord(uint32_t Address, uint64_t* Data, EE_Write_type Wri
   *           - EE_OK: on success
   *           - EE error code: if an error occurs
   */
-EE_Status FI_PageErase(uint32_t Page, uint16_t NbPages)
+RAM_FUNC EE_Status FI_PageErase(uint32_t Page, uint16_t NbPages)
 {
   EE_Status status = EE_OK;
   FLASH_EraseInitTypeDef s_eraseinit;
@@ -147,7 +149,7 @@ EE_Status FI_PageErase(uint32_t Page, uint16_t NbPages)
    *  sectors outside SECWM are NS and must be erased via NSCR even from Secure code]
    * [stm32h5xx_hal_flash.h: IS_FLASH_SECURE_OPERATION() checks FLASH_NON_SECURE_MASK] */
 #ifdef EDATA_ENABLED
-  s_eraseinit.TypeErase   = FLASH_TYPEERASE_SECTORS_NS;  /* EDATA sectors are Non-Secure */
+  s_eraseinit.TypeErase   = FLASH_EDATA_BASE;  /* EDATA sectors are Non-Secure */
   s_eraseinit.Sector      = Page + 120;
 #else
   s_eraseinit.TypeErase   = FLASH_TYPEERASE_SECTORS;
@@ -172,7 +174,7 @@ EE_Status FI_PageErase(uint32_t Page, uint16_t NbPages)
   *           - EE_OK: on success
   *           - EE error code: if an error occurs
   */
-EE_Status FI_PageErase_IT(uint32_t Page, uint16_t NbPages)
+RAM_FUNC EE_Status FI_PageErase_IT(uint32_t Page, uint16_t NbPages)
 {
   EE_Status status = EE_OK;
   FLASH_EraseInitTypeDef s_eraseinit;
@@ -204,7 +206,7 @@ EE_Status FI_PageErase_IT(uint32_t Page, uint16_t NbPages)
 /**
   * @brief  Flush the caches if needed to keep coherency when the flash content is modified
   */
-void FI_CacheFlush()
+RAM_FUNC void FI_CacheFlush()
 {
   /* No flush needed. EEPROM flash area is defined as non-cacheable thanks to the MPU in main.c. */
   return;
@@ -216,7 +218,7 @@ void FI_CacheFlush()
  * @param  Address Address of the FLASH Memory
  * @retval Bank_Number The bank of a given address
  */
-static uint32_t GetBankNumber(uint32_t Address)
+ RAM_FUNC static uint32_t GetBankNumber(uint32_t Address)
 {
   uint32_t bank = 0U;
 
@@ -261,7 +263,7 @@ static uint32_t GetBankNumber(uint32_t Address)
   *           - EE_OK: on success
   *           - EE error code: if an error occurs
   */
-EE_Status FI_DeleteCorruptedFlashAddress(uint32_t Address)
+RAM_FUNC EE_Status FI_DeleteCorruptedFlashAddress(uint32_t Address)
 {
 #ifdef EDATA_ENABLED
   uint16_t HalfWord[4] = {0U, 0U, 0U, 0U};
@@ -325,7 +327,7 @@ EE_Status FI_DeleteCorruptedFlashAddress(uint32_t Address)
   *           - EE_OK: on success
   *           - EE error code: if an error occurs
   */
-EE_Status FI_CheckBankConfig(void)
+RAM_FUNC EE_Status FI_CheckBankConfig(void)
 {
 #if defined (FLASH_OPTR_DBANK)
   FLASH_OBProgramInitTypeDef sOBCfg;
@@ -363,7 +365,7 @@ EE_Status FI_CheckBankConfig(void)
   *         INSERT BRIEF
   * @retval None
   */
-void OB_Init( void )
+RAM_FUNC void OB_Init( void )
 {
   /* EDATA option bytes are now programmed by flash_nucleo.py --option-bytes-only
    * during board setup (alongside NSBOOTADD, SECWM, TZEN).
@@ -385,4 +387,5 @@ void OB_Init( void )
   */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+
 

@@ -471,6 +471,8 @@ target_compile_options(jerry_app PRIVATE
 target_link_options(jerry_app PRIVATE
     -T "${CMAKE_SOURCE_DIR}/application/bsp/stm/stm32h563/NonSecure/STM32H563xx_FLASH_ns.ld"
     -Wl,-Map=${CMAKE_BINARY_DIR}/jerry_app.map
+    -Wl,--no-print-map-discarded
+    -Wl,--gc-sections
     "${CMAKE_BINARY_DIR}/libsecure_nsclib.a"
 )
 

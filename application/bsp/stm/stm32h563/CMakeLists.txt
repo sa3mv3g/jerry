@@ -193,6 +193,7 @@ target_include_directories(jerry_secure_app PUBLIC
 
 target_compile_options(jerry_secure_app PRIVATE
     -Wall -Wextra -Werror -Wno-unused-parameter -Wno-old-style-declaration
+    -ffunction-sections
     -mcmse
     $<$<CONFIG:Debug>:-gdwarf-4>
 )

@@ -79,11 +79,65 @@ static uint32_t fota_verify_at_boot(void);
 /* USER CODE BEGIN 0 */
 
 /**
+  * @brief  Safely initialize EEPROM emulation, handling erased state
+  * @retval EE_Status: EE_OK on success, error code on failure
+  */
+static EE_Status SafeEEInit(void)
+{
+    EE_Status ee_result;
+
+    /* Try normal initialization first (preserves existing data if possible) */
+    ee_result = EE_Init(EE_CONDITIONAL_ERASE);
+    
+    if (ee_result == EE_OK)
+    {
+        return EE_OK;
+    }
+    
+    /* If we get NOACTIVE_PAGE, the EEPROM area is erased (all 0xFF) */
+    if (ee_result == EE_ERROR_NOACTIVE_PAGE)
+    {
+        /* Format the EEPROM area to initialize it */
+        EE_Status format_result = EE_Format(EE_FORCED_ERASE);
+        
+        if (format_result != EE_OK)
+        {
+            return format_result;  /* Propagate format error */
+        }
+        
+        /* After formatting, re-initialize EEPROM */
+        /* All user variables will be reset to their default values (0x00000000) */
+        ee_result = EE_Init(EE_FORCED_ERASE);  /* Use FORCED after format to ensure clean state */
+        
+        return ee_result;
+    }
+    
+    /* For any other error, return it as-is */
+    return ee_result;
+}
+
+/* USER CODE END 0 */
+void Copy_RamFunc_Section(void)
+{
+    extern uint32_t _sramfunc;
+    extern uint32_t _eramfunc;
+    extern uint32_t _siramfunc;
+
+    uint32_t *src = &_siramfunc;
+    uint32_t *dst = &_sramfunc;
+
+    while (dst < &_eramfunc)
+    {
+        *dst++ = *src++;
+    }
+}
+/**
  * @brief  The application entry point.
  * @retval int
  */
 int main(void)
 {
+    Copy_RamFunc_Section();
     HAL_Init();
 
     /* Configure the system clock */
@@ -124,7 +178,7 @@ int main(void)
      * FLASH_TYPEERASE_SECTORS_NS because EDATA sectors are Non-Secure. [RM0481
      * §7.3.10: EDATA sectors 120-127, accessible at 0x0D000000 via Secure
      * alias] */
-    if (EE_Init(EE_FORCED_ERASE) != EE_OK)
+     if (SafeEEInit() != EE_OK)
     {
         Error_Handler();
     }

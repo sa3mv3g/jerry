@@ -495,7 +495,7 @@ def configure_trustzone(
     """Configure TrustZone option bytes on the device.
 
     This is a two-step process:
-    1. Enable TrustZone (TZEN=0xB4) - may trigger mass erase
+    1. Enable TrustZone (TZEN=0xB4) - may trigger mass erase (only if not already enabled)
     2. Configure secure regions and boot address
 
     Args:
@@ -509,29 +509,59 @@ def configure_trustzone(
     logger.info("=" * 60)
     logger.info("STEP 1: Enabling TrustZone")
     logger.info("=" * 60)
-    logger.warning(
-        "WARNING: Enabling TrustZone (TZEN) may trigger a mass erase!"
-    )
 
-    if not force and not programmer.dry_run:
-        # Auto-confirm when stdin is not a TTY (e.g. build.py flash, CI, pipes).
-        # Only prompt when running interactively in a terminal.
-        import sys as _sys
-        if not _sys.stdin.isatty():
-            logger.info("Non-interactive mode — auto-confirming TrustZone enable")
+    # Check if TrustZone is already enabled to avoid unnecessary mass erase
+    try:
+        current_ob = programmer.read_option_bytes()
+        tzen_enabled = "tzen=0xb4" in current_ob.lower()
+        if tzen_enabled:
+            logger.info("TrustZone is already enabled (TZEN=0xB4) - skipping enable step")
         else:
-            response = input("Continue? [y/N]: ").strip().lower()
-            if response != "y":
-                logger.info("Aborted by user")
-                _sys.exit(0)
+            logger.warning(
+                "WARNING: Enabling TrustZone (TZEN) may trigger a mass erase!"
+            )
 
-    # Step 1: Enable TrustZone
-    programmer.write_option_bytes(TZEN=config.tzen)
+            if not force and not programmer.dry_run:
+                # Auto-confirm when stdin is not a TTY (e.g. build.py flash, CI, pipes).
+                # Only prompt when running interactively in a terminal.
+                import sys as _sys
+                if not _sys.stdin.isatty():
+                    logger.info("Non-interactive mode — auto-confirming TrustZone enable")
+                else:
+                    response = input("Continue? [y/N]: ").strip().lower()
+                    if response != "y":
+                        logger.info("Aborted by user")
+                        _sys.exit(0)
 
-    # Wait for device to reset after TZEN change
-    if not programmer.dry_run:
-        logger.info("Waiting for device to reset...")
-        time.sleep(2)
+            # Step 1: Enable TrustZone
+            programmer.write_option_bytes(TZEN=config.tzen)
+
+            # Wait for device to reset after TZEN change
+            if not programmer.dry_run:
+                logger.info("Waiting for device to reset...")
+                time.sleep(2)
+    except Exception as e:
+        logger.warning(f"Could not read option bytes to check TZEN status: {e}")
+        logger.warning("Proceeding with TrustZone enable (may cause mass erase)")
+        if not force and not programmer.dry_run:
+            # Auto-confirm when stdin is not a TTY (e.g. build.py flash, CI, pipes).
+            # Only prompt when running interactively in a terminal.
+            import sys as _sys
+            if not _sys.stdin.isatty():
+                logger.info("Non-interactive mode — auto-confirming TrustZone enable")
+            else:
+                response = input("Continue? [y/N]: ").strip().lower()
+                if response != "y":
+                    logger.info("Aborted by user")
+                    _sys.exit(0)
+
+        # Step 1: Enable TrustZone
+        programmer.write_option_bytes(TZEN=config.tzen)
+
+        # Wait for device to reset after TZEN change
+        if not programmer.dry_run:
+            logger.info("Waiting for device to reset...")
+            time.sleep(2)
 
     logger.info("=" * 60)
     logger.info("STEP 2: Configuring Secure Regions, Boot Address and EDATA")

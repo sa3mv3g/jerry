@@ -1,5 +1,4 @@
-/*
- ******************************************************************************
+/*******************************************************************************
  **
  ** @file        : LinkerScript.ld
  **
@@ -36,40 +35,23 @@
 ENTRY(Reset_Handler)
 
 /* Highest address of the user mode stack */
-_estack = ORIGIN(RAM) + LENGTH(RAM); /* end of "RAM" Ram type memory */
+_estack = ORIGIN(RAM) + LENGTH(RAM);
 
-_Min_Heap_Size = 0x200;      /* required amount of heap  */
-_Min_Stack_Size = 0x400; /* required amount of stack */
+_Min_Heap_Size  = 0x200;
+_Min_Stack_Size = 0x400;
 
 /* Memories definition */
 MEMORY
 {
-  RAM      (xrw) : ORIGIN = 0x30000000, LENGTH = 320K    /* Secure SRAM (upper half) */
+  RAM      (xrw) : ORIGIN = 0x30000000, LENGTH = 320K
 
-  /* Secure firmware code: Bank 1 sectors 0-30 (31 sectors x 8KB = 248KB)
-   * ORIGIN = 0x0C000000 = Secure alias of Bank 1 physical start
-   * SECBOOTADD option byte must be set to 0x0C00_0000 (default)
-   * Budget: ~45KB current firmware + ~40KB mbedTLS crypto + ~163KB future headroom
-   * [RM0481 §7.4.6 lines 1747-1749: "SECBOOTADD = 0x0C00 0000"]
-   * [RM0481 Table 48: Secure alias 0x0C000000 is NOT in the swappable range] */
+  /* Secure firmware code: Bank 1 sectors 0-30 (31 sectors x 8KB = 248KB) */
   FLASH    (rx)  : ORIGIN = 0x0C000000, LENGTH = 248K
 
-  /* NSC veneer: Bank 1 sector 31 (8KB)
-   * ORIGIN = 0x0C03E000 = Secure alias base + 31 sectors x 8KB
-   * SECWM1_END = 31 (0x1F) means sectors 0-31 are Secure (watermark includes NSC sector)
-   * Total Secure partition = 256KB (sectors 0-31)
-   * [RM0481 §7.6.1: NSC region is accessible by NS code via secure gateway stubs] */
+  /* NSC veneer: Bank 1 sector 31 (8KB) */
   FLASH_NSC (rx) : ORIGIN = 0x0C03E000, LENGTH = 8K
 
-  /* EDATA1: Bank 1 high-cycle data area (sectors 120-127, 8 sectors x 6KB = 48KB)
-   * Accessed via Secure AHB alias 0x0D000000 — STABLE, does NOT swap with SWAP_BANK
-   * [RM0481 §7.3.10 lines 940-942: "120-127 for STM32H562/563/573xx devices"]
-   * [RM0481 §7.3.10 lines 913-915: "data are accessible from 0x0900_0000 to 0x0900_BFFF for Bank 1"]
-   * [stm32h563xx.h: FLASH_EDATA_BASE_S = 0x0D000000UL — Secure alias, not in Table 48 swap range]
-   * MPU must mark this region as non-cacheable (6-bit ECC on 16-bit words)
-   * Used by EEPROM emulation middleware (EDATA_ENABLED defined in Secure build)
-   * HAL driver: FLASH_TYPEPROGRAM_HALFWORD_EDATA / FLASH_TYPEPROGRAM_WORD_EDATA
-   *             guarded by #if defined(FLASH_EDATAR_EDATA_EN) */
+  /* EDATA1: Bank 1 high-cycle data area (sectors 120-127, 8 sectors x 6KB = 48KB) */
   EDATA_S   (rw) : ORIGIN = 0x0D000000, LENGTH = 48K
 }
 
@@ -80,44 +62,58 @@ SECTIONS
   .isr_vector :
   {
     . = ALIGN(4);
-    KEEP(*(.isr_vector)) /* Startup code */
+    KEEP(*(.isr_vector))
     . = ALIGN(4);
   } >FLASH
+
+  .FlashWriteFunction :
+  {
+    . = ALIGN(4);
+    _sramfunc = .;
+
+    application/bsp/stm/stm32h563/CMakeFiles/jerry_secure_app.dir/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_flash.c.obj(.text*)
+    application/bsp/stm/stm32h563/CMakeFiles/jerry_secure_app.dir/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_flash_ex.c.obj(.text*)
+    application/bsp/stm/stm32h563/CMakeFiles/jerry_secure_app.dir/Secure/Core/EEPROM_Emul/Core/eeprom_emul.c.obj(.text*)
+    application/bsp/stm/stm32h563/CMakeFiles/jerry_secure_app.dir/Secure/Core/EEPROM_Emul/Porting/STM32H5/flash_interface.c.obj(.text*)
+
+    . = ALIGN(4);
+    _eramfunc = .;
+  } >RAM AT> FLASH
+
+  _siramfunc = LOADADDR(.FlashWriteFunction);
 
   /* The program code and other data into "FLASH" Rom type memory */
   .text :
   {
     . = ALIGN(4);
-    *(.text)           /* .text sections (code) */
-    *(.text*)          /* .text* sections (code) */
-    *(.glue_7)         /* glue arm to thumb code */
-    *(.glue_7t)        /* glue thumb to arm code */
+    *(.text)
+    *(.text*)
+    *(.glue_7)
+    *(.glue_7t)
     *(.eh_frame)
-
     KEEP (*(.init))
     KEEP (*(.fini))
-
     . = ALIGN(4);
-    _etext = .;        /* define a global symbols at end of code */
+    _etext = .;
   } >FLASH
 
   /* Constant data into "FLASH" Rom type memory */
   .rodata :
   {
     . = ALIGN(4);
-    *(.rodata)         /* .rodata sections (constants, strings, etc.) */
-    *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
+    *(.rodata)
+    *(.rodata*)
     . = ALIGN(4);
   } >FLASH
 
-  .ARM.extab : /* The READONLY keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
+  .ARM.extab :
   {
     . = ALIGN(4);
     *(.ARM.extab* .gnu.linkonce.armextab.*)
     . = ALIGN(4);
   } >FLASH
 
-  .ARM : /* The READONLY keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
+  .ARM :
   {
     . = ALIGN(4);
     __exidx_start = .;
@@ -126,7 +122,7 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  .preinit_array : /* The READONLY keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
+  .preinit_array :
   {
     . = ALIGN(4);
     PROVIDE_HIDDEN (__preinit_array_start = .);
@@ -135,7 +131,7 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  .init_array : /* The READONLY keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
+  .init_array :
   {
     . = ALIGN(4);
     PROVIDE_HIDDEN (__init_array_start = .);
@@ -145,7 +141,7 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  .fini_array : /* The READONLY keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
+  .fini_array :
   {
     . = ALIGN(4);
     PROVIDE_HIDDEN (__fini_array_start = .);
@@ -162,29 +158,24 @@ SECTIONS
   .data :
   {
     . = ALIGN(4);
-    _sdata = .;        /* create a global symbol at data start */
-    *(.data)           /* .data sections */
-    *(.data*)          /* .data* sections */
-    *(.RamFunc)        /* .RamFunc sections */
-    *(.RamFunc*)       /* .RamFunc* sections */
-
+    _sdata = .;
+    *(.data)
+    *(.data*)
+    *(.RamFunc)
+    *(.RamFunc*)
     . = ALIGN(4);
-    _edata = .;        /* define a global symbol at data end */
-
+    _edata = .;
   } >RAM AT> FLASH
 
+  /* Secure Gateway stubs */
   .gnu.sgstubs :
   {
     . = ALIGN(4);
-    *(.gnu.sgstubs*)   /* Secure Gateway stubs */
+    *(.gnu.sgstubs*)
     . = ALIGN(4);
   } >FLASH_NSC
 
-  /* EDATA1 region symbols — used by EEPROM emulation middleware (EE_Init, EE_WriteVariable32bits)
-   * NOLOAD: linker reserves the address range but generates no load data.
-   * The EEPROM emulation middleware manages this region entirely at runtime.
-   * __edata_s_start and __edata_s_end are available as extern symbols in Secure C code.
-   * MPU_Config_Secure() must mark 0x0D000000-0x0D00BFFF as non-cacheable before EE_Init(). */
+  /* EDATA1 region — managed entirely by EEPROM emulation middleware at runtime */
   .edata_s (NOLOAD) :
   {
     . = ALIGN(16);
@@ -197,19 +188,17 @@ SECTIONS
   . = ALIGN(4);
   .bss :
   {
-    /* This is used by the startup in order to initialize the .bss section */
-    _sbss = .;         /* define a global symbol at bss start */
+    _sbss = .;
     __bss_start__ = _sbss;
     *(.bss)
     *(.bss*)
     *(COMMON)
-
     . = ALIGN(4);
-    _ebss = .;         /* define a global symbol at bss end */
+    _ebss = .;
     __bss_end__ = _ebss;
   } >RAM
 
-  /* User_heap_stack section, used to check that there is enough "RAM" Ram  type memory left */
+  /* User_heap_stack section */
   ._user_heap_stack :
   {
     . = ALIGN(8);
