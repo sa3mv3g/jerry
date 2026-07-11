@@ -76,9 +76,9 @@ class OptionByteConfig:
     tzen: int = 0xB4
 
     # Secure watermark for Bank 1 (start and end)
-    # Default: entire Bank 1 is secure (0x00 to 0x7F = 1MB)
+    # 0x1F (Sectors 0 to 31) are secure
     secwm1_strt: int = 0x00
-    secwm1_end: int = 0x7F
+    secwm1_end: int = 0x1F
 
     # Secure watermark for Bank 2 (start and end)
     # Setting STRT > END makes Bank 2 non-secure
@@ -87,6 +87,9 @@ class OptionByteConfig:
 
     # Secure boot address (0x0C0000 = 0x0C000000 >> 8)
     secbootadd: int = 0x0C0000
+    
+    # Non-secure boot address (0x081000 = 0x08100000 >> 8)
+    nsbootadd: int = 0x081000
 
 
 @dataclass
@@ -138,7 +141,7 @@ class STM32Programmer:
     @property
     def _connect_args(self) -> list[str]:
         """Generate the base connection arguments, including the serial number if provided."""
-        args = ["-c", f"port={self.connection.value}"]
+        args = ["-c", f"port={self.connection.value}", "mode=HotPlug"]
         if self.sn:
             args.append(f"sn={self.sn}")
         return args
@@ -342,6 +345,7 @@ class STM32Programmer:
         address: Optional[int] = None,
         verify: bool = True,
         reset: bool = True,
+        ap: Optional[int] = None,
     ) -> None:
         """Flash a file to the target device.
 
@@ -350,6 +354,7 @@ class STM32Programmer:
             address: Start address (required for BIN files, optional for ELF/HEX).
             verify: If True, verify after programming.
             reset: If True, reset the device after programming.
+            ap: Optional Access Port number (e.g., 1 for Secure).
 
         Raises:
             FlashError: If flashing fails.
@@ -359,7 +364,13 @@ class STM32Programmer:
 
         logger.info("Flashing: %s", file_path)
 
-        args = self._connect_args + ["-w", file_path]
+        args = ["-c", f"port={self.connection.value}", "mode=UR"]
+        if self.sn:
+            args.append(f"sn={self.sn}")
+        if ap is not None:
+            args[-1] += f" ap={ap}"
+
+        args += ["-w", file_path]
 
         if address is not None:
             args.append(f"{address:#x}")
@@ -392,6 +403,23 @@ class STM32Programmer:
         logger.info("Resetting device...")
         self._run_command(self._connect_args + ["-rst"])
         logger.info("Device reset complete")
+
+    def reset_option_bytes(self) -> None:
+        """Reset option bytes to factory defaults by disabling TrustZone."""
+        logger.info("Resetting option bytes to default (TZEN=0x00, watermarks cleared)...")
+        # Disable TrustZone to trigger mass erase and reset all secure watermarks
+        self.write_option_bytes(TZEN=0x00)
+        logger.info("Waiting for device to reset after TZEN disable...")
+        time.sleep(2)
+
+        # Reset watermarks
+        self.write_option_bytes(
+            SECWM1_STRT=0x7F,
+            SECWM1_END=0x00,
+            SECWM2_STRT=0x7F,
+            SECWM2_END=0x00,
+        )
+        time.sleep(2)
 
 
 def find_firmware_files(
@@ -441,9 +469,14 @@ def find_firmware_files(
         / "bsp"
         / "stm"
         / "stm32h563"
-        / "jerry_secure_app.elf"
+        / "jerry_secure_app.hex"
     )
-    nonsecure_path = build_dir / "application" / "jerry_app.elf"
+    nonsecure_path = build_dir / "application" / "jerry_app.hex"
+
+    if not secure_path.exists():
+        secure_path = secure_path.with_suffix(".elf")
+    if not nonsecure_path.exists():
+        nonsecure_path = nonsecure_path.with_suffix(".elf")
 
     if secure_path.exists():
         secure_app = secure_path
@@ -499,9 +532,12 @@ def configure_trustzone(
 
     # Step 2: Configure secure watermarks and boot address
     programmer.write_option_bytes(
+        SECWM1_STRT=config.secwm1_strt,
+        SECWM1_END=config.secwm1_end,
         SECWM2_STRT=config.secwm2_strt,
         SECWM2_END=config.secwm2_end,
         SECBOOTADD=config.secbootadd,
+        NSBOOTADD=config.nsbootadd,
     )
 
     logger.info("TrustZone configuration complete!")
@@ -535,6 +571,7 @@ def flash_firmware(
         str(secure_app),
         verify=True,
         reset=False,  # Don't reset yet, need to flash non-secure too
+        ap=1,         # Secure AP
     )
 
     logger.info("=" * 60)
@@ -548,6 +585,7 @@ def flash_firmware(
         str(nonsecure_app),
         verify=True,
         reset=True,  # Reset after final flash
+        ap=0,        # Non-Secure AP
     )
 
     logger.info("=" * 60)
@@ -584,8 +622,8 @@ Examples:
     parser.add_argument(
         "--build-dir",
         type=Path,
-        default=Path("build"),
-        help="Path to CMake build directory (default: ./build)",
+        default=Path("build/stm-Debug"),
+        help="Path to CMake build directory (default: ./build/stm-Debug)",
     )
 
     parser.add_argument(
@@ -657,6 +695,7 @@ Examples:
 
         # Configure option bytes if needed
         if not args.skip_option_bytes:
+            programmer.reset_option_bytes()
             ob_config = OptionByteConfig()
             configure_trustzone(programmer, ob_config, force=args.force)
 
@@ -701,3 +740,4 @@ Examples:
 
 if __name__ == "__main__":
     sys.exit(main())
+

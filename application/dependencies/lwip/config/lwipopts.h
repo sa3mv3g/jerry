@@ -70,6 +70,16 @@
 #define LWIP_RAW                        1
 #define LWIP_DHCP                       1
 #define LWIP_DNS                        1
+#define LWIP_SNTP                       1
+
+/* --- SNTP CONFIGURATION --- */
+#define SNTP_SERVER_DNS             0           /* Use static IP */
+#define SNTP_UPDATE_DELAY           3600000     /*  1 hour */
+#define SNTP_STARTUP_DELAY          1           /* Start immediately */
+
+/* SNTP TIME SYNC HOOK */
+void sntp_set_system_time(unsigned int sec);
+#define SNTP_SET_SYSTEM_TIME(sec) sntp_set_system_time(sec)
 
 /* ------------------------------------------------
    6. Checksum Offload (STM32H5 Hardware)

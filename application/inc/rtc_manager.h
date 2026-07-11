@@ -12,6 +12,13 @@
 void RTC_Manager_Init(void);
 
 /**
+ * @brief Check if SNTP time sync has occurred
+ *
+ * @return true if time is synced, false otherwise
+ */
+bool RTC_Manager_IsTimeSynced(void);
+
+/**
  * @brief Print the current RTC time via debug interface
  */
 void RTC_Manager_PrintCurrentTime(void);
@@ -39,5 +46,12 @@ uint32_t RTC_Manager_GetTimeWithMs(App_RTC_TimeTypeDef *pTimeDate);
  * @return true if successful, false otherwise
  */
 bool RTC_Manager_SetTimeAndDate(const App_RTC_TimeTypeDef *pTimeDate);
+
+/**
+ * @brief Hook for lwIP SNTP to set system time
+ *
+ * @param sec Seconds since Jan 1, 1970 (Unix Epoch)
+ */
+void sntp_set_system_time(unsigned int sec);
 
 #endif  // RTC_MANAGER_H

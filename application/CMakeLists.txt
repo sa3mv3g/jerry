@@ -392,6 +392,11 @@ add_custom_command(TARGET jerry_app POST_BUILD
     COMMENT "Generating disassembly for jerry_app"
 )
 
+add_custom_command(TARGET jerry_app POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:jerry_app> $<TARGET_FILE_DIR:jerry_app>/jerry_app.hex
+    COMMENT "Generating hex file for jerry_app"
+)
+
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_custom_command(TARGET jerry_app POST_BUILD
         COMMAND ${CMAKE_OBJCOPY} --strip-all $<TARGET_FILE:jerry_app>

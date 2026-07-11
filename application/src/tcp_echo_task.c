@@ -19,6 +19,7 @@
 #include "lwip/stats.h"
 #include "lwip/sys.h"
 #include "lwip/tcpip.h"
+#include "lwip/apps/sntp.h"
 
 /*---------------------------------------------------------------------------*/
 /* IP Address Configuration                                                  */
@@ -292,6 +293,14 @@ void vTcpEchoTask(void *pvParameters)
 
     LcdManager_UpdateIpv4Address(ip4addr_ntoa(netif_ip4_addr(&gnetif)));
 #endif /* USE_DHCP */
+
+    /* Initialize SNTP to fetch time from Host PC */
+    LOG_INF("Initializing SNTP...");
+    ip_addr_t sntp_server_ip;
+    IP_ADDR4(&sntp_server_ip, 169, 254, 4, 50);
+    sntp_setserver(0, &sntp_server_ip);
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_init();
 
     HAL_IWDG_Refresh(&hiwdg);
 

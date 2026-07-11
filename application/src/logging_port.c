@@ -6,6 +6,7 @@
 #include "SEGGER_RTT.h"
 #include "rtc_manager.h"
 #include "task.h"
+#include "syslog_task.h"
 
 /* Buffer for log module */
 static char log_buffer[512];
@@ -17,11 +18,12 @@ static void log_hook_with_timestamp(const char *str)
     uint32_t            ms       = 0;
 
     char ts_buf[64];
+    int ts_len = 0;
 
-    if (RTC_Manager_GetTimeAndDate(&timeDate) == true)
+    if (RTC_Manager_IsTimeSynced() && RTC_Manager_GetTimeAndDate(&timeDate) == true)
     {
         ms         = RTC_Manager_GetTimeWithMs(&timeDate);
-        int ts_len = snprintf(
+        ts_len = snprintf(
             ts_buf, sizeof(ts_buf), "[%04d-%02d-%02d %02d:%02d:%02d.%03lu] ",
             (int)(2000 + timeDate.year), (int)timeDate.month,
             (int)timeDate.date, (int)timeDate.hours, (int)timeDate.minutes,
@@ -30,9 +32,9 @@ static void log_hook_with_timestamp(const char *str)
     }
     else
     {
-        /* Fallback if RTC fails */
+        /* Fallback if RTC fails or SNTP hasn't synced yet */
         uint32_t ticks = xTaskGetTickCount();
-        int      ts_len =
+        ts_len =
             snprintf(ts_buf, sizeof(ts_buf), "[%lu] ", (unsigned long)ticks);
         SEGGER_RTT_Write(0, ts_buf, ts_len);
     }
@@ -41,6 +43,10 @@ static void log_hook_with_timestamp(const char *str)
     int len = 0;
     while (str[len] != '\0') len++;
     SEGGER_RTT_Write(0, str, len);
+
+    /* Forward to Syslog */
+    /* We don't include the timestamp because SyslogTask adds its own */
+    SyslogTask_SendLog(str, len);
 }
 
 void Logging_Init(void)

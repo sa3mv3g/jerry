@@ -66,6 +66,8 @@ target_sources(lwip_stack PRIVATE
     "${STM32_LWIP_DIR}/src/api/sockets.c"
     "${STM32_LWIP_DIR}/src/api/netdb.c"
     "${STM32_LWIP_DIR}/src/api/netifapi.c"
+    # Apps
+    "${STM32_LWIP_DIR}/src/apps/sntp/sntp.c"
     # Port sources (ethernetif.c, lan8742.c, sys_arch.c)
     "${LWIP_PORT_SRC}"
 )

@@ -195,6 +195,11 @@ add_custom_command(TARGET jerry_secure_app POST_BUILD
     COMMENT "Generating disassembly for jerry_secure_app"
 )
 
+add_custom_command(TARGET jerry_secure_app POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:jerry_secure_app> $<TARGET_FILE_DIR:jerry_secure_app>/jerry_secure_app.hex
+    COMMENT "Generating hex file for jerry_secure_app"
+)
+
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_custom_command(TARGET jerry_secure_app POST_BUILD
         COMMAND ${CMAKE_OBJCOPY} --strip-all $<TARGET_FILE:jerry_secure_app>

@@ -20,6 +20,7 @@
 #include "logging_port.h"
 #include "register_lock.h"
 #include "rtc_manager.h"
+#include "syslog_task.h"
 #include "task.h"
 #include "timers.h"
 
@@ -33,13 +34,14 @@
 #include "lwip/stats.h"
 
 /* Stack size for the tasks */
-#define MAIN_TASK_STACK_SIZE       512U
-#define LOG_TASK_STACK_SIZE        configMINIMAL_STACK_SIZE
-#define MODBUS_TASK_STACK_SIZE     1024U
-#define FOTA_TASK_STACK_SIZE       configMINIMAL_STACK_SIZE
-#define MONITOR_TASK_STACK_SIZE    512U
-#define TCP_ECHO_TASK_STACK_SIZE   1024U
-#define LCD_MANAGE_TASK_STACK_SIZE 1024U
+#define MAIN_TASK_STACK_SIZE       4096
+#define LOG_TASK_STACK_SIZE        4096
+#define MODBUS_TASK_STACK_SIZE     4096
+#define FOTA_TASK_STACK_SIZE       4096
+#define MONITOR_TASK_STACK_SIZE    4096
+#define TCP_ECHO_TASK_STACK_SIZE   4096
+#define LCD_MANAGE_TASK_STACK_SIZE 4096
+#define SYSLOG_TASK_STACK_SIZE     4096
 
 /* ==========================================================================
  * Forward Declarations (MISRA 8.4)
@@ -86,6 +88,9 @@ static StackType_t  xTcpEchoTaskStack[TCP_ECHO_TASK_STACK_SIZE];
 
 static StaticTask_t xLcdManageTaskTCB;
 static StackType_t  xLcdManageTaskStack[LCD_MANAGE_TASK_STACK_SIZE];
+
+static StaticTask_t xSyslogTaskTCB;
+static StackType_t  xSyslogTaskStack[SYSLOG_TASK_STACK_SIZE];
 
 /* Task Handles */
 static TaskHandle_t xMainTaskHandle = NULL;
@@ -492,8 +497,14 @@ int main(void)
 void vMainTask(void* pvParameters)
 {
     (void)pvParameters;
-
+    SyslogTask_Init();
+    
     /* Initialize sub-systems */
+
+    (void)xTaskCreateStatic(vSyslogTask, "Syslog", SYSLOG_TASK_STACK_SIZE, NULL,
+                            (UBaseType_t)(tskIDLE_PRIORITY + 1U),
+                            xSyslogTaskStack, &xSyslogTaskTCB);
+
     (void)xTaskCreateStatic(vLoggingTask, "Log", LOG_TASK_STACK_SIZE, NULL,
                             (UBaseType_t)(tskIDLE_PRIORITY + 1U), xLogTaskStack,
                             &xLogTaskTCB);
