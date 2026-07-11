@@ -8,13 +8,13 @@
             "name": "STM32H563 Build & Debug Microcontroller - ST-Link",
             "cwd": "${workspaceFolder}",
             "type": "cortex-debug",
-            "executable": "${workspaceFolder}/build/application/jerry_app.elf",
+            "executable": "${workspaceFolder}/build/stm-Debug/application/jerry_app.elf",
             "request": "launch",
             "servertype": "stlink",
             "device": "STM32H563ZI", //MCU used
             "interface": "swd",
             "serialNumber": "", //Set ST-Link ID if you use multiple at the same time
-            "runToEntryPoint": "main",
+            "runToEntryPoint": "BSP_Init",
             "svdFile": "${env:STM32CLT_PATH}/STMicroelectronics_CMSIS_SVD/STM32H563.svd",
             "v1": false, //Change it depending on ST Link version
             "serverpath": "${env:STM32CLT_PATH}/STLink-gdb-server/bin/ST-LINK_gdbserver",
@@ -24,22 +24,22 @@
             "gdbPath": "${env:STM32CLT_PATH}/GNU-tools-for-STM32/bin/arm-none-eabi-gdb",
             "serverArgs": [
                 "-m",
-                "0",
+                "1",
             ],
             "postLaunchCommands": [
-                "add-symbol-file build/application/bsp/stm/stm32h563/jerry_secure_app.elf"
+                "add-symbol-file build/stm-Debug/application/bsp/stm/stm32h563/jerry_secure_app.elf"
             ],
         },
         {
             "name": "STM32H563 Attach to Microcontroller - ST-Link",
             "cwd": "${workspaceFolder}",
             "type": "cortex-debug",
-            "executable": "build/application/jerry_app.elf",
+            "executable": "${workspaceFolder}/build/stm-Debug/application/jerry_app.elf",
             "request": "attach",
             "servertype": "stlink",
             "device": "STM32H563ZI", //MCU used
             "interface": "swd",
-            "serialNumber": "", //Set ST-Link ID if you use multiple at the same time
+            "serialNumber": "000B00204142501220353451", //Set ST-Link ID if you use multiple at the same time
             "runToEntryPoint": "main",
             "svdFile": "${env:STM32CLT_PATH}/STMicroelectronics_CMSIS_SVD/STM32H563.svd",
             "v1": false, //Change it depending on ST Link version
@@ -50,20 +50,31 @@
             "gdbPath": "${env:STM32CLT_PATH}/GNU-tools-for-STM32/bin/arm-none-eabi-gdb",
             "serverArgs": [
                 "-m",
-                "0",
+                "1",
             ],
             "postAttachCommands": [
-                "add-symbol-file build/application/bsp/stm/stm32h563/jerry_secure_app.elf"
+                "add-symbol-file build/stm-Debug/application/bsp/stm/stm32h563/jerry_secure_app.elf"
             ],
+
+            "rttConfig": {
+                "enabled": true,
+                "address": "auto",
+                "decoders": [
+                    {
+                        "port": 0,
+                        "type": "console"
+                    }
+                ]
+            }
         },
         {
             "name": "OpenOCD STM32H563",
             "cwd": "${workspaceFolder}",
             "type": "cortex-debug",
-            "executable": "${workspaceFolder}/build/application/jerry_app.elf",
+            "executable": "${workspaceFolder}/build/stm-Debug/application/jerry_app.elf",
             "request": "launch",
             "servertype": "openocd",
-            "serverpath": "${env:STM32CubeIDE_PATH}/plugins/com.st.stm32cube.ide.mcu.externaltools.openocd.win32_2.4.300.202509300731/tools/bin/openocd.exe",
+            "serverpath": "${env:STM32CubeIDE_PATH}/plugins/com.st.stm32cube.ide.mcu.externaltools.openocd.linux64_2.4.100.202501161620/toolsopenocd.exe",
             "configFiles": [
                 "${workspaceFolder}/stm32h563_openocd.cfg"
             ],
@@ -77,7 +88,7 @@
             "svdFile": "${env:STM32CLT_PATH}/STMicroelectronics_CMSIS_SVD/STM32H563.svd",
             "showDevDebugOutput": "raw",
             "postLaunchCommands": [
-                "add-symbol-file build/application/bsp/stm/stm32h563/jerry_secure_app.elf"
+                "add-symbol-file build/stm-Debug/application/bsp/stm/stm32h563/jerry_secure_app.elf"
             ]
         }
     ]

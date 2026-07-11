@@ -70,6 +70,18 @@
 #define LWIP_RAW                        1
 #define LWIP_DHCP                       1
 #define LWIP_DNS                        1
+#define LWIP_UDP                        1
+#define LWIP_SNTP                       1
+
+/* Use static IP */
+#define SNTP_SERVER_DNS             (0U)
+#define SNTP_UPDATE_DELAY           (15000U)     
+#define SNTP_STARTUP_DELAY          (3000U)
+#define SNTP_RETRY_TIMEOUT          (2000U)
+
+/* SNTP TIME SYNC HOOK */
+void BSP_RTC_SetUnixTimestamp(unsigned int sec);
+#define SNTP_SET_SYSTEM_TIME(sec) BSP_RTC_SetUnixTimestamp(sec)
 
 /* ------------------------------------------------
    6. Checksum Offload (STM32H5 Hardware)
