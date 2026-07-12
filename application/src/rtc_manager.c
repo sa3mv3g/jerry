@@ -1,3 +1,4 @@
+
 #include "rtc_manager.h"
 
 #include <stdio.h>
@@ -5,6 +6,9 @@
 
 #include "log.h"
 #include "lwipopts.h"
+#include "stm32h5xx_hal.h"
+
+extern RTC_HandleTypeDef hrtc;
 
 void BSP_RTC_SetUnixTimestamp(unsigned int sec)
 {
@@ -40,19 +44,42 @@ void RTC_Manager_Init(void)
 
 bool RTC_Manager_GetTimeAndDate(App_RTC_TimeTypeDef *pTimeDate)
 {
-    if (NULL != pTimeDate)
+    bool            retval = false; /* assume error */
+    RTC_TimeTypeDef sTime  = {0};
+    RTC_DateTypeDef sDate  = {0};
+
+    if (pTimeDate != NULL)
     {
-        pTimeDate->hours           = 0;
-        pTimeDate->minutes         = 0;
-        pTimeDate->seconds         = 0;
-        pTimeDate->date            = 0;
-        pTimeDate->month           = 0;
-        pTimeDate->year            = 0;
-        pTimeDate->weekday         = 0;
-        pTimeDate->subseconds      = 0;
-        pTimeDate->second_fraction = 0;
+        /* Get Time */
+        if (HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN) == HAL_OK)
+        {
+            /* Get Date (Unlocks shadow registers) */
+            if (HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN) == HAL_OK)
+            {
+                pTimeDate->hours           = sTime.Hours;
+                pTimeDate->minutes         = sTime.Minutes;
+                pTimeDate->seconds         = sTime.Seconds;
+                pTimeDate->date            = sDate.Date;
+                pTimeDate->month           = sDate.Month;
+                pTimeDate->year            = sDate.Year;
+                pTimeDate->weekday         = sDate.WeekDay;
+                pTimeDate->subseconds      = sTime.SubSeconds;
+                pTimeDate->second_fraction = sTime.SecondFraction;
+
+                retval = true;
+            }
+            else
+            {
+                /* error */
+            }
+        }
+        else
+        {
+            /* error */
+        }
     }
-    return true;
+
+    return retval;
 }
 
 uint32_t RTC_Manager_GetTimeWithMs(App_RTC_TimeTypeDef *pTimeDate)
@@ -62,8 +89,43 @@ uint32_t RTC_Manager_GetTimeWithMs(App_RTC_TimeTypeDef *pTimeDate)
 
 bool RTC_Manager_SetTimeAndDate(const App_RTC_TimeTypeDef *pTimeDate)
 {
-    (void)pTimeDate;
-    return true;
+    bool            retval = false;
+    RTC_TimeTypeDef sTime  = {0};
+    RTC_DateTypeDef sDate  = {0};
+
+    if (pTimeDate != NULL)
+    {
+        sTime.Hours          = pTimeDate->hours;
+        sTime.Minutes        = pTimeDate->minutes;
+        sTime.Seconds        = pTimeDate->seconds;
+        sTime.TimeFormat     = RTC_HOURFORMAT_24;
+        sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
+        sTime.StoreOperation = RTC_STOREOPERATION_RESET;
+
+        sDate.Date    = pTimeDate->date;
+        sDate.Month   = pTimeDate->month;
+        sDate.Year    = pTimeDate->year;
+        sDate.WeekDay = pTimeDate->weekday;
+
+        /* Set Time first, then Date */
+        if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) == HAL_OK)
+        {
+            if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) == HAL_OK)
+            {
+                retval = true;
+            }
+            else
+            {
+                /* error */
+            }
+        }
+        else
+        {
+            /* error */
+        }
+    }
+
+    return retval;
 }
 
 void RTC_Manager_PrintCurrentTime(void)

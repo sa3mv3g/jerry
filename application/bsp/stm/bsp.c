@@ -170,6 +170,7 @@ bsp_error_t BSP_Init(void)
     MX_ADC1_Init();
     MX_I2C4_Init();
     MX_TIM7_Init();
+    MX_RTC_Init();
     MX_CRC_Init();
     /*
         Enable and set FLASH Interrupt priority

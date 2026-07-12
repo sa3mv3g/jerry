@@ -312,10 +312,8 @@ static void MX_RTC_Init(void)
 
   /* USER CODE END RTC_Init 0 */
 
-  RTC_PrivilegeStateTypeDef privilegeState = {0};
   RTC_SecureStateTypeDef secureState = {0};
-  RTC_TimeTypeDef sTime = {0};
-  RTC_DateTypeDef sDate = {0};
+  RTC_PrivilegeStateTypeDef privilegeState = {0};
 
   /* USER CODE BEGIN RTC_Init 1 */
 
@@ -323,17 +321,13 @@ static void MX_RTC_Init(void)
 
   /** Initialize RTC Only
   */
-  hrtc.Instance = RTC;
-  hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
-  hrtc.Init.AsynchPrediv = 127;
-  hrtc.Init.SynchPrediv = 255;
-  hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
-  hrtc.Init.OutPutRemap = RTC_OUTPUT_REMAP_NONE;
-  hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
-  hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
-  hrtc.Init.OutPutPullUp = RTC_OUTPUT_PULLUP_NONE;
-  hrtc.Init.BinMode = RTC_BINARY_NONE;
-  if (HAL_RTC_Init(&hrtc) != HAL_OK)
+  secureState.rtcSecureFull = RTC_SECURE_FULL_NO;
+  secureState.rtcNonSecureFeatures = RTC_NONSECURE_FEATURE_ALRB|RTC_NONSECURE_FEATURE_WUT
+                              |RTC_NONSECURE_FEATURE_INIT|RTC_NONSECURE_FEATURE_CAL
+                              |RTC_NONSECURE_FEATURE_ALRA|RTC_NONSECURE_FEATURE_TS;
+  secureState.backupRegisterStartZone2 = RTC_BKP_DR0;
+  secureState.backupRegisterStartZone3 = RTC_BKP_DR0;
+  if (HAL_RTCEx_SecureModeSet(&hrtc, &secureState) != HAL_OK)
   {
     Error_Handler();
   }
@@ -342,38 +336,6 @@ static void MX_RTC_Init(void)
   privilegeState.backupRegisterStartZone2 = RTC_BKP_DR0;
   privilegeState.backupRegisterStartZone3 = RTC_BKP_DR0;
   if (HAL_RTCEx_PrivilegeModeSet(&hrtc, &privilegeState) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  secureState.rtcSecureFull = RTC_SECURE_FULL_YES;
-  secureState.backupRegisterStartZone2 = RTC_BKP_DR0;
-  secureState.backupRegisterStartZone3 = RTC_BKP_DR0;
-  if (HAL_RTCEx_SecureModeSet(&hrtc, &secureState) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /* USER CODE BEGIN Check_RTC_BKUP */
-
-  /* USER CODE END Check_RTC_BKUP */
-
-  /** Initialize RTC and set the Time and Date
-  */
-  sTime.Hours = 0x0;
-  sTime.Minutes = 0x0;
-  sTime.Seconds = 0x0;
-  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
-  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
-  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sDate.WeekDay = RTC_WEEKDAY_FRIDAY;
-  sDate.Month = RTC_MONTH_JUNE;
-  sDate.Date = 0x26;
-  sDate.Year = 0x0;
-
-  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
   {
     Error_Handler();
   }
