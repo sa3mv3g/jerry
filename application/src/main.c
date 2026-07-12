@@ -452,6 +452,8 @@ int main(void)
         SCB->VTOR = (uint32_t)ram_vector_table;
     }
 
+    SEGGER_RTT_Init();
+
     /* Initialize Hardware (BSP) */
     BSP_Init();
 
