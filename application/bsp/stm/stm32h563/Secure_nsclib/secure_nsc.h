@@ -36,28 +36,11 @@ typedef enum
   GTZC_ERROR_CB_ID       = 0x01U  /*!< GTZC secure error callback ID */
 } SECURE_CallbackIDTypeDef;
 
-/**
-  * @brief  Shared RTC Time and Date structure
-  */
-typedef struct
-{
-  uint8_t hours;
-  uint8_t minutes;
-  uint8_t seconds;
-  uint8_t date;
-  uint8_t month;
-  uint8_t year;
-  uint8_t weekday;
-  uint32_t subseconds;
-  uint32_t second_fraction;
-} App_RTC_TimeTypeDef;
+
 
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
-void SECURE_RegisterCallback(SECURE_CallbackIDTypeDef CallbackId, void *func);
-uint32_t SECURE_RTC_GetTimeDate(App_RTC_TimeTypeDef *pTimeDate);
-uint32_t SECURE_RTC_SetTimeDate(const App_RTC_TimeTypeDef *pTimeDate);
 
 #endif /* SECURE_NSC_H */
 /* USER CODE END Non_Secure_CallLib_h */

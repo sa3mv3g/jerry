@@ -4,7 +4,21 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "secure_nsc.h"
+/**
+ * @brief  Shared RTC Time and Date structure
+ */
+typedef struct
+{
+    uint8_t  hours;
+    uint8_t  minutes;
+    uint8_t  seconds;
+    uint8_t  date;
+    uint8_t  month;
+    uint8_t  year;
+    uint8_t  weekday;
+    uint32_t subseconds;
+    uint32_t second_fraction;
+} App_RTC_TimeTypeDef;
 
 /**
  * @brief Initialize the RTC Manager (if needed for app logic)
