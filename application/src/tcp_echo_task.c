@@ -13,6 +13,7 @@
 #include "lcd_manager.h"
 #include "log.h"
 #include "lwip/api.h"
+#include "lwip/apps/sntp.h"
 #include "lwip/dhcp.h"
 #include "lwip/netif.h"
 #include "lwip/opt.h"
@@ -32,21 +33,27 @@
  * read from GPIO pins to allow multiple devices on the same network.
  * Example: With base 100 and DEVADDR=5, IP will be 169.254.4.105
  */
-#define STATIC_IP_ADDR0      169
-#define STATIC_IP_ADDR1      254
-#define STATIC_IP_ADDR2      4
-#define STATIC_IP_ADDR3_BASE 100 /* Base value, DEVADDR (0-15) is added */
+#define STATIC_IP_ADDR0      192
+#define STATIC_IP_ADDR1      168
+#define STATIC_IP_ADDR2      0
+#define STATIC_IP_ADDR3_BASE 200 /* Base value, DEVADDR (0-15) is added */
 
 #define STATIC_NETMASK0 255
 #define STATIC_NETMASK1 255
 #define STATIC_NETMASK2 255
 #define STATIC_NETMASK3 0
 
-#define STATIC_GW_ADDR0 169
-#define STATIC_GW_ADDR1 254
-#define STATIC_GW_ADDR2 4
+#define STATIC_GW_ADDR0 192
+#define STATIC_GW_ADDR1 168
+#define STATIC_GW_ADDR2 0
 #define STATIC_GW_ADDR3 1
 #endif /* !USE_DHCP */
+
+#define SNTP_IP_ADDR0 192
+#define SNTP_IP_ADDR1 168
+#define SNTP_IP_ADDR2 0
+#define SNTP_IP_ADDR3 100
+
 /*---------------------------------------------------------------------------*/
 
 /* Define the network interface */
@@ -292,6 +299,15 @@ void vTcpEchoTask(void *pvParameters)
 
     LcdManager_UpdateIpv4Address(ip4addr_ntoa(netif_ip4_addr(&gnetif)));
 #endif /* USE_DHCP */
+
+    /* Initialize SNTP to fetch time from Host PC */
+    LOG_INF("Initializing SNTP...");
+    ip_addr_t sntp_server_ip;
+    IP_ADDR4(&sntp_server_ip, SNTP_IP_ADDR0, SNTP_IP_ADDR1, SNTP_IP_ADDR2,
+             SNTP_IP_ADDR3);
+    sntp_setserver(0, &sntp_server_ip);
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_init();
 
     HAL_IWDG_Refresh(&hiwdg);
 
