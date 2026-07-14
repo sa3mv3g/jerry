@@ -1,7 +1,7 @@
 #include "FreeRTOS.h"
 #include "bsp.h"
 #include "bsp_i2c.h"
-#include "log.h"
+#include "app_log.h"
 #include "semphr.h"
 #include "stm32h5xx_hal_i2c.h"
 

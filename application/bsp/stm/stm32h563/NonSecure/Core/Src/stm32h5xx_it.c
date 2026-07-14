@@ -25,7 +25,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "eeprom_emul.h"
-#include "log.h"
+#include "app_log.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/

@@ -5,21 +5,18 @@
 
 #include "tcp_echo_task.h"
 
-#include <stdio.h>
-
 #include "app_tasks.h"
 #include "bsp.h"
 #include "ethernetif.h"
 #include "ip_specs.h"
 #include "lcd_manager.h"
-#include "log.h"
+#include "app_log.h"
 #include "lwip/api.h"
 #include "lwip/apps/sntp.h"
 #include "lwip/dhcp.h"
 #include "lwip/netif.h"
 #include "lwip/opt.h"
 #include "lwip/stats.h"
-#include "lwip/sys.h"
 #include "lwip/tcpip.h"
 #include "network_sync.h"
 

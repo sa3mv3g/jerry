@@ -10,7 +10,6 @@
 #include "bsp.h"
 #include "bsp_i2c.h"
 #include "lcd_i2c.h"
-#include "log.h"
 #include "semphr.h"
 #include "task.h"
 

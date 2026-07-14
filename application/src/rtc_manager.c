@@ -4,8 +4,7 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "log.h"
-#include "lwipopts.h"
+#include "app_log.h"
 #include "stm32h5xx_hal.h"
 
 extern RTC_HandleTypeDef hrtc;

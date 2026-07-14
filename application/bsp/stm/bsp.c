@@ -6,7 +6,7 @@
 #include "adc_filter.h"
 #include "bsp_i2c/bsp_i2c.h"
 #include "eeprom_emul.h"
-#include "log.h"
+#include "app_log.h"
 #include "main.h"
 #include "stm32h5xx_hal.h"
 #include "stm32h5xx_hal_tim.h"

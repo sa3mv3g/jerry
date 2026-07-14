@@ -12,17 +12,14 @@
  * @copyright Copyright (c) 2026
  */
 
-#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 
 #include "FreeRTOS.h"
 #include "app_version.h"
 #include "bsp.h"
 #include "digital_output.h"
 #include "jerry_device_registers.h"
-#include "lcd_manager.h"
 #include "modbus_callbacks.h"
 #include "rtc_manager.h"
 #include "task.h"

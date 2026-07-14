@@ -1,8 +1,24 @@
 #ifndef APP_LOG_H
 #define APP_LOG_H
 
-#include "log.h"
-#include "log_cfg.h"
+#include <stdarg.h>
+
+#define LOG_LEVEL_VERBOSE 0
+#define LOG_LEVEL_DEBUG   1
+#define LOG_LEVEL_INFO    2
+#define LOG_LEVEL_WARNING 3
+#define LOG_LEVEL_ERROR   4
+#define LOG_LEVEL_NONE    5
+
+/* Syslog severities (RFC 5424) */
+#define SYSLOG_SEV_EMERG   0
+#define SYSLOG_SEV_ALERT   1
+#define SYSLOG_SEV_CRIT    2
+#define SYSLOG_SEV_ERR     3
+#define SYSLOG_SEV_WARN    4
+#define SYSLOG_SEV_NOTICE  5
+#define SYSLOG_SEV_INFO    6
+#define SYSLOG_SEV_DEBUG   7
 
 void AppLog_Init(void);
 
@@ -49,5 +65,25 @@ void AppLog_Init(void);
  * @see Syslog_Init()
  */
 void Applog_Syslog(int facility, int severity, const char* msg);
+
+void AppLog_Message(int level, int syslog_severity, const char* level_str, const char* fmt, ...);
+
+void log_set_level(int level);
+int log_get_level(void);
+
+#define LOG_ERR(fmt, ...) \
+    AppLog_Message(LOG_LEVEL_ERROR, SYSLOG_SEV_ERR, "E", fmt, ##__VA_ARGS__)
+
+#define LOG_WRN(fmt, ...) \
+    AppLog_Message(LOG_LEVEL_WARNING, SYSLOG_SEV_WARN, "W", fmt, ##__VA_ARGS__)
+
+#define LOG_INF(fmt, ...) \
+    AppLog_Message(LOG_LEVEL_INFO, SYSLOG_SEV_INFO, "I", fmt, ##__VA_ARGS__)
+
+#define LOG_DBG(fmt, ...) \
+    AppLog_Message(LOG_LEVEL_DEBUG, SYSLOG_SEV_DEBUG, "D", fmt, ##__VA_ARGS__)
+
+#define LOG_VERBOSE(fmt, ...) \
+    AppLog_Message(LOG_LEVEL_VERBOSE, SYSLOG_SEV_DEBUG, "V", fmt, ##__VA_ARGS__)
 
 #endif  // APP_LOG_H

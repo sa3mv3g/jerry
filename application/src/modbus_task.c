@@ -8,7 +8,6 @@
  * and handles Modbus requests using the generated register callbacks.
  */
 
-#include <stdio.h>
 #include <string.h>
 
 #include "FreeRTOS.h"
@@ -16,13 +15,12 @@
 #include "bsp.h"
 #include "jerry_device_registers.h"
 #include "lcd_manager.h"
-#include "log.h"
+#include "app_log.h"
 #include "lwip/api.h"
 #include "lwip/err.h"
 #include "lwip/netbuf.h"
 #include "lwip/opt.h"
-#include "lwip/sockets.h"
-#include "lwip/sys.h"
+#include "lwip/stats.h"
 #include "modbus_callbacks.h"
 #include "modbus_internal.h"
 #include "register_lock.h"
