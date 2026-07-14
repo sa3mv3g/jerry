@@ -128,13 +128,21 @@ static void print_adc_values(void)
     /* Get all filtered ADC values */
     if (BSP_ADC1_GetFilteredValuesAll(adc_values) == BSP_OK)
     {
-        LOG_INF("[ADC] ");
+        static char adc_log[128];
+        int         offset = 0;
+
+        offset +=
+            snprintf(adc_log + offset, sizeof(adc_log) - offset, "[ADC] ");
+
         for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
         {
-            /* Convert to millivolts (assuming 3.3V reference) */
             uint32_t mv = (uint32_t)(adc_values[ch] * 3300.0f);
-            LOG_INF("CH%u:%4umV ", (unsigned int)ch, (unsigned int)mv);
+            offset +=
+                snprintf(adc_log + offset, sizeof(adc_log) - offset,
+                         "CH%u:%4umV ", (unsigned int)ch, (unsigned int)mv);
         }
+
+        LOG_INF("%s", adc_log);
     }
     else
     {

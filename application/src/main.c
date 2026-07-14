@@ -11,30 +11,29 @@
 
 #include "FreeRTOS.h"
 #include "SEGGER_RTT.h"
+#include "app_log.h"
 #include "app_tasks.h"
 #include "bsp.h"
 #include "digital_output.h"
 #include "jerry_device_registers.h"
 #include "lcd_manager.h"
 #include "log.h"
-#include "logging_port.h"
 #include "register_lock.h"
 #include "rtc_manager.h"
 #include "task.h"
 #include "timers.h"
-
 #ifdef ENABLE_I2C_DEVICE_SCAN
 #include "i2c_scanner.h"
 #endif
-
 /* LwIP includes for memory stats */
 #include "lwip/mem.h"
 #include "lwip/memp.h"
 #include "lwip/stats.h"
+#include "network_sync.h"
 
 /* Stack size for the tasks */
 #define MAIN_TASK_STACK_SIZE       512U
-#define LOG_TASK_STACK_SIZE        configMINIMAL_STACK_SIZE
+#define LOG_TASK_STACK_SIZE        1024U
 #define MODBUS_TASK_STACK_SIZE     1024U
 #define FOTA_TASK_STACK_SIZE       configMINIMAL_STACK_SIZE
 #define MONITOR_TASK_STACK_SIZE    512U
@@ -452,11 +451,13 @@ int main(void)
         SCB->VTOR = (uint32_t)ram_vector_table;
     }
 
-    /* Initialize Hardware (BSP) */
-    BSP_Init();
+    NetworkSync_Init();
 
     /* Initialize Logging */
-    Logging_Init();
+    AppLog_Init();
+
+    /* Initialize Hardware (BSP) */
+    BSP_Init();
 
 #ifdef ENABLE_I2C_DEVICE_SCAN
     /* Scan I2C bus for connected devices (optional feature) */

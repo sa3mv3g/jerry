@@ -30,7 +30,7 @@
    3. Memory Options (Tailor to STM32H5 RAM)
    ------------------------------------------------ */
 #define MEM_ALIGNMENT                   4
-#define MEM_SIZE                        (4 * 1024) /* 4KB Heap - actual usage ~120 bytes max */
+#define MEM_SIZE                        (4 * 1024) /* 4KB Heap */
 #define MEMP_NUM_PBUF                   16
 #define MEMP_NUM_UDP_PCB                4
 #define MEMP_NUM_TCP_PCB                10

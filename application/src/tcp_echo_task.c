@@ -10,6 +10,7 @@
 #include "app_tasks.h"
 #include "bsp.h"
 #include "ethernetif.h"
+#include "ip_specs.h"
 #include "lcd_manager.h"
 #include "log.h"
 #include "lwip/api.h"
@@ -20,171 +21,40 @@
 #include "lwip/stats.h"
 #include "lwip/sys.h"
 #include "lwip/tcpip.h"
+#include "network_sync.h"
 
-/*---------------------------------------------------------------------------*/
-/* IP Address Configuration                                                  */
-/*---------------------------------------------------------------------------*/
-/* Set USE_DHCP to 1 for dynamic IP (DHCP), 0 for static IP                  */
-#define USE_DHCP 0
+/* ========================================================================== */
+/*                 Private Definitions and Macros                             */
+/* ========================================================================== */
 
-#if !USE_DHCP
-/* Static IP Configuration - modify these values as needed
- * Note: The last octet (STATIC_IP_ADDR3_BASE) is added to the DEVADDR value
- * read from GPIO pins to allow multiple devices on the same network.
- * Example: With base 100 and DEVADDR=5, IP will be 169.254.4.105
- */
-#define STATIC_IP_ADDR0      192
-#define STATIC_IP_ADDR1      168
-#define STATIC_IP_ADDR2      0
-#define STATIC_IP_ADDR3_BASE 200 /* Base value, DEVADDR (0-15) is added */
+/* ========================================================================== */
+/*                 Private Typedefs                                           */
+/* ========================================================================== */
 
-#define STATIC_NETMASK0 255
-#define STATIC_NETMASK1 255
-#define STATIC_NETMASK2 255
-#define STATIC_NETMASK3 0
-
-#define STATIC_GW_ADDR0 192
-#define STATIC_GW_ADDR1 168
-#define STATIC_GW_ADDR2 0
-#define STATIC_GW_ADDR3 1
-#endif /* !USE_DHCP */
-
-#define SNTP_IP_ADDR0 192
-#define SNTP_IP_ADDR1 168
-#define SNTP_IP_ADDR2 0
-#define SNTP_IP_ADDR3 100
-
-/*---------------------------------------------------------------------------*/
-
-/* Define the network interface */
-struct netif gnetif;
-
-/* Ethernet Task resources */
-static StaticTask_t xEthernetTaskTCB;
-static StackType_t  xEthernetTaskStack[512];
-
-/* External ethernetif initialization function */
-/* This function is typically provided by the LwIP port or BSP */
+/* ========================================================================== */
+/*                 Private Function Prototype                                 */
+/* ========================================================================== */
 extern err_t ethernetif_init(struct netif *netif);
-
-static void vEthernetTask(void *pvParameters)
-{
-    struct netif *netif = (struct netif *)pvParameters;
-    int           count = 0;
-    while (1)
-    {
-        /* Check link status periodically */
-        ethernetif_check_link(netif);
-
-        /* NOTE: ethernetif_poll() removed - packet reception is handled by
-         * the interrupt-driven ethernetif_input_task in ethernetif.c.
-         * Having both polling and interrupt-driven reception caused race
-         * conditions and intermittent packet loss. */
-
-        count++;
-        if (count >= 10)
-        { /* 5 seconds */
-            count = 0;
-            LOG_INF("Stats - RX: %d, TX: %d, DROP: %d, RX_INT: %u",
-                    (int)lwip_stats.link.recv, (int)lwip_stats.link.xmit,
-                    (int)lwip_stats.link.drop,
-                    (unsigned int)ethernetif_get_rx_int_count());
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
-
+static void  vEthernetTask(void *pvParameters);
 #if LWIP_NETIF_LINK_CALLBACK
-static void link_callback(struct netif *netif)
-{
-    if (netif_is_link_up(netif))
-    {
-        LOG_INF("Link status changed: UP");
-        /* Optional: Re-trigger DHCP or other actions if needed */
-    }
-    else
-    {
-        LOG_INF("Link status changed: DOWN");
-    }
-}
+static void link_callback(struct netif *netif);
 #endif
+static void tcp_echo_thread(void *arg);
+static void tcpip_init_done_callback(void *arg);
 
-static void tcp_echo_thread(void *arg)
-{
-    struct netconn *conn, *newconn;
-    err_t           err;
-    LWIP_UNUSED_ARG(arg);
+/* ========================================================================== */
+/*                 Private Variable Declaration                               */
+/* ========================================================================== */
+struct netif             gnetif;
+static StaticTask_t      xEthernetTaskTCB;
+static StackType_t       xEthernetTaskStack[512];
+static uint8_t           gLwipStackUp = LWIP_STATUS_INIT;
+static SemaphoreHandle_t gEthernetLinkUpSem;
+static StaticSemaphore_t gEthernetLinkUpSemBuff;
 
-    /* Create a new connection identifier */
-    conn = netconn_new(NETCONN_TCP);
-
-    if (conn != NULL)
-    {
-        /* Bind connection to well known port 7 */
-        err = netconn_bind(conn, NULL, 7);
-
-        if (err == ERR_OK)
-        {
-            /* Tell connection to go into listening mode */
-            netconn_listen(conn);
-            LOG_INF("TCP Echo Server listening on port 7");
-
-            while (1)
-            {
-                /* Grab new connection. */
-                err = netconn_accept(conn, &newconn);
-
-                /* Process the new connection. */
-                if (err == ERR_OK)
-                {
-                    LOG_INF("New connection accepted");
-                    struct netbuf *buf;
-                    void          *data;
-                    u16_t          len;
-
-                    while ((err = netconn_recv(newconn, &buf)) == ERR_OK)
-                    {
-                        do
-                        {
-                            netbuf_data(buf, &data, &len);
-                            err =
-                                netconn_write(newconn, data, len, NETCONN_COPY);
-                            if (err != ERR_OK)
-                            {
-                                LOG_ERR("TCP echo write error: %d", err);
-                                /* Assume connection is broken, break inner loop
-                                 */
-                                break;
-                            }
-                        } while (netbuf_next(buf) >= 0);
-                        netbuf_delete(buf);
-                    }
-                    /* Close connection and discard connection identifier. */
-                    netconn_close(newconn);
-                    netconn_delete(newconn);
-                    LOG_INF("Connection closed");
-                }
-            }
-        }
-        else
-        {
-            LOG_ERR("Failed to bind connection: %d", err);
-            netconn_delete(conn);
-        }
-    }
-    else
-    {
-        LOG_ERR("Failed to create new connection");
-    }
-}
-
-static void tcpip_init_done_callback(void *arg)
-{
-    (void)arg;
-    LOG_INF("*** tcpip_thread is running! ***");
-}
-
+/* ========================================================================== */
+/*                 Public Functions                                           */
+/* ========================================================================== */
 void vTcpEchoTask(void *pvParameters)
 {
     ip4_addr_t ipaddr;
@@ -198,6 +68,8 @@ void vTcpEchoTask(void *pvParameters)
     /* Initialize the LwIP stack */
     LOG_INF("Initializing LwIP...");
     tcpip_init(tcpip_init_done_callback, NULL);
+
+    gEthernetLinkUpSem = xSemaphoreCreateBinaryStatic(&gEthernetLinkUpSemBuff);
 
 #if USE_DHCP
     /* Initialize IP addresses to zero for DHCP */
@@ -320,3 +192,140 @@ void vTcpEchoTask(void *pvParameters)
     /* Should not reach here */
     for (;;);
 }
+
+/* ========================================================================== */
+/*                 Private Functions                                          */
+/* ========================================================================== */
+
+static void vEthernetTask(void *pvParameters)
+{
+    struct netif *netif = (struct netif *)pvParameters;
+    int           count = 0;
+    while (1)
+    {
+        /* Check link status periodically */
+        ethernetif_check_link(netif);
+
+        /* NOTE: ethernetif_poll() removed - packet reception is handled by
+         * the interrupt-driven ethernetif_input_task in ethernetif.c.
+         * Having both polling and interrupt-driven reception caused race
+         * conditions and intermittent packet loss. */
+
+        count++;
+        if (count >= 10)
+        { /* 5 seconds */
+            count = 0;
+            LOG_INF("Stats - RX: %d, TX: %d, DROP: %d, RX_INT: %u",
+                    (int)lwip_stats.link.recv, (int)lwip_stats.link.xmit,
+                    (int)lwip_stats.link.drop,
+                    (unsigned int)ethernetif_get_rx_int_count());
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+}
+
+#if LWIP_NETIF_LINK_CALLBACK
+static void link_callback(struct netif *netif)
+{
+    if (netif_is_link_up(netif))
+    {
+        gLwipStackUp = LWIP_STATUS_UP;
+
+        /* notify globally that link is up  */
+        NetworkSync_SignalTcpReady();
+
+        LOG_INF("Link status changed: UP");
+        /* Optional: Re-trigger DHCP or other actions if needed */
+    }
+    else
+    {
+        LOG_INF("Link status changed: DOWN");
+    }
+}
+#endif
+
+static void tcp_echo_thread(void *arg)
+{
+    LWIP_UNUSED_ARG(arg);
+
+    struct netconn *conn, *newconn;
+    err_t           err;
+    gLwipStackUp = LWIP_STATUS_INIT;
+
+    /* Create a new connection identifier */
+    conn = netconn_new(NETCONN_TCP);
+
+    if (conn != NULL)
+    {
+        /* Bind connection to well known port 7 */
+        err = netconn_bind(conn, NULL, 7);
+
+        if (err == ERR_OK)
+        {
+            /* Tell connection to go into listening mode */
+            netconn_listen(conn);
+            LOG_INF("TCP Echo Server listening on port 7");
+
+            while (1)
+            {
+                /* Grab new connection. */
+                err = netconn_accept(conn, &newconn);
+
+                /* Process the new connection. */
+                if (err == ERR_OK)
+                {
+                    LOG_INF("New connection accepted");
+                    struct netbuf *buf;
+                    void          *data;
+                    u16_t          len;
+
+                    while ((err = netconn_recv(newconn, &buf)) == ERR_OK)
+                    {
+                        do
+                        {
+                            netbuf_data(buf, &data, &len);
+                            err =
+                                netconn_write(newconn, data, len, NETCONN_COPY);
+                            if (err != ERR_OK)
+                            {
+                                LOG_ERR("TCP echo write error: %d", err);
+                                /* Assume connection is broken, break inner loop
+                                 */
+                                break;
+                            }
+                        } while (netbuf_next(buf) >= 0);
+                        netbuf_delete(buf);
+                    }
+                    /* Close connection and discard connection identifier. */
+                    netconn_close(newconn);
+                    netconn_delete(newconn);
+                    LOG_INF("Connection closed");
+                }
+            }
+        }
+        else
+        {
+            LOG_ERR("Failed to bind connection: %d", err);
+            netconn_delete(conn);
+        }
+    }
+    else
+    {
+        LOG_ERR("Failed to create new connection");
+    }
+}
+
+static void tcpip_init_done_callback(void *arg)
+{
+    (void)arg;
+    LOG_INF("*** tcpip_thread is running! ***");
+}
+
+/* ========================================================================== */
+/*                 Private Callback Handlers                                  */
+/* ========================================================================== */
+
+/* ========================================================================== */
+/*                 Test/Debug/Other Sections                                  */
+/* ========================================================================== */
