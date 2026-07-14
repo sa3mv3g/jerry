@@ -14,6 +14,12 @@
 #include "semphr.h"
 #include "task.h"
 
+#define LCD_AI_FIELD_WIDTH 9
+#define LCD_AI_BUFFER_SIZE (LCD_AI_FIELD_WIDTH + 1)
+#define STR(x)             #x
+#define XSTR(x)            STR(x)
+#define LCD_AI_FMT_STR \
+    "%-" XSTR(LCD_AI_FIELD_WIDTH) "." XSTR(LCD_AI_FIELD_WIDTH) "s"
 #define LCD_MANAGER_COLS_MAX                  (20U)
 #define LCD_MANAGER_ROWS_MAX                  (4U)
 #define LCD_MANAGER_ADDRESS_7BIT              (0x27U)
@@ -23,20 +29,20 @@
 #define LCD_MANAGER_DIGITAL_OUTPUT_ROW_ID     (2U)
 #define LCD_MANAGER_DIGITAL_INPUT_ROW_ID      (1U)
 
-/* LCD_MANAGER_COLS_MAX + 1 cuz we need to store null character */
 static char gLcdStrings[LCD_MANAGER_ROWS_MAX][LCD_MANAGER_COLS_MAX + 1];
 static SemaphoreHandle_t gUpdateLcdSem;
 static StaticSemaphore_t gUpdateLcdSemBuff;
-
-/*
- * Per-row "dirty" flags (BUG-09). A binary semaphore alone can lose updates:
- * if a row is updated while the LCD task is mid-write, the extra give is
- * coalesced and the newly-changed row is not re-rendered until the next
- * unrelated update. Each producer marks the specific row dirty (and gives the
- * semaphore); the LCD task clears and renders dirty rows, re-scanning until
- * none remain, so updates that arrive during a write are not lost.
- */
-static volatile bool gRowDirty[LCD_MANAGER_ROWS_MAX] = {false};
+static uint8_t           gIpLastOctet                    = 0;
+static uint8_t           gModbusAddress                  = 0;
+static uint8_t           gDigitalInput                   = 0;
+static uint8_t           gRtcHours                       = 0;
+static uint8_t           gRtcMinutes                     = 0;
+static uint8_t           gRtcSeconds                     = 0;
+static uint16_t          gDigitalOutput                  = 0;
+static uint16_t          gAnalogOutput[4]                = {0};
+static float             gAnalogInput[4]                 = {0.0f};
+static volatile bool     gRowDirty[LCD_MANAGER_ROWS_MAX] = {false};
+static LcdI2cHandle      lcd_handle;
 
 /**
  * @brief Mark an LCD row as needing a redraw and wake the LCD task.
@@ -75,25 +81,9 @@ static bool lcdManager_ClearRowDirty(uint8_t row)
     return was_dirty;
 }
 
-static uint8_t gIpLastOctet   = 0;
-static uint8_t gModbusAddress = 0;
-static uint8_t gDigitalInput  = 0;
-
-static uint8_t gRtcHours   = 0;
-static uint8_t gRtcMinutes = 0;
-static uint8_t gRtcSeconds = 0;
-
-static uint16_t gDigitalOutput   = 0;
-static uint16_t gAnalogOutput[4] = {0};
-
-static float gAnalogInput[4] = {0.0f};
-
 /* Forward declaration */
 static int32_t lcdManager_Send(uint8_t i2c_address, const uint8_t* data,
                                uint16_t length, uint32_t timeout_ms);
-
-/* Application-managed LCD handle (static allocation) */
-static LcdI2cHandle lcd_handle;
 
 static void update_row_0(void)
 {
@@ -124,15 +114,6 @@ static void update_row_1(void)
     gLcdStrings[1][LCD_MANAGER_COLS_MAX] = '\0';
     lcdManager_MarkRowDirty(1U);
 }
-
-#define LCD_AI_FIELD_WIDTH 9
-#define LCD_AI_BUFFER_SIZE (LCD_AI_FIELD_WIDTH + 1)
-
-/* Stringification helper for the width macro */
-#define STR(x)  #x
-#define XSTR(x) STR(x)
-#define LCD_AI_FMT_STR \
-    "%-" XSTR(LCD_AI_FIELD_WIDTH) "." XSTR(LCD_AI_FIELD_WIDTH) "s"
 
 static void format_ai(char* buf, float val)
 {

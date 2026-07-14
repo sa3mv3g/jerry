@@ -55,7 +55,6 @@
             "postAttachCommands": [
                 "add-symbol-file build/stm-Debug/application/bsp/stm/stm32h563/jerry_secure_app.elf"
             ],
-
             "rttConfig": {
                 "enabled": true,
                 "address": "auto",
