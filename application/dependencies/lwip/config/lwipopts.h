@@ -80,8 +80,8 @@
 #define SNTP_RETRY_TIMEOUT          (2000U)
 
 /* SNTP TIME SYNC HOOK */
-void BSP_RTC_SetUnixTimestamp(unsigned int sec);
-#define SNTP_SET_SYSTEM_TIME(sec) BSP_RTC_SetUnixTimestamp(sec)
+void BSP_RTC_SetUnixTimestamp(unsigned int sec, unsigned int us);
+#define SNTP_SET_SYSTEM_TIME_US(sec, us) BSP_RTC_SetUnixTimestamp(sec, us)
 
 /* ------------------------------------------------
    6. Checksum Offload (STM32H5 Hardware)

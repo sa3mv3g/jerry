@@ -5,12 +5,12 @@
 
 #include "tcp_echo_task.h"
 
+#include "app_log.h"
 #include "app_tasks.h"
 #include "bsp.h"
 #include "ethernetif.h"
 #include "ip_specs.h"
 #include "lcd_manager.h"
-#include "app_log.h"
 #include "lwip/api.h"
 #include "lwip/apps/sntp.h"
 #include "lwip/dhcp.h"

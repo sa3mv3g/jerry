@@ -12,25 +12,14 @@
 #include "ip_specs.h"
 #include "lwip/ip_addr.h"
 #include "lwip/udp.h"
+#include "message_buffer.h"
 #include "network_sync.h"
-#include "queue.h"
 #include "task.h"
 
 /* ========================================================================== */
 /*                 Private Definitions and Macros                             */
 /* ========================================================================== */
-#define SYSLOG_MAX_MSG_LEN (128U)
-#define SYSLOG_QUEUE_DEPTH (10U)
-
-/* ========================================================================== */
-/*                 Private Typedefs                                           */
-/* ========================================================================== */
-typedef struct
-{
-    int  facility;
-    int  severity;
-    char msg[SYSLOG_MAX_MSG_LEN];
-} SyslogEntry_t;
+#define SYSLOG_MSG_BUFFER_SIZE (1024U)  // Total bytes for message buffer
 
 /* ========================================================================== */
 /*                 Private Function Prototype                                 */
@@ -41,9 +30,9 @@ static int Logging_UdpSendString(const char *message);
 /* ========================================================================== */
 /*                 Private Variable Declaration                               */
 /* ========================================================================== */
-static StaticQueue_t xSyslogQueueBuffer;
-static QueueHandle_t xSyslogQueue = NULL;
-static uint8_t xSyslogQueueStorage[SYSLOG_QUEUE_DEPTH * sizeof(SyslogEntry_t)];
+static StaticMessageBuffer_t xSyslogMessageBufferStruct;
+static MessageBufferHandle_t xSyslogMessageBuffer = NULL;
+static uint8_t         xSyslogMessageBufferStorage[SYSLOG_MSG_BUFFER_SIZE];
 static struct udp_pcb *g_udp_pcb = NULL;
 static ip_addr_t       g_dest_ip;
 /* ========================================================================== */
@@ -53,6 +42,10 @@ void vLoggingTask(void *pvParameters)
 {
     (void)pvParameters;
 
+    xSyslogMessageBuffer = xMessageBufferCreateStatic(
+        SYSLOG_MSG_BUFFER_SIZE, xSyslogMessageBufferStorage,
+        &xSyslogMessageBufferStruct);
+
     /* let wait for all other task configuration to finish */
     xEventGroupSync(xSyncEventGroup, APPTASK_LOGGING_TASK_EVENT_MASK,
                     APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
@@ -60,43 +53,43 @@ void vLoggingTask(void *pvParameters)
     /* Wait for network to be enabled */
     NetworkSync_WaitForTcpReady();
 
-    xSyslogQueue = xQueueCreateStatic(SYSLOG_QUEUE_DEPTH, sizeof(SyslogEntry_t),
-                                      xSyslogQueueStorage, &xSyslogQueueBuffer);
-
     Logging_UdpSendInit();
 
     for (;;)
     {
-        static SyslogEntry_t entry;
-        if (xQueueReceive(xSyslogQueue, &entry, portMAX_DELAY) == pdPASS)
+        static char buf[LOG_MAX_MSG_LEN];  // Buffer to receive formatted string
+        size_t      received_bytes = xMessageBufferReceive(
+            xSyslogMessageBuffer, buf, sizeof(buf) - 1, portMAX_DELAY);
+
+        if (received_bytes > 0)
         {
-            static char buf[256];
-            int         priority = (entry.facility * 8) + entry.severity;
-
-            snprintf(buf, sizeof(buf),
-                     "<%d>1 - STM32H5 app - - - \xEF\xBB\xBF%s", priority,
-                     entry.msg);
-
+            buf[received_bytes] = '\0';
             Logging_UdpSendString(buf);
         }
     }
 }
 
-void Applog_Syslog(int facility, int severity, const char *msg)
+void Applog_Syslog(const char *msg)
 {
-    if (NULL != xSyslogQueue)
+    if (NULL != xSyslogMessageBuffer && msg != NULL)
     {
-        SyslogEntry_t entry;
-
-        entry.facility = facility;
-        entry.severity = severity;
-        strncpy(entry.msg, msg, SYSLOG_MAX_MSG_LEN - 1);
-        entry.msg[SYSLOG_MAX_MSG_LEN - 1] = '\0';
-
-        /* Non-blocking send — won't stall the caller */
-        if (xQueueSend(xSyslogQueue, &entry, 0) != pdPASS)
+        /* Cannot use MessageBufferSend safely before scheduler is running */
+        if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
         {
-            /* Queue full — message dropped, handle as needed */
+            size_t len = strlen(msg);
+            /* Check if we're in an ISR context */
+            if (xPortIsInsideInterrupt())
+            {
+                BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+                xMessageBufferSendFromISR(xSyslogMessageBuffer, msg, len,
+                                          &xHigherPriorityTaskWoken);
+                portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+            }
+            else
+            {
+                /* Non-blocking send — won't stall the caller */
+                xMessageBufferSend(xSyslogMessageBuffer, msg, len, 0);
+            }
         }
     }
 }

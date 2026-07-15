@@ -7,10 +7,10 @@
 #include <stdio.h>
 
 #include "FreeRTOS.h"
+#include "app_log.h"
 #include "app_tasks.h"
 #include "bsp.h"
 #include "jerry_device_registers.h"
-#include "app_log.h"
 #include "register_lock.h"
 #include "rtc_manager.h"
 #include "task.h"

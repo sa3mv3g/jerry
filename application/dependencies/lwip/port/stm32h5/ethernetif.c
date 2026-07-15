@@ -24,6 +24,7 @@
 #include "ethernetif.h"
 #include "lan8742.h"
 #include "lwip/etharp.h"
+#include "lwip/mem.h"
 #include "lwip/memp.h"
 #include "lwip/opt.h"
 #include "lwip/pbuf.h"
@@ -50,9 +51,6 @@ extern ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT];
 
 /* Use the ETH handle from main.c */
 extern ETH_HandleTypeDef heth;
-
-/* TxConfig from main.c */
-extern ETH_TxPacketConfigTypeDef TxConfig;
 
 /* RX buffers in SRAM3 for cache coherency
  * IMPORTANT: We need MORE buffers than descriptors to handle the case where
@@ -167,7 +165,7 @@ void HAL_ETH_RxAllocateCallback(uint8_t **buff)
     }
 
     /* No buffer available - this will cause RBU error! */
-    ETH_DEBUG("RxAlloc FAILED! No free buffers");
+    ETH_DEBUG("RxAlloc FAILED! No free buffers", 0);
     *buff = NULL;
 }
 
@@ -218,7 +216,7 @@ void HAL_ETH_RxLinkCallback(void **pStart, void **pEnd, uint8_t *buff,
     }
     else
     {
-        ETH_DEBUG("pbuf_alloc FAILED!");
+        ETH_DEBUG("pbuf_alloc FAILED!", 0);
     }
 }
 
@@ -229,7 +227,7 @@ static void low_level_init(struct netif *netif)
     ETH_MACConfigTypeDef MACConf = {0};
     HAL_StatusTypeDef    hal_status;
 
-    ETH_DEBUG("low_level_init: Starting");
+    ETH_DEBUG("low_level_init: Starting", 0);
 
     /* Initialize buffer tracking - all buffers free */
     RxBuffAssigned   = 0;
@@ -244,13 +242,6 @@ static void low_level_init(struct netif *netif)
     ETH_DEBUG("MAC: %02X:%02X:%02X:%02X:%02X:%02X", netif->hwaddr[0],
               netif->hwaddr[1], netif->hwaddr[2], netif->hwaddr[3],
               netif->hwaddr[4], netif->hwaddr[5]);
-
-    memset(&TxConfig, 0, sizeof(ETH_TxPacketConfigTypeDef));
-    /* Disable hardware checksum offload - LwIP calculates checksums in software
-     * (CHECKSUM_GEN_* = 1 in lwipopts.h). Only enable CRC/PAD insertion. */
-    TxConfig.Attributes   = ETH_TX_PACKETS_FEATURES_CRCPAD;
-    TxConfig.ChecksumCtrl = ETH_CHECKSUM_DISABLE;
-    TxConfig.CRCPadCtrl   = ETH_CRC_PAD_INSERT;
 
     /* Create semaphores */
     RxPktSemaphore = xSemaphoreCreateBinaryStatic(&RxSemaphoreBuffer);
@@ -267,7 +258,7 @@ static void low_level_init(struct netif *netif)
     LAN8742_RegisterBusIO(&LAN8742, &LAN8742_IOCtx);
     if (LAN8742_Init(&LAN8742) != LAN8742_STATUS_OK)
     {
-        ETH_DEBUG("PHY init FAILED!");
+        ETH_DEBUG("PHY init FAILED!", 0);
         netif_set_link_down(netif);
         netif_set_down(netif);
         return;
@@ -278,7 +269,7 @@ static void low_level_init(struct netif *netif)
     /* Don't start ETH if link is down - wait for link to come up */
     if (PHYLinkState <= LAN8742_STATUS_LINK_DOWN)
     {
-        ETH_DEBUG("Link DOWN, deferring ETH start");
+        ETH_DEBUG("Link DOWN, deferring ETH start", 0);
         netif_set_up(netif);
         netif_set_link_down(netif);
         return;
@@ -324,11 +315,11 @@ static void low_level_init(struct netif *netif)
     {
         netif_set_up(netif);
         netif_set_link_up(netif);
-        ETH_DEBUG("ETH started, Link UP");
+        ETH_DEBUG("ETH started, Link UP", 0);
     }
     else
     {
-        ETH_DEBUG("HAL_ETH_Start_IT FAILED!");
+        ETH_DEBUG("HAL_ETH_Start_IT FAILED!", 0);
         netif_set_down(netif);
         netif_set_link_down(netif);
     }
@@ -363,27 +354,45 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
         i++;
     }
 
-    TxConfig.Length   = p->tot_len;
-    TxConfig.TxBuffer = Txbuffer;
-    TxConfig.pData    = p;
+    ETH_TxPacketConfigTypeDef localTxConfig = {0};
+    localTxConfig.Attributes                = ETH_TX_PACKETS_FEATURES_CRCPAD;
+    localTxConfig.ChecksumCtrl              = ETH_CHECKSUM_DISABLE;
+    localTxConfig.CRCPadCtrl                = ETH_CRC_PAD_INSERT;
+    localTxConfig.Length                    = p->tot_len;
+    localTxConfig.TxBuffer                  = Txbuffer;
+    localTxConfig.pData                     = p;
+
     pbuf_ref(p);
 
     /* Memory barrier before TX */
     __DSB();
 
-    tx_status = HAL_ETH_Transmit_IT(&heth, &TxConfig);
+    /* Before trying to transmit a new packet, release any completed packets
+     * to free their pbufs. This executes safely in the task context. */
+    HAL_ETH_ReleaseTxPacket(&heth);
+
+    /* Clear any old errors before attempting transmission */
+    heth.ErrorCode = HAL_ETH_ERROR_NONE;
+    tx_status      = HAL_ETH_Transmit_IT(&heth, &localTxConfig);
+
     while (tx_status != HAL_OK)
     {
         if (HAL_ETH_GetError(&heth) & HAL_ETH_ERROR_BUSY)
         {
+            /* Wait for TX complete semaphore */
             (void)xSemaphoreTake(TxPktSemaphore,
                                  pdMS_TO_TICKS(ETHIF_TX_TIMEOUT));
+
+            /* TX completed, safely release packets here in task context */
             HAL_ETH_ReleaseTxPacket(&heth);
-            tx_status = HAL_ETH_Transmit_IT(&heth, &TxConfig);
+
+            /* Clear error code again before retry */
+            heth.ErrorCode = HAL_ETH_ERROR_NONE;
+            tx_status      = HAL_ETH_Transmit_IT(&heth, &localTxConfig);
         }
         else
         {
-            ETH_DEBUG("TX FAILED!");
+            ETH_DEBUG("TX FAILED!", 0);
             pbuf_free(p);
             return ERR_IF;
         }
@@ -454,7 +463,7 @@ static void ethernetif_input_task(void *argument)
                     PktProcessedCount++;
                     if (netif->input(p, netif) != ERR_OK)
                     {
-                        ETH_DEBUG("netif->input FAILED!");
+                        ETH_DEBUG("netif->input FAILED!", 0);
                         pbuf_free(p);
                     }
                 }
@@ -499,13 +508,13 @@ uint32_t ethernetif_get_rx_int_count(void) { return RxIntCount; }
 
 void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *heth_param)
 {
+    (void)heth_param;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-    /* Release transmitted packets - this calls HAL_ETH_TxFreeCallback for each
-     * completed packet, which frees the associated pbuf.
-     * CRITICAL: This must be called to prevent memory leaks! */
-    HAL_ETH_ReleaseTxPacket(heth_param);
-
+    /* We MUST NOT call HAL_ETH_ReleaseTxPacket here because it calls
+     * pbuf_free() via HAL_ETH_TxFreeCallback. FreeRTOS mutexes (used by LwIP
+     * memory manager) cannot be taken in an ISR! We simply signal the
+     * TxPktSemaphore. */
     if (TxPktSemaphore)
     {
         xSemaphoreGiveFromISR(TxPktSemaphore, &xHigherPriorityTaskWoken);
@@ -544,7 +553,7 @@ void HAL_ETH_ErrorCallback(ETH_HandleTypeDef *heth_param)
 
     if (error & ETH_DMACSR_RBU)
     {
-        ETH_DEBUG("RBU Error - restarting RX DMA");
+        ETH_DEBUG("RBU Error - restarting RX DMA", 0);
         /* Restart RX DMA by writing tail pointer */
         __DMB();
         WRITE_REG(heth_param->Instance->DMACRDTPR,
@@ -553,7 +562,7 @@ void HAL_ETH_ErrorCallback(ETH_HandleTypeDef *heth_param)
 
     if (error & ETH_DMACSR_TBU)
     {
-        ETH_DEBUG("TBU Error - restarting TX DMA");
+        ETH_DEBUG("TBU Error - restarting TX DMA", 0);
         __DMB();
         WRITE_REG(heth_param->Instance->DMACTDTPR,
                   (uint32_t)(heth_param->Init.TxDesc + (ETH_TX_DESC_CNT - 1U)));
@@ -569,14 +578,24 @@ static inline int is_phy_link_up(int32_t state)
             state <= LAN8742_STATUS_10MBITS_HALFDUPLEX);
 }
 
-void ethernetif_check_link(struct netif *netif)
+#include "lwip/tcpip.h"
+
+struct link_update_msg
 {
-    int32_t PHYLinkState = LAN8742_GetLinkState(&LAN8742);
+    struct netif *netif;
+    int32_t       phy_state;
+};
+
+static void ethernetif_update_link_state(void *ctx)
+{
+    struct link_update_msg *msg          = (struct link_update_msg *)ctx;
+    struct netif           *netif        = msg->netif;
+    int32_t                 PHYLinkState = msg->phy_state;
 
     /* Link was up, now it's down */
     if (netif_is_link_up(netif) && !is_phy_link_up(PHYLinkState))
     {
-        ETH_DEBUG("Link DOWN");
+        ETH_DEBUG("Link DOWN", 0);
         HAL_ETH_Stop_IT(&heth);
         netif_set_down(netif);
         netif_set_link_down(netif);
@@ -587,7 +606,7 @@ void ethernetif_check_link(struct netif *netif)
         ETH_MACConfigTypeDef MACConf = {0};
         uint32_t duplex = ETH_FULLDUPLEX_MODE, speed = ETH_SPEED_100M;
 
-        ETH_DEBUG("Link UP");
+        ETH_DEBUG("Link UP", 0);
 
         switch (PHYLinkState)
         {
@@ -628,11 +647,39 @@ void ethernetif_check_link(struct netif *netif)
         {
             netif_set_up(netif);
             netif_set_link_up(netif);
-            ETH_DEBUG("ETH started");
+            ETH_DEBUG("ETH started", 0);
         }
         else
         {
-            ETH_DEBUG("HAL_ETH_Start_IT FAILED!");
+            ETH_DEBUG("HAL_ETH_Start_IT FAILED!", 0);
+        }
+    }
+
+    /* Free the allocated message */
+    mem_free(msg);
+}
+
+void ethernetif_check_link(struct netif *netif)
+{
+    int32_t PHYLinkState = LAN8742_GetLinkState(&LAN8742);
+
+    uint8_t is_up  = netif_is_link_up(netif) ? 1 : 0;
+    uint8_t phy_up = is_phy_link_up(PHYLinkState) ? 1 : 0;
+
+    if (is_up != phy_up)
+    {
+        /* Post to tcpip_thread to avoid data races on LwIP structures and ETH
+         * HAL */
+        struct link_update_msg *msg = (struct link_update_msg *)mem_malloc(
+            sizeof(struct link_update_msg));
+        if (msg != NULL)
+        {
+            msg->netif     = netif;
+            msg->phy_state = PHYLinkState;
+            if (tcpip_callback(ethernetif_update_link_state, msg) != ERR_OK)
+            {
+                mem_free(msg);
+            }
         }
     }
 }

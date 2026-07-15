@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "FreeRTOS.h"
 #include "SEGGER_RTT.h"
@@ -11,54 +11,74 @@
 #define SYSLOG_STATE_INIT              (1U)
 #define SYSLOG_PRI(facility, severity) ((facility * 8) + severity)
 #define FACILITY_USER                  (1U)
-
+#define SYSLOG_HOSTNAME                "jerry"
+#define SYSLOG_APP_NAME                "jerry"
 static int g_log_level = LOG_LEVEL_WARNING;
 
-void log_set_level(int level)
-{
-    g_log_level = level;
-}
+void AppLog_SetLevel(int level) { g_log_level = level; }
 
-int log_get_level(void)
-{
-    return g_log_level;
-}
+int AppLog_GetLevel(void) { return g_log_level; }
 
-void AppLog_Message(int level, int syslog_severity, const char* level_str, const char* fmt, ...)
+void AppLog_Message(int level, int syslog_severity, const char* level_str,
+                    const char* fmt, ...)
 {
     if (level < g_log_level)
     {
         return;
     }
 
-    char combined_buf[512];
-    int offset = 0;
-    
+    char combined_buf[LOG_MAX_MSG_LEN];
+    int  offset = 0;
+
     App_RTC_TimeTypeDef timeDate = {0};
+
+    const char* task_name = "-";
+    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
+    {
+        TaskHandle_t current_task = xTaskGetCurrentTaskHandle();
+        if (current_task != NULL)
+        {
+            task_name = pcTaskGetName(current_task);
+        }
+    }
 
     if (RTC_Manager_GetTimeAndDate(&timeDate) == true)
     {
         uint32_t ms = RTC_Manager_GetTimeWithMs(&timeDate);
-        offset = snprintf(
-            combined_buf, sizeof(combined_buf), "[%04d-%02d-%02d %02d:%02d:%02d.%03lu] [%s] ",
-            (int)(2000 + timeDate.year), (int)timeDate.month,
-            (int)timeDate.date, (int)timeDate.hours, (int)timeDate.minutes,
-            (int)timeDate.seconds, (unsigned long)ms, level_str);
+        char     timestamp[32];
+        snprintf(timestamp, sizeof(timestamp),
+                 "20%02d-%02d-%02dT%02d:%02d:%02d.%03luZ", timeDate.year,
+                 timeDate.month, timeDate.date, timeDate.hours,
+                 timeDate.minutes, timeDate.seconds, (unsigned long)ms);
+
+        offset =
+            snprintf(combined_buf, sizeof(combined_buf),
+                     "<%d>1 %s %s %s %s %s - \xEF\xBB\xBF",
+                     SYSLOG_PRI(FACILITY_USER, syslog_severity),
+                     timestamp,  // ISO 8601
+                     SYSLOG_HOSTNAME, SYSLOG_APP_NAME, task_name, level_str);
     }
     else
     {
-        uint32_t ticks = xTaskGetTickCount();
-        offset = snprintf(combined_buf, sizeof(combined_buf), "[%lu] [%s] ", (unsigned long)ticks, level_str);
+        uint32_t ticks = 0;
+        if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
+        {
+            ticks = xTaskGetTickCount();
+        }
+        offset = snprintf(combined_buf, sizeof(combined_buf), "[%lu] [%s] ",
+                          (unsigned long)ticks, level_str);
     }
 
     if (offset < 0 || offset >= (int)sizeof(combined_buf))
     {
-        return; // snprintf error or buffer too small
+        return;  // snprintf error or buffer too small
     }
 
     va_list args;
     va_start(args, fmt);
-    int msg_len = vsnprintf(combined_buf + offset, sizeof(combined_buf) - offset - 2, fmt, args); // leave room for \r\n
+    int msg_len =
+        vsnprintf(combined_buf + offset, sizeof(combined_buf) - offset - 2, fmt,
+                  args);  // leave room for \r\n
     va_end(args);
 
     if (msg_len > 0)
@@ -68,23 +88,16 @@ void AppLog_Message(int level, int syslog_severity, const char* level_str, const
         {
             offset = sizeof(combined_buf) - 3;
         }
-        
-        // Strip trailing \n if present, so we don't get double newlines
-        while (offset > 0 && (combined_buf[offset - 1] == '\n' || combined_buf[offset - 1] == '\r'))
-        {
-            offset--;
-        }
 
         // Add explicit newline
         combined_buf[offset++] = '\r';
         combined_buf[offset++] = '\n';
-        combined_buf[offset] = '\0';
-        
+        combined_buf[offset]   = '\0';
+
         SEGGER_RTT_Write(0, combined_buf, offset);
 
-        // Syslog format usually doesn't need \r\n, but keeping it is fine, or we can strip for syslog.
-        // The original code passed the whole string to Applog_Syslog.
-        Applog_Syslog(FACILITY_USER, syslog_severity, combined_buf);
+        // Pass the fully formatted string to the logging task
+        Applog_Syslog(combined_buf);
     }
 }
 
@@ -92,8 +105,8 @@ void AppLog_Init(void)
 {
     SEGGER_RTT_Init();
 #ifdef DEBUG
-    log_set_level(LOG_LEVEL_VERBOSE);
+    AppLog_SetLevel(LOG_LEVEL_VERBOSE);
 #else
-    log_set_level(LOG_LEVEL_WARNING);
+    AppLog_SetLevel(LOG_LEVEL_WARNING);
 #endif
 }

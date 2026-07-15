@@ -11,11 +11,11 @@
 #include <string.h>
 
 #include "FreeRTOS.h"
+#include "app_log.h"
 #include "app_tasks.h"
 #include "bsp.h"
 #include "jerry_device_registers.h"
 #include "lcd_manager.h"
-#include "app_log.h"
 #include "lwip/api.h"
 #include "lwip/err.h"
 #include "lwip/netbuf.h"

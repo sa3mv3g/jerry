@@ -9,30 +9,50 @@
 
 extern RTC_HandleTypeDef hrtc;
 
-void BSP_RTC_SetUnixTimestamp(unsigned int sec)
+void BSP_RTC_SetUnixTimestamp(unsigned int sec, unsigned int us)
 {
     // 1. Cast the 32-bit integer to a standard time_t type
     time_t raw_time = (time_t)sec;
 
     // 2. Convert to a broken-down time structure (UTC)
-    struct tm *timeinfo;
-    timeinfo = gmtime(&raw_time);
+    struct tm timeinfo;
+    gmtime_r(&raw_time, &timeinfo);
 
     // 3. Extract the exact values for your STM32 RTC driver
     uint8_t year =
-        timeinfo->tm_year - 100;  // Years since 2000 (STM32 RTC standard)
+        timeinfo.tm_year - 100;  // Years since 2000 (STM32 RTC standard)
     uint8_t month =
-        timeinfo->tm_mon + 1;           // Months are 0-11 in C, RTC needs 1-12
-    uint8_t day   = timeinfo->tm_mday;  // 1-31
-    uint8_t hours = timeinfo->tm_hour;  // 0-23
-    uint8_t mins  = timeinfo->tm_min;   // 0-59
-    uint8_t secs  = timeinfo->tm_sec;   // 0-59
+        timeinfo.tm_mon + 1;           // Months are 0-11 in C, RTC needs 1-12
+    uint8_t day   = timeinfo.tm_mday;  // 1-31
+    uint8_t hours = timeinfo.tm_hour;  // 0-23
+    uint8_t mins  = timeinfo.tm_min;   // 0-59
+    uint8_t secs  = timeinfo.tm_sec;   // 0-59
 
-    printf("[RTC] Synced Time: 20%02d-%02d-%02d %02d:%02d:%02d UTC\n", year,
-           month, day, hours, mins, secs);
+    RTC_TimeTypeDef sTime = {0};
+    sTime.Hours           = hours;
+    sTime.Minutes         = mins;
+    sTime.Seconds         = secs;
+    sTime.TimeFormat      = RTC_HOURFORMAT_24;
+    sTime.DayLightSaving  = RTC_DAYLIGHTSAVING_NONE;
+    sTime.StoreOperation  = RTC_STOREOPERATION_RESET;
+    // Map microseconds (0-999999) to RTC SubSeconds
+    // SubSeconds = SecondFraction - ((SecondFraction + 1) * us) / 1000000
+    // We assume standard STM32 RTC config where SecondFraction is usually 255
+    // or 32767. HAL_RTC_GetTime will give us the SecondFraction, or we can just
+    // use 0x0FFF (if 32kHz LSE / 8 / 256) Actually, RTC->PRER &
+    // RTC_PRER_PREDIV_S is the SecondFraction.
+    uint32_t prediv_s = hrtc.Init.SynchPrediv;  // Usually 255 for LSE 32768Hz
+    sTime.SecondFraction = prediv_s;
+    sTime.SubSeconds = prediv_s - ((((uint64_t)prediv_s + 1) * us) / 1000000);
 
-    // TODO: Pass these variables into your HAL_RTC_SetTime() and
-    // HAL_RTC_SetDate() functions!
+    RTC_DateTypeDef sDate = {0};
+    sDate.Date            = day;
+    sDate.Month           = month;
+    sDate.Year            = year;
+    sDate.WeekDay         = (timeinfo.tm_wday == 0) ? 7 : timeinfo.tm_wday;
+
+    HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+    HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
 }
 
 void RTC_Manager_Init(void)
