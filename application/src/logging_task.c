@@ -123,7 +123,7 @@ static int Logging_UdpSendString(const char *message)
     if (g_udp_pcb == NULL) return -1;
 
     uint16_t     len = (uint16_t)strlen(message);
-    struct pbuf *p   = pbuf_alloc(PBUF_TRANSPORT, len, PBUF_RAM);
+    struct pbuf *p   = pbuf_alloc(PBUF_TRANSPORT, len, PBUF_POOL);
     if (p == NULL) return -1;
 
     memcpy(p->payload, message, len);

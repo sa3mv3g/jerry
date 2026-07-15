@@ -56,7 +56,7 @@ extern uint32_t SystemCoreClock;
 #define configUSE_DAEMON_TASK_STARTUP_HOOK 0U
 
 /* Run time and task stats gathering related definitions. */
-#define configGENERATE_RUN_TIME_STATS        0U
+#define configGENERATE_RUN_TIME_STATS        1U
 #define configUSE_TRACE_FACILITY             1U /* Requirement: Track stack usage */
 #define configUSE_STATS_FORMATTING_FUNCTIONS 0U
 
@@ -101,9 +101,18 @@ extern uint32_t SystemCoreClock;
 #define INCLUDE_xTaskGetHandle              1U
 #define INCLUDE_xTaskResumeFromISR          1U
 
+#define configRECORD_STACK_HIGH_ADDRESS 1U
+#define configGENERATE_RUN_TIME_STATS   1U
+
 /* Cortex-M33 specific definitions */
 #define configENABLE_FPU       1U
 #define configENABLE_MPU       0U
 #define configENABLE_TRUSTZONE 0U
+
+void          configureTimerForRunTimeStats(void);
+unsigned long getRunTimeCounterValue(void);
+
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS() configureTimerForRunTimeStats()
+#define portGET_RUN_TIME_COUNTER_VALUE()         getRunTimeCounterValue()
 
 #endif /* FREERTOS_CONFIG_H */
