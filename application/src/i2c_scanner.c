@@ -8,11 +8,9 @@
 
 #include "i2c_scanner.h"
 
-#include <stdio.h>
-
+#include "app_log.h"
 #include "bsp.h"
 #include "bsp_i2c.h"
-#include "log.h"
 
 /**
  * @brief I2C address range definitions

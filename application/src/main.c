@@ -6,8 +6,6 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 
 #include "FreeRTOS.h"
 #include "SEGGER_RTT.h"
@@ -17,11 +15,9 @@
 #include "digital_output.h"
 #include "jerry_device_registers.h"
 #include "lcd_manager.h"
-#include "log.h"
 #include "register_lock.h"
 #include "rtc_manager.h"
 #include "task.h"
-#include "timers.h"
 #ifdef ENABLE_I2C_DEVICE_SCAN
 #include "i2c_scanner.h"
 #endif

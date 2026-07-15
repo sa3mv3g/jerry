@@ -12,11 +12,9 @@
 
 #include "digital_output.h"
 
-#include <stdio.h>
-
+#include "app_log.h"
 #include "bsp.h"
 #include "lcd_manager.h"
-#include "log.h"
 
 /* ==========================================================================
  * Private Variable Declarations
