@@ -2,7 +2,7 @@
 #define IP_SPECS_H
 
 /* Set USE_DHCP to 1 for dynamic IP (DHCP), 0 for static IP                  */
-#define USE_DHCP 0
+#define USE_DHCP 1
 
 #if !USE_DHCP
 #define STATIC_IP_ADDR0      192

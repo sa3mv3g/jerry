@@ -4,6 +4,7 @@
 #include "FreeRTOS.h"
 #include "SEGGER_RTT.h"
 #include "app_log.h"
+#include "app_main.h"
 #include "rtc_manager.h"
 #include "task.h"
 
@@ -11,7 +12,6 @@
 #define SYSLOG_STATE_INIT              (1U)
 #define SYSLOG_PRI(facility, severity) ((facility * 8) + severity)
 #define FACILITY_USER                  (1U)
-#define SYSLOG_HOSTNAME                "jerry"
 #define SYSLOG_APP_NAME                "jerry"
 static int g_log_level = LOG_LEVEL_WARNING;
 
@@ -27,8 +27,9 @@ void AppLog_Message(int level, int syslog_severity, const char* level_str,
         return;
     }
 
-    char combined_buf[LOG_MAX_MSG_LEN];
-    int  offset = 0;
+    char  combined_buf[LOG_MAX_MSG_LEN];
+    int   offset = 0;
+    char* hostname;
 
     App_RTC_TimeTypeDef timeDate = {0};
 
@@ -42,6 +43,8 @@ void AppLog_Message(int level, int syslog_severity, const char* level_str,
         }
     }
 
+    hostname = App_GetModbusIdString();
+
     if (RTC_Manager_GetTimeAndDate(&timeDate) == true)
     {
         uint32_t ms = RTC_Manager_GetTimeWithMs(&timeDate);
@@ -51,12 +54,11 @@ void AppLog_Message(int level, int syslog_severity, const char* level_str,
                  timeDate.month, timeDate.date, timeDate.hours,
                  timeDate.minutes, timeDate.seconds, (unsigned long)ms);
 
-        offset =
-            snprintf(combined_buf, sizeof(combined_buf),
-                     "<%d>1 %s %s %s %s %s - \xEF\xBB\xBF",
-                     SYSLOG_PRI(FACILITY_USER, syslog_severity),
-                     timestamp,  // ISO 8601
-                     SYSLOG_HOSTNAME, SYSLOG_APP_NAME, task_name, level_str);
+        offset = snprintf(combined_buf, sizeof(combined_buf),
+                          "<%d>1 %s %s %s %s %s - \xEF\xBB\xBF",
+                          SYSLOG_PRI(FACILITY_USER, syslog_severity),
+                          timestamp,  // ISO 8601
+                          hostname, SYSLOG_APP_NAME, task_name, level_str);
     }
     else
     {

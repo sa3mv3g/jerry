@@ -9,6 +9,9 @@
 #include "FreeRTOS.h"
 #include "event_groups.h"
 
+#define STR(x)  #x
+#define XSTR(x) STR(x)
+
 #define APPTASK_LOGGING_TASK_EVENT_ID   (0U)
 #define APPTASK_MODBUS_TASK_EVENT_ID    (1U)
 #define APPTASK_FOTA_TASK_EVENT_ID      (2U)

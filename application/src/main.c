@@ -596,8 +596,5 @@ void vMainTask(void* pvParameters)
     }
 }
 
-void configureTimerForRunTimeStats(void)
-{
-    /* no config need */
-}
+void          configureTimerForRunTimeStats(void) { /* no config need */ }
 unsigned long getRunTimeCounterValue(void) { return HAL_GetTick(); }

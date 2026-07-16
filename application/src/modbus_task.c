@@ -12,6 +12,7 @@
 
 #include "FreeRTOS.h"
 #include "app_log.h"
+#include "app_main.h"
 #include "app_tasks.h"
 #include "bsp.h"
 #include "jerry_device_registers.h"
@@ -74,6 +75,8 @@ static uint8_t s_tx_buffer[MODBUS_TCP_MAX_ADU_SIZE];
 /** Modbus unit ID (initialized from DEVADDR pins) */
 static uint8_t s_modbus_unit_id = MODBUS_UNIT_ID_BASE;
 
+static char s_modbus_unit_id_string[APP_MODBUSID_STR_MAX_SZ_BYTES];
+
 /* ==========================================================================
  * Private Function Prototypes
  * ========================================================================== */
@@ -104,6 +107,10 @@ void vModbusTask(void *pvParameters)
     err              = BSP_ERROR;
     dev_addr         = BSP_GetDeviceAddress();
     s_modbus_unit_id = MODBUS_UNIT_ID_BASE + dev_addr;
+
+    memset(s_modbus_unit_id_string, 0, sizeof(s_modbus_unit_id_string));
+    snprintf(s_modbus_unit_id_string, sizeof(s_modbus_unit_id_string), "%u",
+             s_modbus_unit_id);
 
     LOG_INF("[Modbus] Device address from DEVADDR pins: %u, Unit ID: %u",
             dev_addr, s_modbus_unit_id);
@@ -219,6 +226,9 @@ void vModbusTask(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
+
+uint8_t App_GetModbusId() { return s_modbus_unit_id; }
+char   *App_GetModbusIdString() { return s_modbus_unit_id_string; }
 
 /* ==========================================================================
  * Private Functions

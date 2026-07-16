@@ -15,8 +15,6 @@
 
 #define LCD_AI_FIELD_WIDTH 9
 #define LCD_AI_BUFFER_SIZE (LCD_AI_FIELD_WIDTH + 1)
-#define STR(x)             #x
-#define XSTR(x)            STR(x)
 #define LCD_AI_FMT_STR \
     "%-" XSTR(LCD_AI_FIELD_WIDTH) "." XSTR(LCD_AI_FIELD_WIDTH) "s"
 #define LCD_MANAGER_COLS_MAX                  (20U)
