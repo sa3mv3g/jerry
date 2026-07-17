@@ -9,6 +9,23 @@
 #include "queue.h"
 #include "semphr.h"
 
+/* Enable lwIP debug output */
+#define LWIP_DEBUG                  0
+
+/* Enable debug for specific modules (examples) */
+#define ETHARP_DEBUG                LWIP_DBG_OFF
+#define NETIF_DEBUG                 LWIP_DBG_OFF
+#define PBUF_DEBUG                  LWIP_DBG_OFF
+#define IP_DEBUG                    LWIP_DBG_OFF
+#define TCP_DEBUG                   LWIP_DBG_OFF
+#define UDP_DEBUG                   LWIP_DBG_OFF
+#define DHCP_DEBUG                  LWIP_DBG_OFF
+#define SOCKETS_DEBUG               LWIP_DBG_OFF
+#define SNTP_DEBUG                  LWIP_DBG_OFF
+
+#define LWIP_DBG_MIN_LEVEL          LWIP_DBG_LEVEL_ALL
+#define LWIP_DBG_TYPES_ON           LWIP_DBG_ON
+
 
 /* ------------------------------------------------
    2. Operating System & Core
@@ -25,6 +42,8 @@
 /* Stop LwIP from defining struct timeval, as <sys/time.h> already does it */
 #define LWIP_TIMEVAL_PRIVATE            0
 #define LWIP_ERRNO_STDINCLUDE           1
+/* just have single ethernet interface */
+#define LWIP_SINGLE_NETIF               1
 
 /* ------------------------------------------------
    3. Memory Options (Tailor to STM32H5 RAM)
@@ -64,8 +83,8 @@
 #define LWIP_IPV6                       0  /* FORCE IPv6 OFF */
 
 /* ------------------------------------------------
-   5. Network Interfaces
-   ------------------------------------------------ */
+    5. Network Interfaces
+    ------------------------------------------------ */
 #define LWIP_ARP                        1
 #define LWIP_ETHERNET                   1
 #define LWIP_ICMP                       1
@@ -74,10 +93,14 @@
 #define LWIP_DNS                        1
 #define LWIP_UDP                        1
 #define LWIP_SNTP                       1
+#define LWIP_MDNS_RESPONDER             1  /* Enable mDNS responder */
+#define LWIP_IGMP                       1  /* IGMP for mDNS */
+#define LWIP_MULTICAST_TX_OPTIONS       1
+#define MEMP_NUM_IGMP_GROUP             8
 
 /* Use static IP */
 #define SNTP_SERVER_DNS             (0U)
-#define SNTP_UPDATE_DELAY           (15000U)     
+#define SNTP_UPDATE_DELAY           (15000U)
 #define SNTP_STARTUP_DELAY          (3000U)
 #define SNTP_RETRY_TIMEOUT          (2000U)
 
@@ -112,7 +135,9 @@ void BSP_RTC_SetUnixTimestamp(unsigned int sec, unsigned int us);
 #define DEFAULT_TCP_RECVMBOX_SIZE       8
 #define DEFAULT_ACCEPTMBOX_SIZE         8
 
+#define LWIP_NUM_NETIF_CLIENT_DATA      1
 #define LWIP_NETIF_LINK_CALLBACK        1
+#define LWIP_NETIF_STATUS_CALLBACK      1
 
 /* ------------------------------------------------
    8. Statistics (for debugging memory issues)

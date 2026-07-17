@@ -112,3 +112,15 @@ void AppLog_Init(void)
     AppLog_SetLevel(LOG_LEVEL_WARNING);
 #endif
 }
+
+int _write(int file, char* ptr, int len)
+{
+    (void)file;
+    static int rtt_initialized = 0;
+    if (!rtt_initialized)
+    {
+        SEGGER_RTT_Init();
+        rtt_initialized = 1;
+    }
+    return SEGGER_RTT_Write(0, ptr, len);
+}
