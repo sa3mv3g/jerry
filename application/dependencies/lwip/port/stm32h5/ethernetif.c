@@ -13,7 +13,7 @@
 #if ETH_DEBUG_ENABLE
 #include <stdio.h>
 #define ETH_DEBUG(fmt, ...) \
-    printf("[ETH %lu] " fmt "\r\n", HAL_GetTick(), ##__VA_ARGS__)
+    LOG_INF("[ETH %lu] " fmt "\r\n", HAL_GetTick(), ##__VA_ARGS__)
 #else
 #define ETH_DEBUG(fmt, ...) ((void)0)
 #endif
@@ -21,11 +21,16 @@
 #include <string.h>
 
 #include "FreeRTOS.h"
+#include "bsp.h"
 #include "ethernetif.h"
+#include "ip_specs.h"
 #include "lan8742.h"
+#include "lwip/apps/mdns.h"
+#include "lwip/apps/sntp.h"
 #include "lwip/etharp.h"
 #include "lwip/mem.h"
 #include "lwip/memp.h"
+#include "lwip/netif.h"
 #include "lwip/opt.h"
 #include "lwip/pbuf.h"
 #include "lwip/stats.h"
@@ -33,9 +38,92 @@
 #include "lwip/timeouts.h"
 #include "main.h"
 #include "netif/ethernet.h"
+#include "network_sync.h"
 #include "semphr.h"
 #include "stm32h5xx_hal.h"
 #include "task.h"
+
+/* mDNS service for Modbus */
+
+static void ethernetif_status_callback(struct netif *netif)
+{
+    static bool services_initialized = false;
+
+    /* Guard: only handle our netif, once, when IP is valid */
+    if (netif_is_up(netif) && !ip4_addr_isany(netif_ip4_addr(netif)) &&
+        !services_initialized)
+    {
+        ip_addr_t sntp_server_ip;
+        char      hostname[32];
+        char      ip_str[16];
+        char      gw_str[16];
+        char      nm_str[16];
+        uint8_t   dev_addr;
+
+        /* --- System state update --- */
+        dev_addr = BSP_GetDeviceAddress();
+        snprintf(hostname, sizeof(hostname), "jerry-dev-%u",
+                 (unsigned int)dev_addr);
+
+        NetworkSync_SignalDhcpReady();
+
+        /* --- Log network configuration --- */
+        ip4addr_ntoa_r(netif_ip4_addr(netif), ip_str, sizeof(ip_str));
+        ip4addr_ntoa_r(netif_ip4_gw(netif), gw_str, sizeof(gw_str));
+        ip4addr_ntoa_r(netif_ip4_netmask(netif), nm_str, sizeof(nm_str));
+
+        printf("=== DHCP Complete ===\r\n");
+        printf("IP Address : %s\r\n", ip_str);
+        printf("Netmask    : %s\r\n", nm_str);
+        printf("Gateway    : %s\r\n", gw_str);
+        printf("Flags      : 0x%02x\r\n", netif->flags);
+        printf("netif_default: %p, our netif: %p\r\n", (void *)netif_default,
+               (void *)netif);
+        printf("=====================\r\n");
+
+        /* --- Initialize SNTP --- */
+        printf("Initializing SNTP...\r\n");
+        IP_ADDR4(&sntp_server_ip, SNTP_IP_ADDR0, SNTP_IP_ADDR1, SNTP_IP_ADDR2,
+                 SNTP_IP_ADDR3);
+        sntp_setserver(0, &sntp_server_ip);
+        sntp_setoperatingmode(SNTP_OPMODE_POLL);
+        sntp_init();
+
+        mdns_resp_init();
+
+        err_t err = mdns_resp_add_netif(netif, hostname, 255);
+        if (err != ERR_OK)
+        {
+            printf("mDNS: add_netif failed: %d\r\n", (int)err);
+            return;
+        }
+        printf("mDNS: netif registered: '%s'\r\n", hostname);
+
+        int8_t slot = mdns_resp_add_service(
+            netif, hostname, "_modbus", DNSSD_PROTO_TCP, 502, 4500, NULL, NULL);
+        if (slot >= 0)
+        {
+            printf("mDNS: service registered (slot: %d)\r\n", slot);
+            // mdns_resp_announce(netif);
+        }
+        else
+        {
+            printf("mDNS: add_service failed: %d\r\n", (int)slot);
+        }
+
+        services_initialized = true;
+        HAL_IWDG_Refresh(&hiwdg);
+    }
+    else if (!netif_is_up(netif))
+    {
+        ETH_DEBUG("Network going down, removing netif from mDNS");
+        /* Remove the network interface from mDNS */
+        mdns_resp_remove_netif(netif);
+        /* Note: We do not deinitialize mDNS here because there is no
+         * mdns_resp_deinit() */
+        /* We leave the mDNS PCB allocated until the next reset. */
+    }
+}
 
 #define ETHIF_TX_TIMEOUT            (2000U)
 #define INTERFACE_THREAD_STACK_SIZE (1024)
@@ -237,7 +325,7 @@ static void low_level_init(struct netif *netif)
     ethernetif_get_mac_addr(netif->hwaddr);
     netif->hwaddr_len = ETH_HWADDR_LEN;
     netif->mtu        = ETH_MAX_PAYLOAD;
-    netif->flags |= NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
+    netif->flags |= NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_IGMP;
 
     ETH_DEBUG("MAC: %02X:%02X:%02X:%02X:%02X:%02X", netif->hwaddr[0],
               netif->hwaddr[1], netif->hwaddr[2], netif->hwaddr[3],
@@ -333,10 +421,8 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
     ETH_BufferTypeDef Txbuffer[ETH_TX_DESC_CNT];
     HAL_StatusTypeDef tx_status;
 
-    /* Update link statistics */
     LINK_STATS_INC(link.xmit);
 
-    /* Log TX packet details */
     uint8_t *data = (uint8_t *)p->payload;
     (void)data;
     ETH_DEBUG("TX: len=%u, dst=%02X:%02X:%02X:%02X:%02X:%02X, type=0x%02X%02X",
@@ -364,39 +450,38 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
 
     pbuf_ref(p);
 
-    /* Memory barrier before TX */
     __DSB();
 
-    /* Before trying to transmit a new packet, release any completed packets
-     * to free their pbufs. This executes safely in the task context. */
     HAL_ETH_ReleaseTxPacket(&heth);
-
-    /* Clear any old errors before attempting transmission */
     heth.ErrorCode = HAL_ETH_ERROR_NONE;
     tx_status      = HAL_ETH_Transmit_IT(&heth, &localTxConfig);
 
+    /* ✅ FIX 1: Bounded retry loop — max 3 attempts */
+    uint32_t retries = 0U;
     while (tx_status != HAL_OK)
     {
-        if (HAL_ETH_GetError(&heth) & HAL_ETH_ERROR_BUSY)
+        if ((HAL_ETH_GetError(&heth) & HAL_ETH_ERROR_BUSY) &&
+            (retries < 3U))  // ← exit condition
         {
-            /* Wait for TX complete semaphore */
-            (void)xSemaphoreTake(TxPktSemaphore,
-                                 pdMS_TO_TICKS(ETHIF_TX_TIMEOUT));
-
-            /* TX completed, safely release packets here in task context */
+            retries++;
+            if (xSemaphoreTake(TxPktSemaphore,
+                               pdMS_TO_TICKS(ETHIF_TX_TIMEOUT)) != pdTRUE)
+            {
+                ETH_DEBUG("TX semaphore timeout (retry %lu)", retries);
+            }
             HAL_ETH_ReleaseTxPacket(&heth);
-
-            /* Clear error code again before retry */
             heth.ErrorCode = HAL_ETH_ERROR_NONE;
             tx_status      = HAL_ETH_Transmit_IT(&heth, &localTxConfig);
         }
         else
         {
-            ETH_DEBUG("TX FAILED!", 0);
-            pbuf_free(p);
+            ETH_DEBUG("TX FAILED after %lu retries!", retries);
+            pbuf_free(p);  // ← undo pbuf_ref() on failure
             return ERR_IF;
         }
     }
+
+    /* Note: pbuf freed later via HAL_ETH_TxFreeCallback → pbuf_free(p) */
     return ERR_OK;
 }
 
@@ -482,6 +567,7 @@ err_t ethernetif_init(struct netif *netif)
     netif->name[1]    = IFNAME1;
     netif->output     = etharp_output;
     netif->linkoutput = low_level_output;
+    netif_set_status_callback(netif, ethernetif_status_callback);
     low_level_init(netif);
     return ERR_OK;
 }

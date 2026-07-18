@@ -15,6 +15,7 @@ dependencies = [
     "pymodbus>=3.6.0",
     "scipy>=1.15.3",
     "matplotlib>=3.10.8",
+    "zeroconf>=0.150.0",
 ]
 
 [build-system]

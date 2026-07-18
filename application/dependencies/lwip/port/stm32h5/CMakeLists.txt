@@ -14,5 +14,8 @@ SET(LWIP_PORT_INC
     ${LWIP_PORT_INC}
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/arch"
+    "${CMAKE_SOURCE_DIR}/application/bsp"
+    "${CMAKE_SOURCE_DIR}/application/bsp/stm/stm32h563/Drivers/CMSIS/DSP/Include"
     PARENT_SCOPE
 )
+

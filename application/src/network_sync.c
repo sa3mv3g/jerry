@@ -20,3 +20,15 @@ void NetworkSync_WaitForTcpReady(void)
                         pdFALSE,  // don't clear bit (others can wait too)
                         pdTRUE, portMAX_DELAY);
 }
+
+void NetworkSync_SignalDhcpReady(void)
+{
+    xEventGroupSetBits(xNetworkEvents, DHCP_READY_BIT);
+}
+
+void NetworkSync_WaitForDhcpReady(void)
+{
+    xEventGroupWaitBits(xNetworkEvents, DHCP_READY_BIT,
+                        pdFALSE,  // don't clear bit (others can wait too)
+                        pdTRUE, portMAX_DELAY);
+}

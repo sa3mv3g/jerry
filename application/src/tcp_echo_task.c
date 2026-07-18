@@ -6,13 +6,13 @@
 #include "tcp_echo_task.h"
 
 #include "app_log.h"
+#include "app_main.h"
 #include "app_tasks.h"
 #include "bsp.h"
 #include "ethernetif.h"
 #include "ip_specs.h"
 #include "lcd_manager.h"
 #include "lwip/api.h"
-#include "lwip/apps/sntp.h"
 #include "lwip/dhcp.h"
 #include "lwip/netif.h"
 #include "lwip/opt.h"
@@ -93,10 +93,10 @@ void vTcpEchoTask(void *pvParameters)
 
     /* Add the network interface */
     LOG_INF("Adding Network Interface...");
+
     netif_add(&gnetif, &ipaddr, &netmask, &gw, NULL, &ethernetif_init,
               &tcpip_input);
-
-    /* Registers the default network interface */
+    /* Set this to default interface. Required by DHCP */
     netif_set_default(&gnetif);
 
     /* Register link callback to log status changes */
@@ -127,37 +127,23 @@ void vTcpEchoTask(void *pvParameters)
             gnetif.hwaddr[1], gnetif.hwaddr[2], gnetif.hwaddr[3],
             gnetif.hwaddr[4], gnetif.hwaddr[5]);
     LOG_INF("MTU: %u", gnetif.mtu);
-    LOG_INF("Flags: 0x%02X (UP=%d, LINK_UP=%d, ETHARP=%d, BCAST=%d)",
+    LOG_INF("Flags: 0x%02X (UP=%d, LINK_UP=%d, ETHARP=%d, BCAST=%d, IGMP=%d)",
             gnetif.flags, (gnetif.flags & NETIF_FLAG_UP) ? 1 : 0,
             (gnetif.flags & NETIF_FLAG_LINK_UP) ? 1 : 0,
             (gnetif.flags & NETIF_FLAG_ETHARP) ? 1 : 0,
-            (gnetif.flags & NETIF_FLAG_BROADCAST) ? 1 : 0);
+            (gnetif.flags & NETIF_FLAG_BROADCAST) ? 1 : 0,
+            (gnetif.flags & NETIF_FLAG_IGMP) ? 1 : 0);
 
 #if USE_DHCP
     /* Start DHCP to obtain IP address automatically */
-    LOG_INF("Starting DHCP...");
+    HAL_IWDG_Refresh(&hiwdg);
+
     dhcp_start(&gnetif);
 
     /* Wait for DHCP to obtain an IP address */
     LOG_INF("Waiting for DHCP to obtain IP address...");
-    uint32_t dhcp_timeout = 0;
-    while (!dhcp_supplied_address(&gnetif))
-    {
-        vTaskDelay(pdMS_TO_TICKS(100));
-        dhcp_timeout++;
-        if (dhcp_timeout >= 300)
-        { /* 30 seconds timeout */
-            LOG_INF("DHCP timeout! Using link-local address.");
-            break;
-        }
-    }
 
-    /* Print obtained IP address */
-    LOG_INF("=== DHCP Complete ===");
-    LOG_INF("IP Address: %s", ip4addr_ntoa(netif_ip4_addr(&gnetif)));
-    LOG_INF("Netmask: %s", ip4addr_ntoa(netif_ip4_netmask(&gnetif)));
-    LOG_INF("Gateway: %s", ip4addr_ntoa(netif_ip4_gw(&gnetif)));
-    LOG_INF("=====================");
+    NetworkSync_WaitForDhcpReady();
 #else
     /* Print static IP configuration */
     LOG_INF("=== Static IP Configuration ===");
@@ -165,20 +151,13 @@ void vTcpEchoTask(void *pvParameters)
     LOG_INF("Netmask: %s", ip4addr_ntoa(netif_ip4_netmask(&gnetif)));
     LOG_INF("Gateway: %s", ip4addr_ntoa(netif_ip4_gw(&gnetif)));
     LOG_INF("===============================");
-
-    LcdManager_UpdateIpv4Address(ip4addr_ntoa(netif_ip4_addr(&gnetif)));
 #endif /* USE_DHCP */
 
-    /* Initialize SNTP to fetch time from Host PC */
-    LOG_INF("Initializing SNTP...");
-    ip_addr_t sntp_server_ip;
-    IP_ADDR4(&sntp_server_ip, SNTP_IP_ADDR0, SNTP_IP_ADDR1, SNTP_IP_ADDR2,
-             SNTP_IP_ADDR3);
-    sntp_setserver(0, &sntp_server_ip);
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_init();
+    LcdManager_UpdateIpv4Address(ip4addr_ntoa(netif_ip4_addr(&gnetif)));
 
     HAL_IWDG_Refresh(&hiwdg);
+
+    NetworkSync_SignalTcpReady();
 
     xEventGroupSync(xSyncEventGroup, APPTASK_TCPECHO_TASK_EVENT_MASK,
                     APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
@@ -187,7 +166,7 @@ void vTcpEchoTask(void *pvParameters)
     tcp_echo_thread(NULL);
 
     /* Should not reach here */
-    for (;;);
+    vTaskDelete(NULL);
 }
 
 /* ========================================================================== */
@@ -227,13 +206,7 @@ static void link_callback(struct netif *netif)
 {
     if (netif_is_link_up(netif))
     {
-        gLwipStackUp = LWIP_STATUS_UP;
-
-        /* notify globally that link is up  */
-        NetworkSync_SignalTcpReady();
-
         LOG_INF("Link status changed: UP");
-        /* Optional: Re-trigger DHCP or other actions if needed */
     }
     else
     {
