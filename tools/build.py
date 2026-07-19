@@ -291,6 +291,7 @@ def cmd_flash(args: argparse.Namespace) -> int:
         str(flash_script),
         "--build-dir",
         str(bdir),
+        "-f"
     ]
     if args.serial_number:
         cmd.extend(["--sn", args.serial_number])

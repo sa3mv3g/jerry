@@ -8,21 +8,13 @@
  */
 
 /* Enable debug logging - set to 1 to enable, 0 to disable */
-#define ETH_DEBUG_ENABLE 0
+#include "ethernetif.h"
 
-#if ETH_DEBUG_ENABLE
 #include <stdio.h>
-#define ETH_DEBUG(fmt, ...) \
-    LOG_INF("[ETH %lu] " fmt "\r\n", HAL_GetTick(), ##__VA_ARGS__)
-#else
-#define ETH_DEBUG(fmt, ...) ((void)0)
-#endif
-
 #include <string.h>
 
 #include "FreeRTOS.h"
 #include "bsp.h"
-#include "ethernetif.h"
 #include "ip_specs.h"
 #include "lan8742.h"
 #include "lwip/apps/mdns.h"
@@ -43,112 +35,65 @@
 #include "stm32h5xx_hal.h"
 #include "task.h"
 
-/* mDNS service for Modbus */
+/* ========================================================================== */
+/*                 Private Definitions and Macros                             */
+/* ========================================================================== */
+#define ETH_DEBUG_ENABLE 0
 
-static void ethernetif_status_callback(struct netif *netif)
-{
-    static bool services_initialized = false;
-
-    /* Guard: only handle our netif, once, when IP is valid */
-    if (netif_is_up(netif) && !ip4_addr_isany(netif_ip4_addr(netif)) &&
-        !services_initialized)
-    {
-        ip_addr_t sntp_server_ip;
-        char      hostname[32];
-        char      ip_str[16];
-        char      gw_str[16];
-        char      nm_str[16];
-        uint8_t   dev_addr;
-
-        /* --- System state update --- */
-        dev_addr = BSP_GetDeviceAddress();
-        snprintf(hostname, sizeof(hostname), "jerry-dev-%u",
-                 (unsigned int)dev_addr);
-
-        NetworkSync_SignalDhcpReady();
-
-        /* --- Log network configuration --- */
-        ip4addr_ntoa_r(netif_ip4_addr(netif), ip_str, sizeof(ip_str));
-        ip4addr_ntoa_r(netif_ip4_gw(netif), gw_str, sizeof(gw_str));
-        ip4addr_ntoa_r(netif_ip4_netmask(netif), nm_str, sizeof(nm_str));
-
-        printf("=== DHCP Complete ===\r\n");
-        printf("IP Address : %s\r\n", ip_str);
-        printf("Netmask    : %s\r\n", nm_str);
-        printf("Gateway    : %s\r\n", gw_str);
-        printf("Flags      : 0x%02x\r\n", netif->flags);
-        printf("netif_default: %p, our netif: %p\r\n", (void *)netif_default,
-               (void *)netif);
-        printf("=====================\r\n");
-
-        /* --- Initialize SNTP --- */
-        printf("Initializing SNTP...\r\n");
-        IP_ADDR4(&sntp_server_ip, SNTP_IP_ADDR0, SNTP_IP_ADDR1, SNTP_IP_ADDR2,
-                 SNTP_IP_ADDR3);
-        sntp_setserver(0, &sntp_server_ip);
-        sntp_setoperatingmode(SNTP_OPMODE_POLL);
-        sntp_init();
-
-        mdns_resp_init();
-
-        err_t err = mdns_resp_add_netif(netif, hostname, 255);
-        if (err != ERR_OK)
-        {
-            printf("mDNS: add_netif failed: %d\r\n", (int)err);
-            return;
-        }
-        printf("mDNS: netif registered: '%s'\r\n", hostname);
-
-        int8_t slot = mdns_resp_add_service(
-            netif, hostname, "_modbus", DNSSD_PROTO_TCP, 502, 4500, NULL, NULL);
-        if (slot >= 0)
-        {
-            printf("mDNS: service registered (slot: %d)\r\n", slot);
-            // mdns_resp_announce(netif);
-        }
-        else
-        {
-            printf("mDNS: add_service failed: %d\r\n", (int)slot);
-        }
-
-        services_initialized = true;
-        HAL_IWDG_Refresh(&hiwdg);
-    }
-    else if (!netif_is_up(netif))
-    {
-        ETH_DEBUG("Network going down, removing netif from mDNS");
-        /* Remove the network interface from mDNS */
-        mdns_resp_remove_netif(netif);
-        /* Note: We do not deinitialize mDNS here because there is no
-         * mdns_resp_deinit() */
-        /* We leave the mDNS PCB allocated until the next reset. */
-    }
-}
-
+#if ETH_DEBUG_ENABLE
+#define ETH_DEBUG(fmt, ...) \
+    LOG_INF("[ETH %lu] " fmt "\r\n", HAL_GetTick(), ##__VA_ARGS__)
+#else
+#define ETH_DEBUG(fmt, ...) ((void)0)
+#endif
 #define ETHIF_TX_TIMEOUT            (2000U)
 #define INTERFACE_THREAD_STACK_SIZE (1024)
 #define IFNAME0                     's'
 #define IFNAME1                     't'
+#define RX_BUFFER_COUNT             (ETH_RX_DESC_CNT * 2)
 #define ETH_RX_BUFFER_SIZE          (1536U)
 
+/* ========================================================================== */
+/*                 Private Typedefs                                           */
+/* ========================================================================== */
+struct link_update_msg
+{
+    struct netif *netif;
+    int32_t       phy_state;
+};
+
+/* ========================================================================== */
+/*                 Private Function Prototype                                 */
+/* ========================================================================== */
+static void         ethernetif_input_task(void *argument);
+static int32_t      ETH_PHY_IO_Init(void);
+static int32_t      ETH_PHY_IO_DeInit(void);
+static int32_t      ETH_PHY_IO_ReadReg(uint32_t DevAddr, uint32_t RegAddr,
+                                       uint32_t *pRegVal);
+static int32_t      ETH_PHY_IO_WriteReg(uint32_t DevAddr, uint32_t RegAddr,
+                                        uint32_t RegVal);
+static int32_t      ETH_PHY_IO_GetTick(void);
+static int32_t      find_rx_buffer_index(uint8_t *buff);
+static void         low_level_init(struct netif *netif);
+static err_t        low_level_output(struct netif *netif, struct pbuf *p);
+static struct pbuf *low_level_input(struct netif *netif);
+static void         ethernetif_input_task(void *argument);
+static inline int   is_phy_link_up(int32_t state);
+static void         ethernetif_update_link_state(void *ctx);
+static void         ethernetif_status_callback(struct netif *netif);
+
+/* ========================================================================== */
+/*                 Private Variable Declaration                               */
+/* ========================================================================== */
+
 /* MAC address is defined in ethernetif.h - single source of truth */
-
-/* DMA Descriptors in SRAM3 (non-cacheable) - defined in main.c */
-extern ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT];
-extern ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT];
-
-/* Use the ETH handle from main.c */
-extern ETH_HandleTypeDef heth;
-
 /* RX buffers in SRAM3 for cache coherency
  * IMPORTANT: We need MORE buffers than descriptors to handle the case where
  * some buffers are being processed by the application while DMA needs new ones.
  * Using 2x the descriptor count gives us headroom.
  */
-#define RX_BUFFER_COUNT (ETH_RX_DESC_CNT * 2)
 static uint8_t RxBuff[RX_BUFFER_COUNT][ETH_RX_BUFFER_SIZE]
     __attribute__((section(".driver.eth_mac0_rx_buf"), aligned(32)));
-
 /* Buffer tracking:
  * - RxBuffAssigned: Bitmask tracking which buffers are currently assigned to
  * DMA descriptors
@@ -157,73 +102,39 @@ static uint8_t RxBuff[RX_BUFFER_COUNT][ETH_RX_BUFFER_SIZE]
  * - After RxLinkCallback, the HAL clears BackupAddr0, and the next
  * RxAllocateCallback can reuse it
  */
-static volatile uint32_t RxBuffAssigned =
-    0; /* Bitmask: bit N = buffer N assigned to DMA */
+/* Bitmask: bit N = buffer N assigned to DMA */
+static volatile uint32_t RxBuffAssigned   = 0;
 static volatile uint32_t CurrentRxBuffIdx = 0;
-
-static SemaphoreHandle_t RxPktSemaphore = NULL;
-static SemaphoreHandle_t TxPktSemaphore = NULL;
-static TaskHandle_t      EthIfThread    = NULL;
+static SemaphoreHandle_t RxPktSemaphore   = NULL;
+static SemaphoreHandle_t TxPktSemaphore   = NULL;
+static TaskHandle_t      EthIfThread      = NULL;
 
 /* Static semaphore buffers for FreeRTOS */
 static StaticSemaphore_t RxSemaphoreBuffer;
 static StaticSemaphore_t TxSemaphoreBuffer;
 
 static lan8742_Object_t LAN8742;
+static lan8742_IOCtx_t  LAN8742_IOCtx = {ETH_PHY_IO_Init, ETH_PHY_IO_DeInit,
+                                         ETH_PHY_IO_WriteReg, ETH_PHY_IO_ReadReg,
+                                         ETH_PHY_IO_GetTick};
 
-/* Forward declarations */
-static void    ethernetif_input_task(void *argument);
-static int32_t ETH_PHY_IO_Init(void);
-static int32_t ETH_PHY_IO_DeInit(void);
-static int32_t ETH_PHY_IO_ReadReg(uint32_t DevAddr, uint32_t RegAddr,
-                                  uint32_t *pRegVal);
-static int32_t ETH_PHY_IO_WriteReg(uint32_t DevAddr, uint32_t RegAddr,
-                                   uint32_t RegVal);
-static int32_t ETH_PHY_IO_GetTick(void);
+/* Counter for RX interrupts - for debugging */
+static volatile uint32_t RxIntCount = 0;
 
-static lan8742_IOCtx_t LAN8742_IOCtx = {ETH_PHY_IO_Init, ETH_PHY_IO_DeInit,
-                                        ETH_PHY_IO_WriteReg, ETH_PHY_IO_ReadReg,
-                                        ETH_PHY_IO_GetTick};
+/* Debug counters for semaphore takes and packets processed */
+static volatile uint32_t SemTakeCount      = 0;
+static volatile uint32_t PktProcessedCount = 0;
 
-static int32_t ETH_PHY_IO_Init(void)
-{
-    HAL_ETH_SetMDIOClockRange(&heth);
-    return 0;
-}
-static int32_t ETH_PHY_IO_DeInit(void) { return 0; }
-static int32_t ETH_PHY_IO_ReadReg(uint32_t DevAddr, uint32_t RegAddr,
-                                  uint32_t *pRegVal)
-{
-    return (HAL_ETH_ReadPHYRegister(&heth, DevAddr, RegAddr, pRegVal) == HAL_OK)
-               ? 0
-               : -1;
-}
-static int32_t ETH_PHY_IO_WriteReg(uint32_t DevAddr, uint32_t RegAddr,
-                                   uint32_t RegVal)
-{
-    return (HAL_ETH_WritePHYRegister(&heth, DevAddr, RegAddr, RegVal) == HAL_OK)
-               ? 0
-               : -1;
-}
-static int32_t ETH_PHY_IO_GetTick(void) { return (int32_t)HAL_GetTick(); }
+/* DMA Descriptors in SRAM3 (non-cacheable) - defined in main.c */
+extern ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT];
+extern ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT];
 
-/**
- * @brief  Find buffer index from buffer address
- * @param  buff: Buffer address to find
- * @retval Buffer index or -1 if not found
- */
-static int32_t find_rx_buffer_index(uint8_t *buff)
-{
-    for (uint32_t i = 0; i < RX_BUFFER_COUNT; i++)
-    {
-        if (buff == &RxBuff[i][0])
-        {
-            return (int32_t)i;
-        }
-    }
-    return -1;
-}
+/* Use the ETH handle from main.c */
+extern ETH_HandleTypeDef heth;
 
+/* ========================================================================== */
+/*                 Public Functions                                           */
+/* ========================================================================== */
 /**
  * @brief  HAL ETH RX Allocate Callback - Allocates buffer for DMA descriptor
  * @param  buff: Pointer to receive buffer pointer
@@ -308,12 +219,283 @@ void HAL_ETH_RxLinkCallback(void **pStart, void **pEnd, uint8_t *buff,
     }
 }
 
+void ethernetif_input(struct netif *netif)
+{
+    struct pbuf *p;
+    p = low_level_input(netif);
+    if (p != NULL)
+    {
+        err_t err = netif->input(p, netif);
+        if (err != ERR_OK)
+        {
+            ETH_DEBUG("netif->input FAILED: err=%d", (int)err);
+            pbuf_free(p);
+        }
+    }
+}
+
+err_t ethernetif_init(struct netif *netif)
+{
+    LWIP_ASSERT("netif != NULL", (netif != NULL));
+#if LWIP_NETIF_HOSTNAME
+    netif->hostname = "lwip";
+#endif
+    netif->name[0]    = IFNAME0;
+    netif->name[1]    = IFNAME1;
+    netif->output     = etharp_output;
+    netif->linkoutput = low_level_output;
+    netif_set_status_callback(netif, ethernetif_status_callback);
+    low_level_init(netif);
+    return ERR_OK;
+}
+
+void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth_param)
+{
+    (void)heth_param;
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    RxIntCount++;
+    if (RxPktSemaphore)
+    {
+        xSemaphoreGiveFromISR(RxPktSemaphore, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+}
+
+uint32_t ethernetif_get_sem_take_count(void) { return SemTakeCount; }
+
+uint32_t ethernetif_get_pkt_processed_count(void) { return PktProcessedCount; }
+
+uint32_t ethernetif_get_rx_int_count(void) { return RxIntCount; }
+
+void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *heth_param)
+{
+    (void)heth_param;
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    /* We MUST NOT call HAL_ETH_ReleaseTxPacket here because it calls
+     * pbuf_free() via HAL_ETH_TxFreeCallback. FreeRTOS mutexes (used by LwIP
+     * memory manager) cannot be taken in an ISR! We simply signal the
+     * TxPktSemaphore. */
+    if (TxPktSemaphore)
+    {
+        xSemaphoreGiveFromISR(TxPktSemaphore, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+}
+
+/**
+ * @brief  HAL ETH TX Free Callback - Frees pbuf after transmission completes
+ * @param  buff: Pointer to the packet data (actually a pbuf pointer cast to
+ * uint32_t*)
+ * @note   This callback is invoked by HAL_ETH_ReleaseTxPacket() for each
+ *         transmitted packet. The buff parameter is the pData field from
+ *         ETH_TxPacketConfigTypeDef, which we set to the pbuf pointer.
+ *
+ *         Without this callback, transmitted pbufs are never freed, causing
+ *         heap exhaustion during sustained traffic.
+ */
+void HAL_ETH_TxFreeCallback(uint32_t *buff)
+{
+    /* The buff parameter is actually the pbuf pointer we stored in
+     * TxConfig.pData */
+    struct pbuf *p = (struct pbuf *)buff;
+
+    if (p != NULL)
+    {
+        /* Free the pbuf - this decrements the reference count.
+         * The pbuf was ref'd in low_level_output() before transmission. */
+        pbuf_free(p);
+    }
+}
+
+void HAL_ETH_ErrorCallback(ETH_HandleTypeDef *heth_param)
+{
+    uint32_t error = HAL_ETH_GetDMAError(heth_param);
+
+    if (error & ETH_DMACSR_RBU)
+    {
+        ETH_DEBUG("RBU Error - restarting RX DMA", 0);
+    }
+
+    if (error & ETH_DMACSR_TBU)
+    {
+        ETH_DEBUG("TBU Error - restarting TX DMA", 0);
+    }
+}
+
+void ethernetif_check_link(struct netif *netif)
+{
+    int32_t PHYLinkState = LAN8742_GetLinkState(&LAN8742);
+
+    uint8_t is_up  = netif_is_link_up(netif) ? 1 : 0;
+    uint8_t phy_up = is_phy_link_up(PHYLinkState) ? 1 : 0;
+
+    if (is_up != phy_up)
+    {
+        /* Post to tcpip_thread to avoid data races on LwIP structures and ETH
+         * HAL */
+        struct link_update_msg *msg = (struct link_update_msg *)mem_malloc(
+            sizeof(struct link_update_msg));
+        if (msg != NULL)
+        {
+            msg->netif     = netif;
+            msg->phy_state = PHYLinkState;
+            if (tcpip_callback(ethernetif_update_link_state, msg) != ERR_OK)
+            {
+                mem_free(msg);
+            }
+        }
+    }
+}
+
+void ethernetif_poll(struct netif *netif) { ethernetif_input(netif); }
+
+void ethernet_link_thread(void *argument)
+{
+    struct netif *netif = (struct netif *)argument;
+
+    for (;;)
+    {
+        ethernetif_check_link(netif);
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
+/* ========================================================================== */
+/*                 Private Functions                                          */
+/* ========================================================================== */
+
+static void ethernetif_status_callback(struct netif *netif)
+{
+    static bool services_initialized = false;
+
+    /* Guard: only handle our netif, once, when IP is valid */
+    if (netif_is_up(netif) && !ip4_addr_isany(netif_ip4_addr(netif)) &&
+        !services_initialized)
+    {
+        ip_addr_t   sntp_server_ip;
+        static char hostname[32];
+        char        ip_str[16];
+        char        gw_str[16];
+        char        nm_str[16];
+        uint8_t     dev_addr;
+
+        /* --- System state update --- */
+        dev_addr = BSP_GetDeviceAddress();
+        snprintf(hostname, sizeof(hostname), "jerry-dev-%u",
+                 (unsigned int)dev_addr);
+
+        NetworkSync_SignalDhcpReady();
+
+        /* --- Log network configuration --- */
+        ip4addr_ntoa_r(netif_ip4_addr(netif), ip_str, sizeof(ip_str));
+        ip4addr_ntoa_r(netif_ip4_gw(netif), gw_str, sizeof(gw_str));
+        ip4addr_ntoa_r(netif_ip4_netmask(netif), nm_str, sizeof(nm_str));
+
+        printf("=== DHCP Complete ===\r\n");
+        printf("IP Address : %s\r\n", ip_str);
+        printf("Netmask    : %s\r\n", nm_str);
+        printf("Gateway    : %s\r\n", gw_str);
+        printf("Flags      : 0x%02x\r\n", netif->flags);
+        printf("netif_default: %p, our netif: %p\r\n", (void *)netif_default,
+               (void *)netif);
+        printf("=====================\r\n");
+
+        /* --- Initialize SNTP --- */
+        printf("Initializing SNTP...\r\n");
+        IP_ADDR4(&sntp_server_ip, SNTP_IP_ADDR0, SNTP_IP_ADDR1, SNTP_IP_ADDR2,
+                 SNTP_IP_ADDR3);
+        sntp_setserver(0, &sntp_server_ip);
+        sntp_setoperatingmode(SNTP_OPMODE_POLL);
+        sntp_init();
+
+        mdns_resp_init();
+
+        err_t err = mdns_resp_add_netif(netif, hostname, 255);
+        if (err != ERR_OK)
+        {
+            printf("mDNS: add_netif failed: %d\r\n", (int)err);
+            return;
+        }
+        printf("mDNS: netif registered: '%s'\r\n", hostname);
+
+        int8_t slot = mdns_resp_add_service(
+            netif, hostname, "_modbus", DNSSD_PROTO_TCP, 502, 120, NULL, NULL);
+        if (slot >= 0)
+        {
+            printf("mDNS: service registered (slot: %d)\r\n", slot);
+            // mdns_resp_announce(netif);
+        }
+        else
+        {
+            printf("mDNS: add_service failed: %d\r\n", (int)slot);
+        }
+
+        services_initialized = true;
+        // HAL_IWDG_Refresh(&hiwdg);
+    }
+    else if (!netif_is_up(netif))
+    {
+        ETH_DEBUG("Network going down, removing netif from mDNS");
+        /* Remove the network interface from mDNS */
+        if (services_initialized)
+        {
+            mdns_resp_remove_netif(netif);
+            services_initialized = false;
+        }
+    }
+}
+
+static int32_t ETH_PHY_IO_Init(void)
+{
+    HAL_ETH_SetMDIOClockRange(&heth);
+    return 0;
+}
+
+static int32_t ETH_PHY_IO_DeInit(void) { return 0; }
+
+static int32_t ETH_PHY_IO_ReadReg(uint32_t DevAddr, uint32_t RegAddr,
+                                  uint32_t *pRegVal)
+{
+    return (HAL_ETH_ReadPHYRegister(&heth, DevAddr, RegAddr, pRegVal) == HAL_OK)
+               ? 0
+               : -1;
+}
+
+static int32_t ETH_PHY_IO_WriteReg(uint32_t DevAddr, uint32_t RegAddr,
+                                   uint32_t RegVal)
+{
+    return (HAL_ETH_WritePHYRegister(&heth, DevAddr, RegAddr, RegVal) == HAL_OK)
+               ? 0
+               : -1;
+}
+
+static int32_t ETH_PHY_IO_GetTick(void) { return (int32_t)HAL_GetTick(); }
+
+/**
+ * @brief  Find buffer index from buffer address
+ * @param  buff: Buffer address to find
+ * @retval Buffer index or -1 if not found
+ */
+static int32_t find_rx_buffer_index(uint8_t *buff)
+{
+    for (uint32_t i = 0; i < RX_BUFFER_COUNT; i++)
+    {
+        if (buff == &RxBuff[i][0])
+        {
+            return (int32_t)i;
+        }
+    }
+    return -1;
+}
+
 static void low_level_init(struct netif *netif)
 {
-    uint32_t             duplex, speed = 0U;
-    int32_t              PHYLinkState;
-    ETH_MACConfigTypeDef MACConf = {0};
-    HAL_StatusTypeDef    hal_status;
+    uint32_t                   duplex, speed = 0U;
+    int32_t                    PHYLinkState;
+    ETH_MACConfigTypeDef       MACConf       = {0};
+    ETH_MACFilterConfigTypeDef MACFilterConf = {0};
+    HAL_StatusTypeDef          hal_status;
 
     ETH_DEBUG("low_level_init: Starting", 0);
 
@@ -392,6 +574,11 @@ static void low_level_init(struct netif *netif)
     MACConf.DuplexMode = duplex;
     MACConf.Speed      = speed;
     HAL_ETH_SetMACConfig(&heth, &MACConf);
+    HAL_ETH_GetMACFilterConfig(&heth, &MACFilterConf);
+    MACFilterConf.PassAllMulticast = ENABLE;  // Let multicast packets through!
+    MACFilterConf.PromiscuousMode =
+        ENABLE;  // Force pass ALL packets to rule out MAC filter issues!
+    HAL_ETH_SetMACFilterConfig(&heth, &MACFilterConf);
 
     /* Memory barriers before starting DMA */
     __DSB();
@@ -508,28 +695,6 @@ static struct pbuf *low_level_input(struct netif *netif)
     return p;
 }
 
-void ethernetif_input(struct netif *netif)
-{
-    struct pbuf *p;
-    p = low_level_input(netif);
-    if (p != NULL)
-    {
-        err_t err = netif->input(p, netif);
-        if (err != ERR_OK)
-        {
-            ETH_DEBUG("netif->input FAILED: err=%d", (int)err);
-            pbuf_free(p);
-        }
-    }
-}
-
-/* Counter for RX interrupts - for debugging */
-static volatile uint32_t RxIntCount = 0;
-
-/* Debug counters for semaphore takes and packets processed */
-static volatile uint32_t SemTakeCount      = 0;
-static volatile uint32_t PktProcessedCount = 0;
-
 static void ethernetif_input_task(void *argument)
 {
     struct pbuf  *p;
@@ -557,104 +722,6 @@ static void ethernetif_input_task(void *argument)
     }
 }
 
-err_t ethernetif_init(struct netif *netif)
-{
-    LWIP_ASSERT("netif != NULL", (netif != NULL));
-#if LWIP_NETIF_HOSTNAME
-    netif->hostname = "lwip";
-#endif
-    netif->name[0]    = IFNAME0;
-    netif->name[1]    = IFNAME1;
-    netif->output     = etharp_output;
-    netif->linkoutput = low_level_output;
-    netif_set_status_callback(netif, ethernetif_status_callback);
-    low_level_init(netif);
-    return ERR_OK;
-}
-
-void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth_param)
-{
-    (void)heth_param;
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    RxIntCount++;
-    if (RxPktSemaphore)
-    {
-        xSemaphoreGiveFromISR(RxPktSemaphore, &xHigherPriorityTaskWoken);
-        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    }
-}
-
-/* Debug function to get semaphore take count */
-uint32_t ethernetif_get_sem_take_count(void) { return SemTakeCount; }
-
-/* Debug function to get processed packet count */
-uint32_t ethernetif_get_pkt_processed_count(void) { return PktProcessedCount; }
-
-uint32_t ethernetif_get_rx_int_count(void) { return RxIntCount; }
-
-void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *heth_param)
-{
-    (void)heth_param;
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
-    /* We MUST NOT call HAL_ETH_ReleaseTxPacket here because it calls
-     * pbuf_free() via HAL_ETH_TxFreeCallback. FreeRTOS mutexes (used by LwIP
-     * memory manager) cannot be taken in an ISR! We simply signal the
-     * TxPktSemaphore. */
-    if (TxPktSemaphore)
-    {
-        xSemaphoreGiveFromISR(TxPktSemaphore, &xHigherPriorityTaskWoken);
-        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    }
-}
-
-/**
- * @brief  HAL ETH TX Free Callback - Frees pbuf after transmission completes
- * @param  buff: Pointer to the packet data (actually a pbuf pointer cast to
- * uint32_t*)
- * @note   This callback is invoked by HAL_ETH_ReleaseTxPacket() for each
- *         transmitted packet. The buff parameter is the pData field from
- *         ETH_TxPacketConfigTypeDef, which we set to the pbuf pointer.
- *
- *         Without this callback, transmitted pbufs are never freed, causing
- *         heap exhaustion during sustained traffic.
- */
-void HAL_ETH_TxFreeCallback(uint32_t *buff)
-{
-    /* The buff parameter is actually the pbuf pointer we stored in
-     * TxConfig.pData */
-    struct pbuf *p = (struct pbuf *)buff;
-
-    if (p != NULL)
-    {
-        /* Free the pbuf - this decrements the reference count.
-         * The pbuf was ref'd in low_level_output() before transmission. */
-        pbuf_free(p);
-    }
-}
-
-void HAL_ETH_ErrorCallback(ETH_HandleTypeDef *heth_param)
-{
-    uint32_t error = HAL_ETH_GetDMAError(heth_param);
-
-    if (error & ETH_DMACSR_RBU)
-    {
-        ETH_DEBUG("RBU Error - restarting RX DMA", 0);
-        /* Restart RX DMA by writing tail pointer */
-        __DMB();
-        WRITE_REG(heth_param->Instance->DMACRDTPR,
-                  (uint32_t)(heth_param->Init.RxDesc + (ETH_RX_DESC_CNT - 1U)));
-    }
-
-    if (error & ETH_DMACSR_TBU)
-    {
-        ETH_DEBUG("TBU Error - restarting TX DMA", 0);
-        __DMB();
-        WRITE_REG(heth_param->Instance->DMACTDTPR,
-                  (uint32_t)(heth_param->Init.TxDesc + (ETH_TX_DESC_CNT - 1U)));
-    }
-}
-
 /**
  * @brief  Check if PHY link state indicates link is truly UP
  */
@@ -663,14 +730,6 @@ static inline int is_phy_link_up(int32_t state)
     return (state >= LAN8742_STATUS_100MBITS_FULLDUPLEX &&
             state <= LAN8742_STATUS_10MBITS_HALFDUPLEX);
 }
-
-#include "lwip/tcpip.h"
-
-struct link_update_msg
-{
-    struct netif *netif;
-    int32_t       phy_state;
-};
 
 static void ethernetif_update_link_state(void *ctx)
 {
@@ -720,6 +779,12 @@ static void ethernetif_update_link_state(void *ctx)
         MACConf.Speed      = speed;
         HAL_ETH_SetMACConfig(&heth, &MACConf);
 
+        ETH_MACFilterConfigTypeDef MACFilterConf = {0};
+        HAL_ETH_GetMACFilterConfig(&heth, &MACFilterConf);
+        MACFilterConf.PassAllMulticast =
+            ENABLE;  // Let multicast packets through!
+        HAL_ETH_SetMACFilterConfig(&heth, &MACFilterConf);
+
         /* Reset buffer tracking before starting ETH */
         RxBuffAssigned   = 0;
         CurrentRxBuffIdx = 0;
@@ -745,40 +810,10 @@ static void ethernetif_update_link_state(void *ctx)
     mem_free(msg);
 }
 
-void ethernetif_check_link(struct netif *netif)
-{
-    int32_t PHYLinkState = LAN8742_GetLinkState(&LAN8742);
+/* ========================================================================== */
+/*                 Private Callback Handlers                                  */
+/* ========================================================================== */
 
-    uint8_t is_up  = netif_is_link_up(netif) ? 1 : 0;
-    uint8_t phy_up = is_phy_link_up(PHYLinkState) ? 1 : 0;
-
-    if (is_up != phy_up)
-    {
-        /* Post to tcpip_thread to avoid data races on LwIP structures and ETH
-         * HAL */
-        struct link_update_msg *msg = (struct link_update_msg *)mem_malloc(
-            sizeof(struct link_update_msg));
-        if (msg != NULL)
-        {
-            msg->netif     = netif;
-            msg->phy_state = PHYLinkState;
-            if (tcpip_callback(ethernetif_update_link_state, msg) != ERR_OK)
-            {
-                mem_free(msg);
-            }
-        }
-    }
-}
-
-void ethernetif_poll(struct netif *netif) { ethernetif_input(netif); }
-
-void ethernet_link_thread(void *argument)
-{
-    struct netif *netif = (struct netif *)argument;
-
-    for (;;)
-    {
-        ethernetif_check_link(netif);
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
-}
+/* ========================================================================== */
+/*                 Test/Debug/Other Sections                                  */
+/* ========================================================================== */
