@@ -87,3 +87,6 @@ application/dependencies/embedded-log/
 application/dependencies/segger_rtt/
 
 *.jdebug.user
+
+*.png
+temp/

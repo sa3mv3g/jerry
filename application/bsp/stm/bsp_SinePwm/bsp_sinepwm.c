@@ -22,11 +22,11 @@
 /* ========================================================================== */
 /*                 Private Variable Declaration                               */
 /* ========================================================================== */
-static uint32_t s_calc_values_a[PWM_CHANNELS_CNTS]
+static uint16_t s_calc_values_a[PWM_CHANNELS_CNTS]
                                [CARRIER_WAVES_PER_SINE_WAVE_CNTS] = {0};
-static uint32_t s_calc_values_b[PWM_CHANNELS_CNTS]
+static uint16_t s_calc_values_b[PWM_CHANNELS_CNTS]
                                [CARRIER_WAVES_PER_SINE_WAVE_CNTS] = {0};
-static uint32_t *s_active_calc_values_ptr[PWM_CHANNELS_CNTS]      = {
+static uint16_t *s_active_calc_values_ptr[PWM_CHANNELS_CNTS]      = {
     s_calc_values_a[0], s_calc_values_a[1], s_calc_values_a[2],
     s_calc_values_a[3]};
 
@@ -104,7 +104,7 @@ bsp_error_t BSP_SinePwm_Update(uint8_t channel, float amplitude,
         {
             // AC Sine wave mode
             uint8_t   ch_idx = channel - 1;
-            uint32_t *nonactive_ptr;
+            uint16_t *nonactive_ptr;
 
             if (s_active_calc_values_ptr[ch_idx] == s_calc_values_a[ch_idx])
             {
@@ -123,7 +123,7 @@ bsp_error_t BSP_SinePwm_Update(uint8_t channel, float amplitude,
                     (2.0f * (float)M_PI *
                      ((float)i / (float)CARRIER_WAVES_PER_SINE_WAVE_CNTS)) +
                     phase_rad;
-                float sine_val   = (sinf(angle) + 1.0f) * 0.5f * amplitude;
+                float sine_val   = (sinf(angle) * amplitude + 1.0f) * 0.5f;
                 nonactive_ptr[i] = (uint32_t)(sine_val * (float)timer_arr);
             }
 
