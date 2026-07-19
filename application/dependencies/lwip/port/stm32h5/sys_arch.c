@@ -304,7 +304,7 @@ void sys_mbox_free(sys_mbox_t *mbox)
 /*-----------------------------------------------------------------------------------*/
 
 #define MAX_THREADS       4
-#define THREAD_STACK_SIZE 512
+#define THREAD_STACK_SIZE 2048
 static StaticTask_t threadTCBs[MAX_THREADS];
 static StackType_t  threadStacks[MAX_THREADS][THREAD_STACK_SIZE];
 static uint8_t      threadUsed[MAX_THREADS] = {0};
@@ -313,7 +313,11 @@ sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg,
                             int stacksize, int prio)
 {
     int i;
-    (void)stacksize; /* Use fixed stack size */
+
+    /* Guard against requesting a stack larger than our static buffer */
+    LWIP_ASSERT(
+        "Requested stacksize is too large for the static thread buffer!",
+        stacksize <= THREAD_STACK_SIZE);
 
     for (i = 0; i < MAX_THREADS; i++)
     {
