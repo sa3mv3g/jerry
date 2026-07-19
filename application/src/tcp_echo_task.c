@@ -68,7 +68,7 @@ void vTcpEchoTask(void *pvParameters)
 
     gEthernetLinkUpSem = xSemaphoreCreateBinaryStatic(&gEthernetLinkUpSemBuff);
 
-#if USE_DHCP
+#if CMAKE_ENABLE_DHCP
     /* Initialize IP addresses to zero for DHCP */
     IP4_ADDR(&ipaddr, 0, 0, 0, 0);
     IP4_ADDR(&netmask, 0, 0, 0, 0);
@@ -134,7 +134,7 @@ void vTcpEchoTask(void *pvParameters)
             (gnetif.flags & NETIF_FLAG_BROADCAST) ? 1 : 0,
             (gnetif.flags & NETIF_FLAG_IGMP) ? 1 : 0);
 
-#if USE_DHCP
+#if CMAKE_ENABLE_DHCP
     /* Start DHCP to obtain IP address automatically */
     HAL_IWDG_Refresh(&hiwdg);
 

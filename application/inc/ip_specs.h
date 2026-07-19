@@ -1,10 +1,10 @@
 #ifndef IP_SPECS_H
 #define IP_SPECS_H
 
-/* Set USE_DHCP to 1 for dynamic IP (DHCP), 0 for static IP                  */
-#define USE_DHCP 1
+/* Set ENABLE_DHCP to 1 for dynamic IP (DHCP), 0 for static IP                  */
+/* ENABLE_DHCP is now injected via CMake target_compile_definitions             */
 
-#if !USE_DHCP
+#if !CMAKE_ENABLE_DHCP
 #define STATIC_IP_ADDR0      192
 #define STATIC_IP_ADDR1      168
 #define STATIC_IP_ADDR2      0

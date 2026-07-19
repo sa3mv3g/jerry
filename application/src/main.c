@@ -18,7 +18,7 @@
 #include "register_lock.h"
 #include "rtc_manager.h"
 #include "task.h"
-#ifdef ENABLE_I2C_DEVICE_SCAN
+#ifdef CMAKE_ENABLE_I2C_DEVICE_SCAN
 #include "i2c_scanner.h"
 #endif
 /* LwIP includes for memory stats */
@@ -455,7 +455,7 @@ int main(void)
     /* Initialize Hardware (BSP) */
     BSP_Init();
 
-#ifdef ENABLE_I2C_DEVICE_SCAN
+#ifdef CMAKE_ENABLE_I2C_DEVICE_SCAN
     /* Scan I2C bus for connected devices (optional feature) */
     I2C_ScanBus();
 #endif

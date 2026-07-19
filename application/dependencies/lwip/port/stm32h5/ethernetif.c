@@ -17,8 +17,13 @@
 #include "bsp.h"
 #include "ip_specs.h"
 #include "lan8742.h"
+#if CMAKE_ENABLE_MDNS
 #include "lwip/apps/mdns.h"
+#endif
+
+#if CMAKE_ENABLE_SNTP
 #include "lwip/apps/sntp.h"
+#endif
 #include "lwip/etharp.h"
 #include "lwip/mem.h"
 #include "lwip/memp.h"
@@ -392,7 +397,11 @@ static void ethernetif_status_callback(struct netif *netif)
         ip4addr_ntoa_r(netif_ip4_gw(netif), gw_str, sizeof(gw_str));
         ip4addr_ntoa_r(netif_ip4_netmask(netif), nm_str, sizeof(nm_str));
 
+#if CMAKE_ENABLE_DHCP
         printf("=== DHCP Complete ===\r\n");
+#else
+        printf("=== Static IP Ready ===\r\n");
+#endif
         printf("IP Address : %s\r\n", ip_str);
         printf("Netmask    : %s\r\n", nm_str);
         printf("Gateway    : %s\r\n", gw_str);
@@ -401,6 +410,7 @@ static void ethernetif_status_callback(struct netif *netif)
                (void *)netif);
         printf("=====================\r\n");
 
+#if CMAKE_ENABLE_SNTP
         /* --- Initialize SNTP --- */
         printf("Initializing SNTP...\r\n");
         IP_ADDR4(&sntp_server_ip, SNTP_IP_ADDR0, SNTP_IP_ADDR1, SNTP_IP_ADDR2,
@@ -408,7 +418,9 @@ static void ethernetif_status_callback(struct netif *netif)
         sntp_setserver(0, &sntp_server_ip);
         sntp_setoperatingmode(SNTP_OPMODE_POLL);
         sntp_init();
+#endif
 
+#if CMAKE_ENABLE_MDNS
         mdns_resp_init();
 
         err_t err = mdns_resp_add_netif(netif, hostname, 255);
@@ -430,6 +442,7 @@ static void ethernetif_status_callback(struct netif *netif)
         {
             printf("mDNS: add_service failed: %d\r\n", (int)slot);
         }
+#endif
 
         services_initialized = true;
         // HAL_IWDG_Refresh(&hiwdg);
@@ -440,7 +453,9 @@ static void ethernetif_status_callback(struct netif *netif)
         /* Remove the network interface from mDNS */
         if (services_initialized)
         {
+#if CMAKE_ENABLE_MDNS
             mdns_resp_remove_netif(netif);
+#endif
             services_initialized = false;
         }
     }

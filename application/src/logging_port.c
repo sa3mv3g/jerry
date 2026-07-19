@@ -98,8 +98,10 @@ void AppLog_Message(int level, int syslog_severity, const char* level_str,
 
         SEGGER_RTT_Write(0, combined_buf, offset);
 
+#if CMAKE_ENABLE_SYSLOG
         // Pass the fully formatted string to the logging task
         Applog_Syslog(combined_buf);
+#endif
     }
 }
 

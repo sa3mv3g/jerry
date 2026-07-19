@@ -7,7 +7,41 @@ include(FetchContent)
 # ==========================================================================
 # Optional Features
 # ==========================================================================
-option(ENABLE_I2C_DEVICE_SCAN "Enable I2C device address scanning at startup" OFF)
+option(CMAKE_ENABLE_I2C_DEVICE_SCAN "Enable I2C device address scanning at startup" OFF)
+option(CMAKE_ENABLE_SYSLOG "Enable syslog remote logging via UDP" ON)
+option(CMAKE_ENABLE_DHCP "Enable DHCP client" ON)
+option(CMAKE_ENABLE_SNTP "Enable SNTP time synchronization" ON)
+option(CMAKE_ENABLE_MDNS "Enable mDNS responder" ON)
+
+if(CMAKE_ENABLE_DHCP)
+    add_compile_definitions(CMAKE_ENABLE_DHCP=1)
+    message(STATUS "[Optional Feature] DHCP: ENABLED")
+    message(STATUS "  - IP address will be assigned automatically via DHCP")
+else()
+    add_compile_definitions(CMAKE_ENABLE_DHCP=0)
+    message(STATUS "[Optional Feature] DHCP: DISABLED")
+    message(STATUS "  - To enable: cmake -DCMAKE_ENABLE_DHCP=ON ..")
+endif()
+
+if(CMAKE_ENABLE_SNTP)
+    add_compile_definitions(CMAKE_ENABLE_SNTP=1)
+    message(STATUS "[Optional Feature] SNTP: ENABLED")
+    message(STATUS "  - RTC time will be synchronized via NTP")
+else()
+    add_compile_definitions(CMAKE_ENABLE_SNTP=0)
+    message(STATUS "[Optional Feature] SNTP: DISABLED")
+    message(STATUS "  - To enable: cmake -DCMAKE_ENABLE_SNTP=ON ..")
+endif()
+
+if(CMAKE_ENABLE_MDNS)
+    add_compile_definitions(CMAKE_ENABLE_MDNS=1)
+    message(STATUS "[Optional Feature] mDNS: ENABLED")
+    message(STATUS "  - Device will be discoverable on the local network")
+else()
+    add_compile_definitions(CMAKE_ENABLE_MDNS=0)
+    message(STATUS "[Optional Feature] mDNS: DISABLED")
+    message(STATUS "  - To enable: cmake -DCMAKE_ENABLE_MDNS=ON ..")
+endif()
 
 # ==========================================================================
 # Application Version
@@ -321,14 +355,24 @@ modbus_add_generated_sources(
 # ==========================================================================
 # Optional Feature Configuration
 # ==========================================================================
-if(ENABLE_I2C_DEVICE_SCAN)
-    target_compile_definitions(jerry_app PRIVATE ENABLE_I2C_DEVICE_SCAN=1)
+if(CMAKE_ENABLE_I2C_DEVICE_SCAN)
+    target_compile_definitions(jerry_app PRIVATE CMAKE_ENABLE_I2C_DEVICE_SCAN=1)
     message(STATUS "[Optional Feature] I2C Device Scan: ENABLED")
     message(STATUS "  - I2C bus will be scanned at startup")
     message(STATUS "  - All detected device addresses will be printed to console")
 else()
     message(STATUS "[Optional Feature] I2C Device Scan: DISABLED")
-    message(STATUS "  - To enable: cmake -DENABLE_I2C_DEVICE_SCAN=ON ..")
+    message(STATUS "  - To enable: cmake -DCMAKE_ENABLE_I2C_DEVICE_SCAN=ON ..")
+endif()
+
+if(CMAKE_ENABLE_SYSLOG)
+    target_compile_definitions(jerry_app PRIVATE CMAKE_ENABLE_SYSLOG=1)
+    message(STATUS "[Optional Feature] Syslog: ENABLED")
+    message(STATUS "  - Logs will be sent via UDP to remote syslog server")
+else()
+    target_compile_definitions(jerry_app PRIVATE CMAKE_ENABLE_SYSLOG=0)
+    message(STATUS "[Optional Feature] Syslog: DISABLED")
+    message(STATUS "  - To enable: cmake -DCMAKE_ENABLE_SYSLOG=ON ..")
 endif()
 
 target_link_libraries(jerry_app

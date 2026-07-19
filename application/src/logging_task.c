@@ -30,11 +30,14 @@ static int Logging_UdpSendString(const char *message);
 /* ========================================================================== */
 /*                 Private Variable Declaration                               */
 /* ========================================================================== */
+#if CMAKE_ENABLE_SYSLOG
 static StaticMessageBuffer_t xSyslogMessageBufferStruct;
 static MessageBufferHandle_t xSyslogMessageBuffer = NULL;
 static uint8_t         xSyslogMessageBufferStorage[SYSLOG_MSG_BUFFER_SIZE];
 static struct udp_pcb *g_udp_pcb = NULL;
 static ip_addr_t       g_dest_ip;
+#endif
+
 /* ========================================================================== */
 /*                 Public Functions                                           */
 /* ========================================================================== */
@@ -42,14 +45,17 @@ void vLoggingTask(void *pvParameters)
 {
     (void)pvParameters;
 
+#if CMAKE_ENABLE_SYSLOG
     xSyslogMessageBuffer = xMessageBufferCreateStatic(
         SYSLOG_MSG_BUFFER_SIZE, xSyslogMessageBufferStorage,
         &xSyslogMessageBufferStruct);
+#endif
 
     /* let wait for all other task configuration to finish */
     xEventGroupSync(xSyncEventGroup, APPTASK_LOGGING_TASK_EVENT_MASK,
                     APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
 
+#if CMAKE_ENABLE_SYSLOG
     /* Wait for network to be enabled */
     NetworkSync_WaitForTcpReady();
 
@@ -67,10 +73,17 @@ void vLoggingTask(void *pvParameters)
             Logging_UdpSendString(buf);
         }
     }
+#else
+    for (;;)
+    {
+        vTaskDelay(portMAX_DELAY);
+    }
+#endif
 }
 
 void Applog_Syslog(const char *msg)
 {
+#if CMAKE_ENABLE_SYSLOG
     if (NULL != xSyslogMessageBuffer && msg != NULL)
     {
         /* Cannot use MessageBufferSend safely before scheduler is running */
@@ -92,12 +105,16 @@ void Applog_Syslog(const char *msg)
             }
         }
     }
+#else
+    (void)msg;
+#endif
 }
 
 /* ========================================================================== */
 /*                 Private Functions                                          */
 /* ========================================================================== */
 
+#if CMAKE_ENABLE_SYSLOG
 static int Logging_UdpSendInit(void)
 {
     g_udp_pcb = udp_new();
@@ -134,3 +151,4 @@ static int Logging_UdpSendString(const char *message)
 
     return (err == ERR_OK) ? 0 : -1;
 }
+#endif

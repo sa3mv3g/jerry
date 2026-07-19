@@ -89,12 +89,12 @@
 #define LWIP_ETHERNET                   1
 #define LWIP_ICMP                       1
 #define LWIP_RAW                        1
-#define LWIP_DHCP                       1
+#define LWIP_DHCP                       CMAKE_ENABLE_DHCP
 #define LWIP_DNS                        1
 #define LWIP_UDP                        1
-#define LWIP_SNTP                       1
-#define LWIP_MDNS_RESPONDER             1  /* Enable mDNS responder */
-#define LWIP_IGMP                       1  /* IGMP for mDNS */
+#define LWIP_SNTP                       CMAKE_ENABLE_SNTP
+#define LWIP_MDNS_RESPONDER             CMAKE_ENABLE_MDNS  /* Enable mDNS responder */
+#define LWIP_IGMP                       CMAKE_ENABLE_MDNS  /* IGMP for mDNS */
 #define LWIP_MULTICAST_TX_OPTIONS       1
 #define MEMP_NUM_IGMP_GROUP             8
 

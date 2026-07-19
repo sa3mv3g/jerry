@@ -59,7 +59,7 @@ SUPPORTED_VENDORS: list[str] = ["stm"]
 # explicitly so the build is fully reproducible without relying on CMake defaults.
 CMAKE_DEFAULTS: dict[str, str] = {
     "CPPCHECK_USE_ADDONS": "OFF",
-    "ENABLE_I2C_DEVICE_SCAN": "OFF",
+    "CMAKE_ENABLE_I2C_DEVICE_SCAN": "OFF",
     "MODBUS_ENABLE_RTU": "ON",
     "MODBUS_ENABLE_ASCII": "ON",
     "MODBUS_ENABLE_TCP": "ON",
@@ -391,7 +391,7 @@ def _collect_extra_cmake_args(args: argparse.Namespace) -> list[str]:
     extra: list[str] = []
 
     if args.enable_i2c_scan:
-        extra.append("-DENABLE_I2C_DEVICE_SCAN=ON")
+        extra.append("-DCMAKE_ENABLE_I2C_DEVICE_SCAN=ON")
     if args.cppcheck_addons:
         extra.append("-DCPPCHECK_USE_ADDONS=ON")
     if args.disable_modbus_rtu:
@@ -512,7 +512,7 @@ def _add_common_args(parser: argparse.ArgumentParser) -> None:
         "--enable-i2c-scan",
         action="store_true",
         dest="enable_i2c_scan",
-        help="Enable I2C bus scanning at startup (ENABLE_I2C_DEVICE_SCAN=ON)",
+        help="Enable I2C bus scanning at startup (CMAKE_CMAKE_ENABLE_I2C_DEVICE_SCAN=ON)",
     )
     feat.add_argument(
         "--cppcheck-addons",
