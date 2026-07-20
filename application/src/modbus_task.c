@@ -44,9 +44,6 @@
 /** Receive timeout in milliseconds */
 #define MODBUS_RECV_TIMEOUT_MS 5000U
 
-#define BSP_EEPROM_READ(A, B, C) \
-    if (BSP_OK != BSP_EEPROM_Read(A, B, C)) break;
-
 /* ==========================================================================
  * Private Types
  * ========================================================================== */
@@ -124,14 +121,59 @@ void vModbusTask(void *pvParameters)
     hrRegs = jerry_device_get_holding_registers();
     do
     {
+#define BSP_EEPROM_READ(A, B, C) \
+    if (BSP_OK != BSP_EEPROM_Read(A, B, C)) break;
+#define BSP_EEPROM_WRITE(A, B, C) \
+    if (BSP_OK != BSP_EEPROM_Write(A, B, C)) break;
+
         err = BSP_EEPROM_Read(MODBUS_NVM_ADC_0_SCALE_FACTOR,
                               (uint8_t *)&hrRegs->adc_0_scale_factor,
                               sizeof(float));
         if (err != BSP_OK)
         {
             LOG_INF(
-                "[Modbus] Virgin MCU detected (EEPROM uninitialized). Using "
+                "[Modbus] EEPROM uninitialized. Using "
                 "default calibration.");
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_0_SCALE_FACTOR,
+                             (uint8_t *)&hrRegs->adc_0_scale_factor,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_0_OFFSET_TERM,
+                             (uint8_t *)&hrRegs->adc_0_offset_term,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_0_DEAD_ZONE,
+                             (uint8_t *)&hrRegs->adc_0_dead_zone,
+                             sizeof(float));
+
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_1_SCALE_FACTOR,
+                             (uint8_t *)&hrRegs->adc_1_scale_factor,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_1_OFFSET_TERM,
+                             (uint8_t *)&hrRegs->adc_1_offset_term,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_1_DEAD_ZONE,
+                             (uint8_t *)&hrRegs->adc_1_dead_zone,
+                             sizeof(float));
+
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_2_SCALE_FACTOR,
+                             (uint8_t *)&hrRegs->adc_2_scale_factor,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_2_OFFSET_TERM,
+                             (uint8_t *)&hrRegs->adc_2_offset_term,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_2_DEAD_ZONE,
+                             (uint8_t *)&hrRegs->adc_2_dead_zone,
+                             sizeof(float));
+
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_3_SCALE_FACTOR,
+                             (uint8_t *)&hrRegs->adc_3_scale_factor,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_3_OFFSET_TERM,
+                             (uint8_t *)&hrRegs->adc_3_offset_term,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_3_DEAD_ZONE,
+                             (uint8_t *)&hrRegs->adc_3_dead_zone,
+                             sizeof(float));
+
             /* Reset err to OK so we don't print the generic failure message
              * below */
             err = BSP_OK;
@@ -165,11 +207,13 @@ void vModbusTask(void *pvParameters)
                         (uint8_t *)&hrRegs->adc_3_dead_zone, sizeof(float));
         err = BSP_OK;
 
+#undef BSP_EEPROM_READ
+#undef BSP_EEPROM_WRITE
     } while (0);
 
     if (BSP_OK != err)
     {
-        LOG_ERR("[Modbus] Failed to read calibration data from EEPROM!!");
+        LOG_ERR("[Modbus] Failed to read/write calibration data from EEPROM!!");
     }
 
     LOG_INF("[Modbus] registers initialized");
