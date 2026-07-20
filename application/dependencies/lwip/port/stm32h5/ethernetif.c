@@ -24,6 +24,7 @@
 #if CMAKE_ENABLE_SNTP
 #include "lwip/apps/sntp.h"
 #endif
+#include "../../../../src/generated/jerry_device_registers.h"
 #include "lwip/etharp.h"
 #include "lwip/mem.h"
 #include "lwip/memp.h"
@@ -413,8 +414,14 @@ static void ethernetif_status_callback(struct netif *netif)
 #if CMAKE_ENABLE_SNTP
         /* --- Initialize SNTP --- */
         printf("Initializing SNTP...\r\n");
-        IP_ADDR4(&sntp_server_ip, SNTP_IP_ADDR0, SNTP_IP_ADDR1, SNTP_IP_ADDR2,
-                 SNTP_IP_ADDR3);
+
+        jerry_device_holding_registers_t *hrRegs =
+            jerry_device_get_holding_registers();
+        uint32_t sntp_ip = hrRegs->sntp_server_ip;
+
+        IP_ADDR4(&sntp_server_ip, (sntp_ip >> 24) & 0xFF,
+                 (sntp_ip >> 16) & 0xFF, (sntp_ip >> 8) & 0xFF, sntp_ip & 0xFF);
+
         sntp_setserver(0, &sntp_server_ip);
         sntp_setoperatingmode(SNTP_OPMODE_POLL);
         sntp_init();

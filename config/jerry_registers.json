@@ -239,6 +239,14 @@
         "default_value": false,
         "group": "date_time",
         "access": "read_write"
+      },
+      {
+        "name": "sntp_commit",
+        "address": 31,
+        "description": "Write 1 to commit the SNTP server IP holding register to EEPROM",
+        "default_value": false,
+        "group": "network_config",
+        "access": "read_write"
       }
     ],
     "discrete_inputs": [
@@ -713,6 +721,17 @@
         "size": 2,
         "group": "version_info",
         "access": "read_only"
+      },
+      {
+        "name": "sntp_server_ip",
+        "address": 305,
+        "description": "SNTP server IPv4 address",
+        "data_type": "uint32",
+        "size": 2,
+        "default_value": 3232235620,
+        "group": "network_config",
+        "access": "read_write",
+        "persistent": true
       }
     ],
     "input_registers": [
@@ -842,6 +861,10 @@
     {
       "name": "version_info",
       "description": "Application version information"
+    },
+    {
+      "name": "network_config",
+      "description": "Network configuration registers"
     }
   ]
 }
