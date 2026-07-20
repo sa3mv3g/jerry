@@ -57,6 +57,7 @@ void vTcpEchoTask(void *pvParameters)
     ip4_addr_t ipaddr;
     ip4_addr_t netmask;
     ip4_addr_t gw;
+    BaseType_t isDhcpReady;
 
     (void)pvParameters;
 
@@ -134,16 +135,24 @@ void vTcpEchoTask(void *pvParameters)
             (gnetif.flags & NETIF_FLAG_BROADCAST) ? 1 : 0,
             (gnetif.flags & NETIF_FLAG_IGMP) ? 1 : 0);
 
-#if CMAKE_ENABLE_DHCP
-    /* Start DHCP to obtain IP address automatically */
     HAL_IWDG_Refresh(&hiwdg);
 
+    xEventGroupSync(xSyncEventGroup, APPTASK_TCPECHO_TASK_EVENT_MASK,
+                    APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
+
+#if CMAKE_ENABLE_DHCP
+    /* Start DHCP to obtain IP address automatically */
     dhcp_start(&gnetif);
 
     /* Wait for DHCP to obtain an IP address */
     LOG_INF("Waiting for DHCP to obtain IP address...");
 
-    NetworkSync_WaitForDhcpReady();
+    do
+    {
+        isDhcpReady = NetworkSync_WaitForDhcpReady();
+        HAL_IWDG_Refresh(&hiwdg);
+    } while (isDhcpReady == pdFALSE);
+
 #else
     /* Print static IP configuration */
     LOG_INF("=== Static IP Configuration ===");
@@ -155,12 +164,7 @@ void vTcpEchoTask(void *pvParameters)
 
     LcdManager_UpdateIpv4Address(ip4addr_ntoa(netif_ip4_addr(&gnetif)));
 
-    HAL_IWDG_Refresh(&hiwdg);
-
     NetworkSync_SignalTcpReady();
-
-    xEventGroupSync(xSyncEventGroup, APPTASK_TCPECHO_TASK_EVENT_MASK,
-                    APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
 
     /* Create the TCP Echo Server thread */
     tcp_echo_thread(NULL);

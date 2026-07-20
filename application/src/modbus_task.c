@@ -24,6 +24,7 @@
 #include "lwip/stats.h"
 #include "modbus_callbacks.h"
 #include "modbus_internal.h"
+#include "network_sync.h"
 #include "register_lock.h"
 #include "task.h"
 
@@ -99,6 +100,7 @@ void vModbusTask(void *pvParameters)
     uint8_t                           dev_addr;
     uint16_t                          initDigitalOutputCoilsValues;
     jerry_device_holding_registers_t *hrRegs;
+    BaseType_t                        isTcpReady;
     bsp_error_t                       err;
 
     LOG_INF("[Modbus] Task Started");
@@ -201,6 +203,14 @@ void vModbusTask(void *pvParameters)
                     APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
 
     LcdManager_UpdateModbusDeviceAddress(s_modbus_unit_id);
+
+    /* Wait for network to be enabled */
+    do
+    {
+        isTcpReady = NetworkSync_WaitForTcpReady();
+        HAL_IWDG_Refresh(&hiwdg);
+    } while (isTcpReady == pdFALSE);
+
     initDigitalOutputCoilsValues = 0x0;
     if (BSP_OK == BSP_I2CDO_Read(&initDigitalOutputCoilsValues))
     {

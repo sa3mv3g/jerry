@@ -8,13 +8,14 @@
 
 #include "FreeRTOS.h"
 #include "app_log.h"
+#include "app_main.h"
 #include "app_tasks.h"
+#include "bsp.h"
 #include "ip_specs.h"
 #include "lwip/ip_addr.h"
 #include "lwip/udp.h"
 #include "message_buffer.h"
 #include "network_sync.h"
-#include "task.h"
 
 /* ========================================================================== */
 /*                 Private Definitions and Macros                             */
@@ -33,9 +34,10 @@ static int Logging_UdpSendString(const char *message);
 #if CMAKE_ENABLE_SYSLOG
 static StaticMessageBuffer_t xSyslogMessageBufferStruct;
 static MessageBufferHandle_t xSyslogMessageBuffer = NULL;
-static uint8_t         xSyslogMessageBufferStorage[SYSLOG_MSG_BUFFER_SIZE];
-static struct udp_pcb *g_udp_pcb = NULL;
-static ip_addr_t       g_dest_ip;
+static uint8_t            xSyslogMessageBufferStorage[SYSLOG_MSG_BUFFER_SIZE];
+static struct udp_pcb    *g_udp_pcb = NULL;
+static ip_addr_t          g_dest_ip;
+extern IWDG_HandleTypeDef hiwdg;
 #endif
 
 /* ========================================================================== */
@@ -56,8 +58,13 @@ void vLoggingTask(void *pvParameters)
                     APPTASK_ALL_TASK_EVENT_MASK, portMAX_DELAY);
 
 #if CMAKE_ENABLE_SYSLOG
+    BaseType_t isTcpReady;
     /* Wait for network to be enabled */
-    NetworkSync_WaitForTcpReady();
+    do
+    {
+        isTcpReady = NetworkSync_WaitForTcpReady();
+        HAL_IWDG_Refresh(&hiwdg);
+    } while (isTcpReady == pdFALSE);
 
     Logging_UdpSendInit();
 
