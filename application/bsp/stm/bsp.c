@@ -713,65 +713,73 @@ uint8_t BSP_GetDeviceAddress(void)
     return address;
 }
 
-bsp_error_t BSP_EEPROM_Read(uint32_t address, uint8_t *pBuff,
-                            uint32_t sizeBytes)
+bsp_error_t BSP_EEPROM_Read(uint32_t address, eeprom_data_t *pData)
 {
     bsp_error_t ret = BSP_OK;
-    if (pBuff == NULL)
-    {
-        return BSP_INVALID_ARG;
-    }
 
-    if (BSP_I2C_Controller_MutexLock() != pdTRUE)
+    if (pData == NULL)
     {
-        return BSP_BUSY;
+        ret = BSP_INVALID_ARG;
     }
-
-    for (uint32_t i = 0; i < sizeBytes; i++)
+    else
     {
-        EE_Status ee_status =
-            EE_ReadVariable8bits((uint16_t)(address + i), &pBuff[i]);
-        if (ee_status != EE_OK)
+        BaseType_t lockStatus = BSP_I2C_Controller_MutexLock();
+        if (lockStatus != pdTRUE)
         {
-            LOG_ERR("[BSP] EEPROM read error %d at address %u", (int)ee_status,
-                    (unsigned int)(address + i));
-            ret = BSP_ERROR;
-            break;
+            ret = BSP_BUSY;
+        }
+        else
+        {
+            EE_DATA_TYPE data[2] = {0, 0};
+            EE_Status    ee_status;
+
+            ee_status = EE_ReadVariable96bits((uint16_t)address, data);
+            if (ee_status != EE_OK)
+            {
+                LOG_ERR("[BSP] EEPROM read error %d at address %u",
+                        (int)ee_status, (unsigned int)address);
+                ret = BSP_ERROR;
+            }
+            else
+            {
+                pData->u32 = (uint32_t)data[0];
+            }
+            BSP_I2C_Controller_MutexUnlock();
         }
     }
-
-    BSP_I2C_Controller_MutexUnlock();
     return ret;
 }
 
-bsp_error_t BSP_EEPROM_Write(uint32_t address, uint8_t *pBuff,
-                             uint32_t sizeBytes)
+bsp_error_t BSP_EEPROM_Write(uint32_t address, eeprom_data_t *pData)
 {
     bsp_error_t ret = BSP_OK;
-    if (pBuff == NULL)
-    {
-        return BSP_INVALID_ARG;
-    }
 
-    if (BSP_I2C_Controller_MutexLock() != pdTRUE)
+    if (pData == NULL)
     {
-        return BSP_BUSY;
+        ret = BSP_INVALID_ARG;
     }
-
-    for (uint32_t i = 0; i < sizeBytes; i++)
+    else
     {
-        EE_Status ee_status =
-            EE_WriteVariable8bits((uint16_t)(address + i), pBuff[i]);
-        if (ee_status != EE_OK)
+        if (BSP_I2C_Controller_MutexLock() != pdTRUE)
         {
-            LOG_ERR("[BSP] EEPROM write error %d at address %u", (int)ee_status,
-                    (unsigned int)(address + i));
-            ret = BSP_ERROR;
-            break;
+            ret = BSP_BUSY;
+        }
+        else
+        {
+            EE_DATA_TYPE data[2] = {0, 0};
+            EE_Status    ee_status;
+
+            data[0]   = (EE_DATA_TYPE)pData->u32;
+            ee_status = EE_WriteVariable96bits((uint16_t)address, data);
+            if (ee_status != EE_OK)
+            {
+                LOG_ERR("[BSP] EEPROM write error %d at address %u",
+                        (int)ee_status, (unsigned int)address);
+                ret = BSP_ERROR;
+            }
+            BSP_I2C_Controller_MutexUnlock();
         }
     }
-
-    BSP_I2C_Controller_MutexUnlock();
     return ret;
 }
 

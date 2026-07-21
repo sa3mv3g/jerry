@@ -44,9 +44,6 @@
 /** Receive timeout in milliseconds */
 #define MODBUS_RECV_TIMEOUT_MS 5000U
 
-#define BSP_EEPROM_READ(A, B, C) \
-    if (BSP_OK != BSP_EEPROM_Read(A, B, C)) break;
-
 /* ==========================================================================
  * Private Types
  * ========================================================================== */
@@ -88,6 +85,10 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
                                              uint16_t       request_len,
                                              uint8_t       *response,
                                              uint16_t      *response_len);
+static uint32_t       modbus_write_eeprom(uint16_t             address,
+                                          const uint8_t *const value, size_t len);
+static uint32_t       modbus_read_eeprom(uint16_t address, uint8_t *const value,
+                                         size_t len);
 
 /* ==========================================================================
  * Public Functions
@@ -124,14 +125,59 @@ void vModbusTask(void *pvParameters)
     hrRegs = jerry_device_get_holding_registers();
     do
     {
-        err = BSP_EEPROM_Read(MODBUS_NVM_ADC_0_SCALE_FACTOR,
-                              (uint8_t *)&hrRegs->adc_0_scale_factor,
-                              sizeof(float));
-        if (err != BSP_OK)
+#define BSP_EEPROM_READ(A, B, C) \
+    if (APP_API_STATUS_OK != modbus_read_eeprom(A, B, C)) break;
+#define BSP_EEPROM_WRITE(A, B, C) \
+    if (APP_API_STATUS_OK != modbus_write_eeprom(A, B, C)) break;
+
+        err = modbus_read_eeprom(MODBUS_NVM_ADC_0_SCALE_FACTOR,
+                                 (uint8_t *)&hrRegs->adc_0_scale_factor,
+                                 sizeof(float));
+        if (err != APP_API_STATUS_OK)
         {
             LOG_INF(
-                "[Modbus] Virgin MCU detected (EEPROM uninitialized). Using "
+                "[Modbus] EEPROM uninitialized. Using "
                 "default calibration.");
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_0_SCALE_FACTOR,
+                             (uint8_t *)&hrRegs->adc_0_scale_factor,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_0_OFFSET_TERM,
+                             (uint8_t *)&hrRegs->adc_0_offset_term,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_0_DEAD_ZONE,
+                             (uint8_t *)&hrRegs->adc_0_dead_zone,
+                             sizeof(float));
+
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_1_SCALE_FACTOR,
+                             (uint8_t *)&hrRegs->adc_1_scale_factor,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_1_OFFSET_TERM,
+                             (uint8_t *)&hrRegs->adc_1_offset_term,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_1_DEAD_ZONE,
+                             (uint8_t *)&hrRegs->adc_1_dead_zone,
+                             sizeof(float));
+
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_2_SCALE_FACTOR,
+                             (uint8_t *)&hrRegs->adc_2_scale_factor,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_2_OFFSET_TERM,
+                             (uint8_t *)&hrRegs->adc_2_offset_term,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_2_DEAD_ZONE,
+                             (uint8_t *)&hrRegs->adc_2_dead_zone,
+                             sizeof(float));
+
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_3_SCALE_FACTOR,
+                             (uint8_t *)&hrRegs->adc_3_scale_factor,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_3_OFFSET_TERM,
+                             (uint8_t *)&hrRegs->adc_3_offset_term,
+                             sizeof(float));
+            BSP_EEPROM_WRITE(MODBUS_NVM_ADC_3_DEAD_ZONE,
+                             (uint8_t *)&hrRegs->adc_3_dead_zone,
+                             sizeof(float));
+
             /* Reset err to OK so we don't print the generic failure message
              * below */
             err = BSP_OK;
@@ -165,11 +211,13 @@ void vModbusTask(void *pvParameters)
                         (uint8_t *)&hrRegs->adc_3_dead_zone, sizeof(float));
         err = BSP_OK;
 
+#undef BSP_EEPROM_READ
+#undef BSP_EEPROM_WRITE
     } while (0);
 
     if (BSP_OK != err)
     {
-        LOG_ERR("[Modbus] Failed to read calibration data from EEPROM!!");
+        LOG_ERR("[Modbus] Failed to read/write calibration data from EEPROM!!");
     }
 
     LOG_INF("[Modbus] registers initialized");
@@ -663,4 +711,67 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
                                  MODBUS_TCP_MAX_ADU_SIZE, response_len);
 
     return err;
+}
+static uint32_t modbus_write_eeprom(uint16_t             address,
+                                    const uint8_t *const value, size_t len)
+{
+    uint32_t      ret = APP_API_STATUS_OK;
+    bsp_error_t   err;
+    eeprom_data_t data;
+    size_t        i;
+
+    if ((len > sizeof(data.u8)) || (value == NULL))
+    {
+        ret = APP_API_STATUS_ERROR;
+    }
+    else
+    {
+        /* MISRA prefers avoiding memcpy for critical systems to prevent
+           unbounded memory access. Using a loop is more predictable. */
+        for (i = 0U; i < len; i++)
+        {
+            data.u8[i] = value[i];
+        }
+
+        err = BSP_EEPROM_Write(address, &data);
+
+        if (err != BSP_OK)
+        {
+            ret = APP_API_STATUS_ERROR;
+        }
+    }
+
+    return ret;
+}
+
+static uint32_t modbus_read_eeprom(uint16_t address, uint8_t *const value,
+                                   size_t len)
+{
+    uint32_t      ret = APP_API_STATUS_OK;
+    bsp_error_t   err;
+    eeprom_data_t data;
+    size_t        i;
+
+    if (((len > sizeof(data.u8)) || (value == NULL)))
+    {
+        ret = APP_API_STATUS_ERROR;
+    }
+    else
+    {
+        err = BSP_EEPROM_Read(address, &data);
+
+        if (err == BSP_OK)
+        {
+            for (i = 0U; i < len; i++)
+            {
+                value[i] = data.u8[i];
+            }
+        }
+        else
+        {
+            ret = APP_API_STATUS_ERROR;
+        }
+    }
+
+    return ret;
 }
