@@ -155,6 +155,8 @@ typedef union
     uint8_t  u8[4];
 } unpack_float_t;
 
+typedef unpack_float_t eeprom_data_t;
+
 /**
  * @brief Global configuration structure for BSP COM port initialization.
  *
@@ -534,27 +536,23 @@ void BSP_Delay_Us(uint32_t us);
 /**
  * @brief  Reads data from the EEPROM emulation.
  * @param  address: Start address to read from
- * @param  pBuff: Pointer to the buffer that will receive the data read from
+ * @param  pData: Pointer to the buffer that will receive the data read from
  * the EEPROM
- * @param  sizeBytes: Number of bytes to read
  * @return bsp_error_t: BSP_OK if successful, otherwise an error code:
  *         - BSP_INVALID_ARG if pBuff is NULL
  *         - BSP_ERROR for other errors
  */
-bsp_error_t BSP_EEPROM_Read(uint32_t address, uint8_t *pBuff,
-                            uint32_t sizeBytes);
+bsp_error_t BSP_EEPROM_Read(uint32_t address, eeprom_data_t *pData);
 
 /**
  * @brief  Writes data to the EEPROM emulation.
  * @param  address: Start address to write to
- * @param  pBuff: Pointer to the buffer containing the data to write
- * @param  sizeBytes: Number of bytes to write
+ * @param  pData: Pointer to the buffer containing the data to write
  * @return bsp_error_t: BSP_OK if successful, otherwise an error code:
  *         - BSP_INVALID_ARG if pBuff is NULL
  *         - BSP_ERROR for other errors
  */
-bsp_error_t BSP_EEPROM_Write(uint32_t address, uint8_t *pBuff,
-                             uint32_t sizeBytes);
+bsp_error_t BSP_EEPROM_Write(uint32_t address, eeprom_data_t *pData);
 
 /**
  * @brief Initializes the SPWM generation.

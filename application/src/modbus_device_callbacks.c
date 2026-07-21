@@ -266,7 +266,9 @@ static bsp_error_t update_digital_input(unsigned int channel, bool *pCoil,
  */
 static inline bsp_error_t update_calibration(uint32_t address, float newValue)
 {
-    return BSP_EEPROM_Write(address, (uint8_t *)&newValue, sizeof(newValue));
+    eeprom_data_t data;
+    data.f32 = newValue;
+    return BSP_EEPROM_Write(address, &data);
 }
 
 /* ==========================================================================

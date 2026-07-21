@@ -85,6 +85,10 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
                                              uint16_t       request_len,
                                              uint8_t       *response,
                                              uint16_t      *response_len);
+static uint32_t       modbus_write_eeprom(uint16_t             address,
+                                          const uint8_t *const value, size_t len);
+static uint32_t       modbus_read_eeprom(uint16_t address, uint8_t *const value,
+                                         size_t len);
 
 /* ==========================================================================
  * Public Functions
@@ -122,14 +126,14 @@ void vModbusTask(void *pvParameters)
     do
     {
 #define BSP_EEPROM_READ(A, B, C) \
-    if (BSP_OK != BSP_EEPROM_Read(A, B, C)) break;
+    if (APP_API_STATUS_OK != modbus_read_eeprom(A, B, C)) break;
 #define BSP_EEPROM_WRITE(A, B, C) \
-    if (BSP_OK != BSP_EEPROM_Write(A, B, C)) break;
+    if (APP_API_STATUS_OK != modbus_write_eeprom(A, B, C)) break;
 
-        err = BSP_EEPROM_Read(MODBUS_NVM_ADC_0_SCALE_FACTOR,
-                              (uint8_t *)&hrRegs->adc_0_scale_factor,
-                              sizeof(float));
-        if (err != BSP_OK)
+        err = modbus_read_eeprom(MODBUS_NVM_ADC_0_SCALE_FACTOR,
+                                 (uint8_t *)&hrRegs->adc_0_scale_factor,
+                                 sizeof(float));
+        if (err != APP_API_STATUS_OK)
         {
             LOG_INF(
                 "[Modbus] EEPROM uninitialized. Using "
@@ -707,4 +711,67 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
                                  MODBUS_TCP_MAX_ADU_SIZE, response_len);
 
     return err;
+}
+static uint32_t modbus_write_eeprom(uint16_t             address,
+                                    const uint8_t *const value, size_t len)
+{
+    uint32_t      ret = APP_API_STATUS_OK;
+    bsp_error_t   err;
+    eeprom_data_t data;
+    size_t        i;
+
+    if ((len > sizeof(data.u8)) || (value == NULL))
+    {
+        ret = APP_API_STATUS_ERROR;
+    }
+    else
+    {
+        /* MISRA prefers avoiding memcpy for critical systems to prevent
+           unbounded memory access. Using a loop is more predictable. */
+        for (i = 0U; i < len; i++)
+        {
+            data.u8[i] = value[i];
+        }
+
+        err = BSP_EEPROM_Write(address, &data);
+
+        if (err != BSP_OK)
+        {
+            ret = APP_API_STATUS_ERROR;
+        }
+    }
+
+    return ret;
+}
+
+static uint32_t modbus_read_eeprom(uint16_t address, uint8_t *const value,
+                                   size_t len)
+{
+    uint32_t      ret = APP_API_STATUS_OK;
+    bsp_error_t   err;
+    eeprom_data_t data;
+    size_t        i;
+
+    if (((len > sizeof(data.u8)) || (value == NULL)))
+    {
+        ret = APP_API_STATUS_ERROR;
+    }
+    else
+    {
+        err = BSP_EEPROM_Read(address, &data);
+
+        if (err == BSP_OK)
+        {
+            for (i = 0U; i < len; i++)
+            {
+                value[i] = data.u8[i];
+            }
+        }
+        else
+        {
+            ret = APP_API_STATUS_ERROR;
+        }
+    }
+
+    return ret;
 }
