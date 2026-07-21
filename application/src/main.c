@@ -572,13 +572,33 @@ void vMainTask(void* pvParameters)
             update_counter = 0U;
 
             /* Update analog inputs (ADC) on LCD */
-            float32_t adc_values[BSP_ADC1_NUM_CHANNELS];
-            if (BSP_ADC1_IsFilterSettled() &&
-                (BSP_ADC1_GetFilteredValuesAll(adc_values) == BSP_OK))
+            if (BSP_ADC1_IsFilterSettled() != 0)
             {
-                for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
+                float32_t raw_volts;
+                if (BSP_OK ==
+                    BSP_ADC1_GetFilteredValue(BSP_ADC1_CHANNEL_A0, &raw_volts))
                 {
-                    LcdManager_UpdateAnalogInput(ch, adc_values[ch] * 3300.0f);
+                    LcdManager_UpdateAnalogInput(BSP_ADC1_CHANNEL_A0,
+                                                 raw_volts);
+                }
+
+                if (BSP_OK ==
+                    BSP_ADC1_GetFilteredValue(BSP_ADC1_CHANNEL_A1, &raw_volts))
+                {
+                    LcdManager_UpdateAnalogInput(BSP_ADC1_CHANNEL_A1,
+                                                 raw_volts);
+                }
+                if (BSP_OK ==
+                    BSP_ADC1_GetFilteredValue(BSP_ADC1_CHANNEL_A2, &raw_volts))
+                {
+                    LcdManager_UpdateAnalogInput(BSP_ADC1_CHANNEL_A2,
+                                                 raw_volts);
+                }
+                if (BSP_OK ==
+                    BSP_ADC1_GetFilteredValue(BSP_ADC1_CHANNEL_A3, &raw_volts))
+                {
+                    LcdManager_UpdateAnalogInput(BSP_ADC1_CHANNEL_A3,
+                                                 raw_volts);
                 }
             }
 
