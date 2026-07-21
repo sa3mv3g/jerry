@@ -93,8 +93,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
             /* Convert and filter each channel */
             for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
             {
-                /* Convert 12-bit ADC value to normalized float (0.0 to 1.0) */
-                float32_t input = (float32_t)adc1_dma_buffer[ch] / 4095.0f;
+                float32_t input = (float32_t)adc1_dma_buffer[ch];
 
                 /* Apply 12-stage biquad filter */
                 g_filtered_values[ch] =
