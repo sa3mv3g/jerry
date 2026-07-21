@@ -2,14 +2,24 @@
 #include "main.h"
 #include "math.h"
 
+/*
+    Note: In order to make the sinwave work, fix factors has been
+    introduced. They might no make sense, however, the output sine
+    wave comes out to be correct.
+*/
+
 /* ========================================================================== */
 /*                 Private Definitions and Macros                             */
 /* ========================================================================== */
+
+#define FIX_FACTOR_1 (2U)
+#define FIX_FACTOR_2 (2U)
+
 #define PWM_CHANNELS_CNTS    (4U)
 #define SINE_WAVE_FREQ_HZ    (50U)
 #define CARRIER_WAVE_FREQ_HZ (TIM3_PWM_BASE_FREQ_KHZ * 1000U)
 #define CARRIER_WAVES_PER_SINE_WAVE_CNTS \
-    ((uint32_t)(CARRIER_WAVE_FREQ_HZ / SINE_WAVE_FREQ_HZ))
+    ((uint32_t)(FIX_FACTOR_1 * CARRIER_WAVE_FREQ_HZ / SINE_WAVE_FREQ_HZ))
 
 /* ========================================================================== */
 /*                 Private Typedefs                                           */
@@ -22,6 +32,7 @@
 /* ========================================================================== */
 /*                 Private Variable Declaration                               */
 /* ========================================================================== */
+
 static uint16_t s_calc_values_a[PWM_CHANNELS_CNTS]
                                [CARRIER_WAVES_PER_SINE_WAVE_CNTS] = {0};
 static uint16_t s_calc_values_b[PWM_CHANNELS_CNTS]
@@ -115,16 +126,17 @@ bsp_error_t BSP_SinePwm_Update(uint8_t channel, float amplitude,
                 nonactive_ptr = s_calc_values_a[ch_idx];
             }
 
-            float phase_rad = ((float)phase_deg * (float)M_PI) / 180.0f;
+            float phase_rad =
+                ((float)(phase_deg + (0.0 * ch_idx)) * (float)M_PI) / 180.0f;
 
             for (uint32_t i = 0; i < CARRIER_WAVES_PER_SINE_WAVE_CNTS; i++)
             {
                 float angle =
-                    (2.0f * (float)M_PI *
-                     ((float)i / (float)CARRIER_WAVES_PER_SINE_WAVE_CNTS)) +
+                    (((float)FIX_FACTOR_2 * 2.0f * (float)M_PI * (float)i) /
+                     (float)CARRIER_WAVES_PER_SINE_WAVE_CNTS) +
                     phase_rad;
                 float sine_val   = (sinf(angle) * amplitude + 1.0f) * 0.5f;
-                nonactive_ptr[i] = (uint32_t)(sine_val * (float)timer_arr);
+                nonactive_ptr[i] = (uint16_t)(sine_val * (float)timer_arr);
             }
 
             s_active_calc_values_ptr[ch_idx] = nonactive_ptr;
