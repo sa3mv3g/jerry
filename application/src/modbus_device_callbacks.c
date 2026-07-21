@@ -551,6 +551,9 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
             case JERRY_DEVICE_COIL_RTC_COMMIT:
                 value = coils->rtc_commit;
                 break;
+            case JERRY_DEVICE_COIL_SNTP_COMMIT:
+                value = coils->sntp_commit;
+                break;
             default:
                 return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
         }
@@ -723,6 +726,19 @@ modbus_exception_t modbus_cb_write_single_coil(uint16_t address, bool value)
                     .weekday = 1 /* default weekday */
                 };
                 RTC_Manager_SetTimeAndDate(&timeDate);
+            }
+            break;
+        case JERRY_DEVICE_COIL_SNTP_COMMIT:
+            coils->sntp_commit = value;
+            if (value)
+            {
+                eeprom_data_t                     dataToSave;
+                jerry_device_holding_registers_t *hrRegs =
+                    jerry_device_get_holding_registers();
+                uint32_t ip    = hrRegs->sntp_server_ip;
+                dataToSave.u32 = ip;
+                doErr =
+                    BSP_EEPROM_Write(MODBUS_NVM_SNTP_SERVER_IP, &dataToSave);
             }
             break;
         default:
@@ -1167,6 +1183,13 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t  start_address,
                                 &register_values[i]);
                 break;
 
+            case JERRY_DEVICE_HR_SNTP_SERVER_IP:
+            case JERRY_DEVICE_HR_SNTP_SERVER_IP + 1:
+                u32_word_to_reg((uint32_t)regs->sntp_server_ip,
+                                addr - JERRY_DEVICE_HR_SNTP_SERVER_IP,
+                                &register_values[i]);
+                break;
+
             default:
                 return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
         }
@@ -1532,6 +1555,16 @@ modbus_exception_t modbus_cb_write_single_register(uint16_t address,
             regs->adc_3_dead_zone                              = num.f32;
             break;
         }
+
+        case JERRY_DEVICE_HR_SNTP_SERVER_IP:
+        case JERRY_DEVICE_HR_SNTP_SERVER_IP + 1:
+        {
+            unpack_float_t ip;
+            ip.u32 = regs->sntp_server_ip;
+            ip.u16[address - JERRY_DEVICE_HR_SNTP_SERVER_IP] = value;
+            regs->sntp_server_ip                             = ip.u32;
+        }
+        break;
 
         /* Version and build number registers are read-only.
          * Writes are silently ignored so bulk-write masters that include

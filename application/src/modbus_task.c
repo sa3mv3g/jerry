@@ -209,6 +209,14 @@ void vModbusTask(void *pvParameters)
                         (uint8_t *)&hrRegs->adc_3_offset_term, sizeof(float));
         BSP_EEPROM_READ(MODBUS_NVM_ADC_3_DEAD_ZONE,
                         (uint8_t *)&hrRegs->adc_3_dead_zone, sizeof(float));
+
+        if (BSP_OK != modbus_read_eeprom(MODBUS_NVM_SNTP_SERVER_IP,
+                                         (uint8_t *)&hrRegs->sntp_server_ip,
+                                         sizeof(uint32_t)))
+        {
+            LOG_INF("[Modbus] SNTP IP not in EEPROM, using default.");
+        }
+
         err = BSP_OK;
 
 #undef BSP_EEPROM_READ
