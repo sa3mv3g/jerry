@@ -8,10 +8,9 @@
 
 #include "FreeRTOS.h"
 #include "app_log.h"
-#include "app_main.h"
 #include "app_tasks.h"
 #include "bsp.h"
-#include "ip_specs.h"
+#include "jerry_device_registers.h"
 #include "lwip/ip_addr.h"
 #include "lwip/udp.h"
 #include "message_buffer.h"
@@ -124,11 +123,17 @@ void Applog_Syslog(const char *msg)
 #if CMAKE_ENABLE_SYSLOG
 static int Logging_UdpSendInit(void)
 {
+    jerry_device_holding_registers_t *hrRegs;
+    uint32_t                          sntp_ip;
+
     g_udp_pcb = udp_new();
     if (g_udp_pcb == NULL) return -1;
 
-    IP4_ADDR(&g_dest_ip, SYSLOG_SERVER_IP_ADDR0, SYSLOG_SERVER_IP_ADDR1,
-             SYSLOG_SERVER_IP_ADDR2, SYSLOG_SERVER_IP_ADDR3);
+    hrRegs  = jerry_device_get_holding_registers();
+    sntp_ip = hrRegs->sntp_server_ip;
+
+    IP_ADDR4(&g_dest_ip, (sntp_ip >> 24) & 0xFF, (sntp_ip >> 16) & 0xFF,
+             (sntp_ip >> 8) & 0xFF, sntp_ip & 0xFF);
 
     err_t err = udp_bind(g_udp_pcb, IP_ADDR_ANY, 0);  // 0 = ephemeral port
     if (err != ERR_OK)
