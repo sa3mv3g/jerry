@@ -111,28 +111,49 @@ u32_t sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
     TickType_t startTick;
     TickType_t endTick;
     TickType_t elapsedTicks;
+    TickType_t timeoutTicks;
+
+    if (sem == NULL || *sem == NULL)
+    {
+        return SYS_ARCH_TIMEOUT;
+    }
 
     startTick = xTaskGetTickCount();
 
     if (timeout == 0)
     {
-        xSemaphoreTake(*sem, portMAX_DELAY);
-        endTick      = xTaskGetTickCount();
-        elapsedTicks = endTick - startTick;
-        return (u32_t)(elapsedTicks * portTICK_PERIOD_MS);
+        timeoutTicks = portMAX_DELAY;
     }
     else
     {
-        if (xSemaphoreTake(*sem, pdMS_TO_TICKS(timeout)) == pdTRUE)
+        timeoutTicks = pdMS_TO_TICKS(timeout);
+        /* Ensure that if a non-zero timeout was requested, timeoutTicks is at
+         * least 1 tick */
+        if (timeoutTicks == 0)
         {
-            endTick      = xTaskGetTickCount();
-            elapsedTicks = endTick - startTick;
-            return (u32_t)(elapsedTicks * portTICK_PERIOD_MS);
+            timeoutTicks = 1;
         }
-        else
+    }
+
+    if (xSemaphoreTake(*sem, timeoutTicks) == pdTRUE)
+    {
+        endTick      = xTaskGetTickCount();
+        elapsedTicks = endTick - startTick;
+
+        /* Convert ticks to milliseconds without integer truncation bug */
+        u32_t elapsedMs = (u32_t)((elapsedTicks * 1000UL) / configTICK_RATE_HZ);
+
+        /* lwIP sys_arch spec: If elapsed time is 0 ms, return 1 or 0 depending
+         * on lwIP version requirements */
+        if (0 == elapsedMs)
         {
-            return SYS_ARCH_TIMEOUT;
+            elapsedMs = 1;
         }
+        return elapsedMs;
+    }
+    else
+    {
+        return SYS_ARCH_TIMEOUT;
     }
 }
 

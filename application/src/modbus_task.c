@@ -22,6 +22,7 @@
 #include "lwip/netbuf.h"
 #include "lwip/opt.h"
 #include "lwip/stats.h"
+#include "lwip/tcp.h"
 #include "modbus_callbacks.h"
 #include "modbus_internal.h"
 #include "network_sync.h"
@@ -42,7 +43,7 @@
 #define MODBUS_MAX_CONNECTIONS 4U
 
 /** Receive timeout in milliseconds */
-#define MODBUS_RECV_TIMEOUT_MS 5000U
+#define MODBUS_RECV_TIMEOUT_MS 3000U
 
 /* ==========================================================================
  * Private Types
@@ -260,13 +261,6 @@ void vModbusTask(void *pvParameters)
 
     LcdManager_UpdateModbusDeviceAddress(s_modbus_unit_id);
 
-    /* Wait for network to be enabled */
-    do
-    {
-        isTcpReady = NetworkSync_WaitForTcpReady();
-        HAL_IWDG_Refresh(&hiwdg);
-    } while (isTcpReady == pdFALSE);
-
     initDigitalOutputCoilsValues = 0x0;
     if (BSP_OK == BSP_I2CDO_Read(&initDigitalOutputCoilsValues))
     {
@@ -282,6 +276,13 @@ void vModbusTask(void *pvParameters)
                             (uint8_t)(initDigitalOutputCoilsValues >> 8)};
         modbus_cb_write_multiple_coils(0, 16, coils);
     }
+
+    /* Wait for network to be enabled */
+    do
+    {
+        isTcpReady = NetworkSync_WaitForTcpReady();
+        HAL_IWDG_Refresh(&hiwdg);
+    } while (isTcpReady == pdFALSE);
 
     /* Start the Modbus TCP server */
     modbus_tcp_server_thread(NULL);
@@ -344,6 +345,10 @@ static void modbus_tcp_server_thread(void *arg)
             continue;
         }
 
+        /* Set an accept timeout so the thread wakes up to refresh the watchdog
+         */
+        netconn_set_recvtimeout(listen_conn, 1000U);
+
         LOG_INF("[Modbus] TCP Server listening on port %u", MODBUS_TCP_PORT);
 
         while (1)
@@ -354,11 +359,35 @@ static void modbus_tcp_server_thread(void *arg)
             if (err == ERR_OK)
             {
                 LOG_INF("[Modbus] New connection accepted");
-                netconn_set_recvtimeout(new_conn, MODBUS_RECV_TIMEOUT_MS);
+                /* Use a shorter timeout to allow watchdog refresh while idle */
+                netconn_set_recvtimeout(new_conn, 1000U);
+
+                /* Enable TCP Keep-Alive */
+#if LWIP_TCP_KEEPALIVE
+                if (new_conn->pcb.tcp != NULL)
+                {
+                    ip_set_option(new_conn->pcb.ip, SOF_KEEPALIVE);
+                    new_conn->pcb.tcp->keep_idle  = 3000U; /* 3 seconds */
+                    new_conn->pcb.tcp->keep_intvl = 1000U; /* 1 second */
+                    new_conn->pcb.tcp->keep_cnt   = 3U;    /* 3 tries */
+                }
+#endif
+
+                /* Disable Nagle's algorithm (TCP_NODELAY) */
+                if (new_conn->pcb.tcp != NULL)
+                {
+                    tcp_nagle_disable(new_conn->pcb.tcp);
+                }
+
                 modbus_handle_connection(new_conn);
                 netconn_close(new_conn);
                 netconn_delete(new_conn);
                 LOG_INF("[Modbus] Connection closed");
+            }
+            else if (err == ERR_TIMEOUT)
+            {
+                /* Expected when idle, refresh watchdog */
+                HAL_IWDG_Refresh(&hiwdg);
             }
             else
             {
@@ -380,15 +409,24 @@ static void modbus_handle_connection(struct netconn *conn)
     struct netbuf *buf;
     err_t          err;
     uint16_t       total_len = 0;
+    uint32_t       idle_time = 0;
 
     while (1)
     {
+        HAL_IWDG_Refresh(&hiwdg);
         err = netconn_recv(conn, &buf);
         if (err == ERR_OK)
         {
+            idle_time = 0; /* Reset idle time */
             struct pbuf *p;
             uint16_t     len;
             bool         overflow = false;
+
+            if (buf == NULL)
+            {
+                LOG_INF("[Modbus] Connection closed by peer.");
+                break;
+            }
 
             /* Walk the pbuf chain to copy all fragments into a single buffer */
             for (p = buf->p; p != NULL; p = p->next)
@@ -420,10 +458,20 @@ static void modbus_handle_connection(struct netconn *conn)
                 continue;
             }
 
-            if (total_len >= 6)
+            /* Loop to process all complete ADUs currently in the buffer */
+            while (total_len >= 6)
             {
                 uint16_t expected_len =
                     (uint16_t)((s_rx_buffer[4] << 8) | s_rx_buffer[5]) + 6;
+
+                if (expected_len > sizeof(s_rx_buffer))
+                {
+                    LOG_ERR(
+                        "[Modbus] Expected length %u exceeds max %u. Dropping.",
+                        expected_len, sizeof(s_rx_buffer));
+                    total_len = 0;
+                    break;
+                }
 
                 if (total_len >= expected_len)
                 {
@@ -440,6 +488,8 @@ static void modbus_handle_connection(struct netconn *conn)
                         if (err != ERR_OK)
                         {
                             LOG_ERR("[Modbus]: Write error: %d", err);
+                            total_len = 0;
+                            break;
                         }
                     }
                     else if (modbus_err != MODBUS_OK)
@@ -447,20 +497,46 @@ static void modbus_handle_connection(struct netconn *conn)
                         LOG_ERR("[Modbus]: Process error: %d", (int)modbus_err);
                     }
 
-                    /* Reset for next frame */
-                    total_len = 0;
+                    /* Handle remaining bytes (pipelined ADUs) */
+                    if (total_len > expected_len)
+                    {
+                        uint16_t remaining = total_len - expected_len;
+                        memmove(s_rx_buffer, &s_rx_buffer[expected_len],
+                                remaining);
+                        total_len = remaining;
+                    }
+                    else
+                    {
+                        /* Reset for next frame */
+                        total_len = 0;
+                    }
+                }
+                else
+                {
+                    /* We have an incomplete frame, wait for more data */
+                    break;
                 }
             }
         }
         else if (err == ERR_TIMEOUT)
         {
-            if (total_len > 0)
+            idle_time += 1000U;
+            if (idle_time >= MODBUS_RECV_TIMEOUT_MS)
             {
-                LOG_WRN(
-                    "[Modbus] Discarding partial frame on timeout (%u bytes)",
-                    total_len);
-                total_len = 0;
+                if (total_len > 0)
+                {
+                    LOG_WRN(
+                        "[Modbus] Discarding partial frame on timeout (%u "
+                        "bytes)",
+                        total_len);
+                    total_len = 0;
+                }
+
+                // Break the loop if the connection goes idle
+                LOG_INF("[Modbus] Idle timeout reached. Closing connection.");
+                break;
             }
+            continue; /* Keep looping to refresh watchdog */
         }
         else
         {

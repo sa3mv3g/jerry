@@ -76,6 +76,9 @@
 /* Enable send timeout to prevent blocking forever */
 #define LWIP_SO_SNDTIMEO                1
 
+/* Enable TCP Keep-Alive */
+#define LWIP_TCP_KEEPALIVE              1
+
 /* ------------------------------------------------
    4. IP Version Support
    ------------------------------------------------ */

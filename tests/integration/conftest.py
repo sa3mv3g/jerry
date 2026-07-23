@@ -143,3 +143,15 @@ def pytest_addoption(parser):
         type=int,
         help=f"Modbus slave unit ID (default: {MODBUS_UNIT_ID}, env: MODBUS_UNIT_ID)",
     )
+    parser.addoption(
+        "--idle-timeout-s",
+        action="store",
+        type=float,
+        default=60.0,
+        help="Device Modbus receive idle timeout in seconds (default: %(default)s)",
+    )
+
+@pytest.fixture(scope="session")
+def idle_timeout_s(request):
+    """Return the idle timeout in seconds."""
+    return request.config.getoption("--idle-timeout-s")

@@ -62,8 +62,8 @@ DI_MAX_ADDR = 4
 # Holding Registers (FC03, FC06, FC16)
 HR_DEVICE_ID = 0
 HR_FIRMWARE_VERSION = 1
-HR_SETPOINT_1 = _reg_map.hr("pwm_0_duty_cycle")
-HR_SETPOINT_2 = _reg_map.hr("pwm_1_duty_cycle")
+HR_SETPOINT_1 = _reg_map.hr("pwm_0_amplitude")
+HR_SETPOINT_2 = _reg_map.hr("pwm_1_amplitude")
 HR_CONTROL_MODE = 4
 HR_ALARM_THRESHOLD = 5
 HR_MIN_ADDR = 0

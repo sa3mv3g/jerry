@@ -67,6 +67,8 @@ void vLoggingTask(void *pvParameters)
 
     Logging_UdpSendInit();
 
+    LOG_INF("Syslog Logging started");
+
     for (;;)
     {
         static char buf[LOG_MAX_MSG_LEN];  // Buffer to receive formatted string
