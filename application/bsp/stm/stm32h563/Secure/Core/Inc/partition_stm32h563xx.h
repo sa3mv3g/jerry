@@ -428,7 +428,7 @@
 //   <o.0>  GPDMA1_Channel5_IRQn  <0=> Secure state
 //   <o.1>  GPDMA1_Channel6_IRQn  <0=> Secure state
 //   <o.2>  GPDMA1_Channel7_IRQn  <0=> Secure state
-//   <o.3>  IWDG_IRQn             <0=> Secure state
+//   <o.3>  IWDG_IRQn             <1=> Non-Secure state
 //   <o.5>  ADC1_IRQn             <0=> Secure state
 //   <o.6>  DAC1_IRQn             <0=> Secure state
 //   <o.7>  FDCAN1_IT0_IRQn       <0=> Secure state
@@ -457,7 +457,7 @@
 //   <o.30> UART5_IRQn            <0=> Secure state
 //   <o.31> LPUART1_IRQn          <0=> Secure state
 */
-#define NVIC_INIT_ITNS1_VAL      0x00020000
+#define NVIC_INIT_ITNS1_VAL      0x00020008
 
 /*
 //   </e>

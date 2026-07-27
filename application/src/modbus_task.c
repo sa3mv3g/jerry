@@ -8,6 +8,8 @@
  * and handles Modbus requests using the generated register callbacks.
  */
 
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "FreeRTOS.h"
@@ -27,6 +29,8 @@
 #include "modbus_internal.h"
 #include "network_sync.h"
 #include "register_lock.h"
+#include "stm32h5xx_hal.h"
+#include "stm32h5xx_ll_cortex.h"
 #include "task.h"
 
 /* ==========================================================================
@@ -90,6 +94,12 @@ static uint32_t       modbus_write_eeprom(uint16_t             address,
                                           const uint8_t *const value, size_t len);
 static uint32_t       modbus_read_eeprom(uint16_t address, uint8_t *const value,
                                          size_t len);
+static uint32_t       modbus_register_new_connection(struct netconn *pConn,
+                                                     int32_t        *pIndex);
+// static uint32_t modbus_deregister_existing_connection(struct netconn *pConn);
+static uint32_t modbus_deregister_index(int32_t index);
+// static uint32_t modbus_is_connection_active(struct netconn *pConn,
+//                                             bool           *pStatus);
 
 /* ==========================================================================
  * Public Functions
@@ -294,6 +304,21 @@ void vModbusTask(void *pvParameters)
     }
 }
 
+void App_ModbusThread_AbortAllConnections()
+{
+    /*
+        PANIC: application is about to reset. Abort all the
+        tcp modbus sockets.
+    */
+    for (uint32_t i = 0; i < MODBUS_MAX_CONNECTIONS; i++)
+    {
+        if (s_connections[i].conn != NULL)
+        {
+            tcp_abort(s_connections[i].conn->pcb.tcp);
+        }
+    }
+}
+
 uint8_t App_GetModbusId() { return s_modbus_unit_id; }
 char   *App_GetModbusIdString() { return s_modbus_unit_id_string; }
 
@@ -353,17 +378,20 @@ static void modbus_tcp_server_thread(void *arg)
 
         while (1)
         {
-            struct netconn *new_conn;
+            struct netconn *new_conn             = NULL;
+            int32_t         connectionArrayIndex = -1;
+
             err = netconn_accept(listen_conn, &new_conn);
 
             if (err == ERR_OK)
             {
                 LOG_INF("[Modbus] New connection accepted");
-                /* Use a shorter timeout to allow watchdog refresh while idle */
+
+                modbus_register_new_connection(new_conn, &connectionArrayIndex);
                 netconn_set_recvtimeout(new_conn, 1000U);
 
-                /* Enable TCP Keep-Alive */
 #if LWIP_TCP_KEEPALIVE
+                /* Enable TCP Keep-Alive */
                 if (new_conn->pcb.tcp != NULL)
                 {
                     ip_set_option(new_conn->pcb.ip, SOF_KEEPALIVE);
@@ -382,6 +410,8 @@ static void modbus_tcp_server_thread(void *arg)
                 modbus_handle_connection(new_conn);
                 netconn_close(new_conn);
                 netconn_delete(new_conn);
+                modbus_deregister_index(connectionArrayIndex);
+                connectionArrayIndex = -1;
                 LOG_INF("[Modbus] Connection closed");
             }
             else if (err == ERR_TIMEOUT)
@@ -392,6 +422,7 @@ static void modbus_tcp_server_thread(void *arg)
             else
             {
                 LOG_ERR("[Modbus] Accept error: %d. Resetting listener.", err);
+                modbus_deregister_index(connectionArrayIndex);
                 break; /* Break inner loop to re-create listen_conn */
             }
         }
@@ -859,3 +890,83 @@ static uint32_t modbus_read_eeprom(uint16_t address, uint8_t *const value,
 
     return ret;
 }
+
+static uint32_t modbus_register_new_connection(struct netconn *pConn,
+                                               int32_t        *pIndex)
+{
+    uint32_t retVal = APP_API_STATUS_ERROR;
+
+    if (NULL != pConn)
+    {
+        for (uint32_t i = 0; i < MODBUS_MAX_CONNECTIONS; i++)
+        {
+            if (s_connections[i].conn == NULL)
+            {
+                s_connections[i].conn   = pConn;
+                s_connections[i].active = true;
+                if (NULL != pIndex)
+                {
+                    *pIndex = i;
+                }
+                retVal = APP_API_STATUS_OK;
+                break;
+            }
+        }
+    }
+
+    return retVal;
+}
+
+// static uint32_t modbus_deregister_existing_connection(struct netconn *pConn)
+// {
+//     uint32_t retVal = APP_API_STATUS_ERROR;
+
+//     if (NULL != pConn)
+//     {
+//         for (uint32_t i = 0; i < MODBUS_MAX_CONNECTIONS; i++)
+//         {
+//             if (s_connections[i].conn == pConn)
+//             {
+//                 s_connections[i].conn   = NULL;
+//                 s_connections[i].active = false;
+//                 retVal                   = APP_API_STATUS_OK;
+//                 break;
+//             }
+//         }
+//     }
+//     return retVal;
+// }
+
+static uint32_t modbus_deregister_index(int32_t index)
+{
+    uint32_t retVal = APP_API_STATUS_ERROR;
+    if (index >= 0 && index < (int32_t)MODBUS_MAX_CONNECTIONS)
+    {
+        s_connections[index].conn   = NULL;
+        s_connections[index].active = false;
+        retVal                       = APP_API_STATUS_OK;
+    }
+    return retVal;
+}
+
+// static uint32_t modbus_is_connection_active(struct netconn *pConn,
+//                                             bool           *pStatus)
+// {
+//     uint32_t retVal = APP_API_STATUS_ERROR;
+//     if (NULL != pConn)
+//     {
+//         for (uint32_t i = 0; i < MODBUS_MAX_CONNECTIONS; i++)
+//         {
+//             if (s_connections[i].conn == pConn)
+//             {
+//                 if (pStatus != NULL)
+//                 {
+//                     *pStatus = s_connections[i].active;
+//                 }
+//                 retVal = APP_API_STATUS_OK;
+//                 break;
+//             }
+//         }
+//     }
+//     return retVal;
+// }

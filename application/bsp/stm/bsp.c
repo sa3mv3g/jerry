@@ -5,6 +5,7 @@
 
 #include "adc_filter.h"
 #include "app_log.h"
+#include "app_main.h"
 #include "bsp_i2c/bsp_i2c.h"
 #include "eeprom_emul.h"
 #include "main.h"
@@ -861,3 +862,17 @@ static void MPU_Config(void)
     /* Enables the MPU */
     HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }
+
+/* ========================================================================== */
+/*                 Private Callback Handlers                                  */
+/* ========================================================================== */
+
+void HAL_IWDG_EarlyWakeupCallback(IWDG_HandleTypeDef *pHiwdg)
+{
+    (void)pHiwdg;
+    App_ModbusThread_AbortAllConnections();
+}
+
+/* ========================================================================== */
+/*                 Test/Debug/Other Sections                                  */
+/* ========================================================================== */

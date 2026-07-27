@@ -11,5 +11,6 @@
 
 uint8_t App_GetModbusId();
 char*   App_GetModbusIdString();
+void    App_ModbusThread_AbortAllConnections();
 
 #endif

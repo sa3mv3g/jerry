@@ -54,6 +54,7 @@ void GPDMA1_Channel1_IRQHandler(void);
 void GPDMA1_Channel2_IRQHandler(void);
 void GPDMA1_Channel3_IRQHandler(void);
 void GPDMA1_Channel4_IRQHandler(void);
+void IWDG_IRQHandler(void);
 void TIM6_IRQHandler(void);
 void ETH_IRQHandler(void);
 void I2C4_EV_IRQHandler(void);

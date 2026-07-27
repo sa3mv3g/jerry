@@ -470,7 +470,7 @@ void MX_IWDG_Init(void)
   hiwdg.Init.Prescaler = IWDG_PRESCALER_256;
   hiwdg.Init.Window = 4095;
   hiwdg.Init.Reload = 1000;
-  hiwdg.Init.EWI = 0;
+  hiwdg.Init.EWI = 50;
   if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
   {
     Error_Handler();

@@ -64,6 +64,7 @@ extern DMA_QListTypeDef List_GPDMA1_Channel0;
 extern DMA_HandleTypeDef handle_GPDMA1_Channel0;
 extern ETH_HandleTypeDef heth;
 extern I2C_HandleTypeDef hi2c4;
+extern IWDG_HandleTypeDef hiwdg;
 extern DMA_NodeTypeDef Node_GPDMA1_Channel4;
 extern DMA_QListTypeDef List_GPDMA1_Channel4;
 extern DMA_HandleTypeDef handle_GPDMA1_Channel4;
@@ -207,6 +208,20 @@ void GPDMA1_Channel4_IRQHandler(void)
   /* USER CODE BEGIN GPDMA1_Channel4_IRQn 1 */
 
   /* USER CODE END GPDMA1_Channel4_IRQn 1 */
+}
+
+/**
+  * @brief This function handles IWDG global interrupt.
+  */
+void IWDG_IRQHandler(void)
+{
+  /* USER CODE BEGIN IWDG_IRQn 0 */
+
+  /* USER CODE END IWDG_IRQn 0 */
+  HAL_IWDG_IRQHandler(&hiwdg);
+  /* USER CODE BEGIN IWDG_IRQn 1 */
+
+  /* USER CODE END IWDG_IRQn 1 */
 }
 
 /**
