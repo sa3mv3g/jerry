@@ -5,12 +5,14 @@ cmake_minimum_required(VERSION 3.20)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" APP_VERSION)
+
 # Select Vendor and Toolchain
 include(config/vendor_select.cmake)
 include(config/lizard_config.cmake)
 include(config/cppcheck_config.cmake)
 
-project(jerry C ASM)
+project(jerry VERSION ${APP_VERSION} LANGUAGES C ASM)
 
 # Add application
 add_subdirectory(application)

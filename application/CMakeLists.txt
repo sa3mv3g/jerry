@@ -46,12 +46,6 @@ endif()
 # ==========================================================================
 # Application Version
 # ==========================================================================
-# These cache variables are set via build.py --version-* or cmake -D.
-# The build number (Unix timestamp) is generated fresh on every cmake --build
-# call by tools/gen_version.py via the generate_app_version custom target.
-set(APP_VERSION_MAJOR "1" CACHE STRING "Application version major number")
-set(APP_VERSION_MINOR "0" CACHE STRING "Application version minor number")
-set(APP_VERSION_PATCH "0" CACHE STRING "Application version patch number")
 
 # Resolve git commit hash at configure time.
 # The hash is fixed per configure run — a new commit requires reconfigure.
@@ -398,11 +392,11 @@ target_link_libraries(jerry_app
 add_custom_target(generate_app_version ALL
     COMMAND ${UV_RUN_CMD} python "${CMAKE_SOURCE_DIR}/tools/gen_version.py"
             --output "${CMAKE_BINARY_DIR}/generated/app_version.h"
-            --major "${APP_VERSION_MAJOR}"
-            --minor "${APP_VERSION_MINOR}"
-            --patch "${APP_VERSION_PATCH}"
+            --major "${PROJECT_VERSION_MAJOR}"
+            --minor "${PROJECT_VERSION_MINOR}"
+            --patch "${PROJECT_VERSION_PATCH}"
             --git-hash "${APP_GIT_HASH}"
-    COMMENT "Generating app_version.h (${APP_VERSION_MAJOR}.${APP_VERSION_MINOR}.${APP_VERSION_PATCH} ${APP_GIT_HASH})"
+    COMMENT "Generating app_version.h (${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH} ${APP_GIT_HASH})"
     VERBATIM
 )
 
