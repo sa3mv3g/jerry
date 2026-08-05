@@ -665,12 +665,11 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
     heth.ErrorCode = HAL_ETH_ERROR_NONE;
     tx_status      = HAL_ETH_Transmit_IT(&heth, &localTxConfig);
 
-    /* ✅ FIX 1: Bounded retry loop — max 3 attempts */
     uint32_t retries = 0U;
     while (tx_status != HAL_OK)
     {
         if ((HAL_ETH_GetError(&heth) & HAL_ETH_ERROR_BUSY) &&
-            (retries < 3U))  // ← exit condition
+            (retries < 3U))
         {
             retries++;
             if (xSemaphoreTake(TxPktSemaphore,
@@ -685,7 +684,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
         else
         {
             ETH_DEBUG("TX FAILED after %lu retries!", retries);
-            pbuf_free(p);  // ← undo pbuf_ref() on failure
+            pbuf_free(p);
             return ERR_IF;
         }
     }

@@ -827,6 +827,7 @@ static modbus_error_t modbus_process_request(const uint8_t *request,
 
     return err;
 }
+
 static uint32_t modbus_write_eeprom(uint16_t             address,
                                     const uint8_t *const value, size_t len)
 {
@@ -917,26 +918,6 @@ static uint32_t modbus_register_new_connection(struct netconn *pConn,
     return retVal;
 }
 
-// static uint32_t modbus_deregister_existing_connection(struct netconn *pConn)
-// {
-//     uint32_t retVal = APP_API_STATUS_ERROR;
-
-//     if (NULL != pConn)
-//     {
-//         for (uint32_t i = 0; i < MODBUS_MAX_CONNECTIONS; i++)
-//         {
-//             if (s_connections[i].conn == pConn)
-//             {
-//                 s_connections[i].conn   = NULL;
-//                 s_connections[i].active = false;
-//                 retVal                   = APP_API_STATUS_OK;
-//                 break;
-//             }
-//         }
-//     }
-//     return retVal;
-// }
-
 static uint32_t modbus_deregister_index(int32_t index)
 {
     uint32_t retVal = APP_API_STATUS_ERROR;
@@ -948,25 +929,3 @@ static uint32_t modbus_deregister_index(int32_t index)
     }
     return retVal;
 }
-
-// static uint32_t modbus_is_connection_active(struct netconn *pConn,
-//                                             bool           *pStatus)
-// {
-//     uint32_t retVal = APP_API_STATUS_ERROR;
-//     if (NULL != pConn)
-//     {
-//         for (uint32_t i = 0; i < MODBUS_MAX_CONNECTIONS; i++)
-//         {
-//             if (s_connections[i].conn == pConn)
-//             {
-//                 if (pStatus != NULL)
-//                 {
-//                     *pStatus = s_connections[i].active;
-//                 }
-//                 retVal = APP_API_STATUS_OK;
-//                 break;
-//             }
-//         }
-//     }
-//     return retVal;
-// }

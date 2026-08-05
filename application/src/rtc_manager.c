@@ -11,6 +11,9 @@ extern RTC_HandleTypeDef hrtc;
 
 void BSP_RTC_SetUnixTimestamp(unsigned int sec, unsigned int us)
 {
+    // 1. Add the IST offset (+5:30) directly to the raw epoch seconds.
+    // (5 hours * 3600 seconds) + (30 minutes * 60 seconds) = 19800 seconds.
+    sec += 19800;
     // 1. Cast the 32-bit integer to a standard time_t type
     time_t raw_time = (time_t)sec;
 
