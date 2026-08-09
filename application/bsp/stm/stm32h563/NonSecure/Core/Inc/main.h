@@ -94,6 +94,16 @@ void ethernetif_get_mac_addr(uint8_t *mac_addr);
 /* Private defines -----------------------------------------------------------*/
 #define Tim3_Handle htim3
 #define TIM3_PWM_BASE_FREQ_KHZ 50
+#define TRACE_CK_Pin GPIO_PIN_2
+#define TRACE_CK_GPIO_Port GPIOE
+#define TRACE_D0_Pin GPIO_PIN_3
+#define TRACE_D0_GPIO_Port GPIOE
+#define TRACE_D1_Pin GPIO_PIN_4
+#define TRACE_D1_GPIO_Port GPIOE
+#define TRACE_D2_Pin GPIO_PIN_5
+#define TRACE_D2_GPIO_Port GPIOE
+#define TRACE_D3_Pin GPIO_PIN_6
+#define TRACE_D3_GPIO_Port GPIOE
 #define DI4_Pin GPIO_PIN_0
 #define DI4_GPIO_Port GPIOF
 #define DI3_Pin GPIO_PIN_1
@@ -136,6 +146,12 @@ void ethernetif_get_mac_addr(uint8_t *mac_addr);
 #define USB_FS_N_GPIO_Port GPIOA
 #define USB_FS_P_Pin GPIO_PIN_12
 #define USB_FS_P_GPIO_Port GPIOA
+#define SWDIO_Pin GPIO_PIN_13
+#define SWDIO_GPIO_Port GPIOA
+#define SWCLK_Pin GPIO_PIN_14
+#define SWCLK_GPIO_Port GPIOA
+#define T_JTDI_Pin GPIO_PIN_15
+#define T_JTDI_GPIO_Port GPIOA
 #define DI5_Pin GPIO_PIN_0
 #define DI5_GPIO_Port GPIOD
 #define DI6_Pin GPIO_PIN_1
@@ -146,6 +162,8 @@ void ethernetif_get_mac_addr(uint8_t *mac_addr);
 #define RMI_TXD0_GPIO_Port GPIOG
 #define DEVADDR0_Pin GPIO_PIN_14
 #define DEVADDR0_GPIO_Port GPIOG
+#define SWO_Pin GPIO_PIN_3
+#define SWO_GPIO_Port GPIOB
 #define ARD_D1_TX_Pin GPIO_PIN_6
 #define ARD_D1_TX_GPIO_Port GPIOB
 #define ARD_D0_RX_Pin GPIO_PIN_7

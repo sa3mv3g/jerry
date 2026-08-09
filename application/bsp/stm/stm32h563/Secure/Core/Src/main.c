@@ -60,6 +60,7 @@ RTC_HandleTypeDef hrtc;
 static void NonSecure_Init(void);
 void SystemClock_Config(void);
 static void MX_RTC_Init(void);
+static void MX_FLASH_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -82,6 +83,7 @@ int main(void)
   MX_GTZC_S_Init();
   MX_GPIO_Init();
   MX_ICACHE_Init();
+  MX_FLASH_Init();
   MX_RTC_Init();
    /* Disable Secure SysTick before jumping to Non-Secure */
   SysTick->CTRL = 0;
@@ -182,6 +184,59 @@ void SystemClock_Config(void)
   /** Configure the programming delay
   */
   __HAL_FLASH_SET_PROGRAM_DELAY(FLASH_PROGRAMMING_DELAY_2);
+}
+
+/**
+  * @brief FLASH Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_FLASH_Init(void)
+{
+
+  /* USER CODE BEGIN FLASH_Init 0 */
+
+  /* USER CODE END FLASH_Init 0 */
+
+  FLASH_OBProgramInitTypeDef pOBInit = {0};
+
+  /* USER CODE BEGIN FLASH_Init 1 */
+
+  /* USER CODE END FLASH_Init 1 */
+  if (HAL_FLASH_Unlock() != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /* Option Bytes settings */
+
+  if (HAL_FLASH_OB_Unlock() != HAL_OK)
+  {
+    Error_Handler();
+  }
+  pOBInit.OptionType = OPTIONBYTE_USER;
+  pOBInit.USERType = OB_USER_BOR_LEV|OB_USER_BORH_EN;
+  pOBInit.USERConfig = OB_BOR_LEVEL_3|OB_BORH_ENABLE;
+  if (HAL_FLASHEx_OBProgram(&pOBInit) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_FLASH_OB_Lock() != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_FLASH_Lock() != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /* Launch Option Bytes Loading */
+  /*HAL_FLASH_OB_Launch(); */
+
+  /* USER CODE BEGIN FLASH_Init 2 */
+
+  /* USER CODE END FLASH_Init 2 */
+
 }
 
 /**
