@@ -12,7 +12,7 @@
 #include "bsp.h"
 #include "jerry_device_registers.h"
 #include "lwip/ip_addr.h"
-#include "lwip/udp.h"
+#include "lwip/api.h"
 #include "message_buffer.h"
 #include "network_sync.h"
 
@@ -34,7 +34,7 @@ static int Logging_UdpSendString(const char *message);
 static StaticMessageBuffer_t xSyslogMessageBufferStruct;
 static MessageBufferHandle_t xSyslogMessageBuffer = NULL;
 static uint8_t            xSyslogMessageBufferStorage[SYSLOG_MSG_BUFFER_SIZE];
-static struct udp_pcb    *g_udp_pcb = NULL;
+static struct netconn    *g_syslog_conn = NULL;
 static ip_addr_t          g_dest_ip;
 extern IWDG_HandleTypeDef hiwdg;
 #endif
@@ -128,8 +128,8 @@ static int Logging_UdpSendInit(void)
     jerry_device_holding_registers_t *hrRegs;
     uint32_t                          sntp_ip;
 
-    g_udp_pcb = udp_new();
-    if (g_udp_pcb == NULL) return -1;
+    g_syslog_conn = netconn_new(NETCONN_UDP);
+    if (g_syslog_conn == NULL) return -1;
 
     hrRegs  = jerry_device_get_holding_registers();
     sntp_ip = hrRegs->sntp_server_ip;
@@ -137,11 +137,19 @@ static int Logging_UdpSendInit(void)
     IP_ADDR4(&g_dest_ip, (sntp_ip >> 24) & 0xFF, (sntp_ip >> 16) & 0xFF,
              (sntp_ip >> 8) & 0xFF, sntp_ip & 0xFF);
 
-    err_t err = udp_bind(g_udp_pcb, IP_ADDR_ANY, 0);  // 0 = ephemeral port
+    err_t err = netconn_bind(g_syslog_conn, IP_ADDR_ANY, 0);
     if (err != ERR_OK)
     {
-        udp_remove(g_udp_pcb);
-        g_udp_pcb = NULL;
+        netconn_delete(g_syslog_conn);
+        g_syslog_conn = NULL;
+        return -1;
+    }
+
+    err = netconn_connect(g_syslog_conn, &g_dest_ip, 514);
+    if (err != ERR_OK)
+    {
+        netconn_delete(g_syslog_conn);
+        g_syslog_conn = NULL;
         return -1;
     }
 
@@ -151,17 +159,24 @@ static int Logging_UdpSendInit(void)
 static int Logging_UdpSendString(const char *message)
 {
     err_t err = ERR_OK;
-    if (g_udp_pcb == NULL) return -1;
+    if (g_syslog_conn == NULL) return -1;
 
-    uint16_t     len = (uint16_t)strlen(message);
-    struct pbuf *p   = pbuf_alloc(PBUF_TRANSPORT, len, PBUF_POOL);
-    if (p == NULL) return -1;
+    uint16_t len = (uint16_t)strlen(message);
+    struct netbuf *buf = netbuf_new();
+    if (buf == NULL) return -1;
 
-    memcpy(p->payload, message, len);
+    void *data = netbuf_alloc(buf, len);
+    if (data == NULL)
+    {
+        netbuf_delete(buf);
+        return -1;
+    }
 
-    err = udp_sendto(g_udp_pcb, p, &g_dest_ip, 514);
+    memcpy(data, message, len);
 
-    pbuf_free(p);
+    err = netconn_send(g_syslog_conn, buf);
+
+    netbuf_delete(buf);
 
     return (err == ERR_OK) ? 0 : -1;
 }

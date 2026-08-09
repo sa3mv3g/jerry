@@ -17,6 +17,7 @@ dependencies = [
     "matplotlib>=3.10.8",
     "zeroconf>=0.150.0",
     "pandas>=2.3.3",
+    "scapy>=2.7.0",
 ]
 
 [build-system]
