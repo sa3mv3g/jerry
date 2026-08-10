@@ -165,7 +165,6 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/FreeRTOS/FreeRTOS-Kernel.git
     GIT_TAG        V11.2.0
     SOURCE_DIR     "${DEPS_PATH}/FreeRTOS-Kernel"
-    SOURCE_SUBDIR  "EXTRACT_ONLY"
     GIT_PROGRESS   TRUE
 )
 
@@ -338,6 +337,9 @@ target_include_directories(jerry_app PRIVATE
     src/generated
     "${CMAKE_BINARY_DIR}/generated"
     ${APP_INCLUDE_DIRECTORIES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/FreeRTOS-Kernel/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/FreeRTOS-Kernel/portable/GCC/ARM_CM33_NTZ/non_secure
+    ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lcd_i2c/inc
 )
 
 # Add Modbus generated sources to the application

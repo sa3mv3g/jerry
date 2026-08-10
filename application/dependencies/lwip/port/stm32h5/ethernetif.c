@@ -668,8 +668,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
     uint32_t retries = 0U;
     while (tx_status != HAL_OK)
     {
-        if ((HAL_ETH_GetError(&heth) & HAL_ETH_ERROR_BUSY) &&
-            (retries < 3U))
+        if ((HAL_ETH_GetError(&heth) & HAL_ETH_ERROR_BUSY) && (retries < 3U))
         {
             retries++;
             if (xSemaphoreTake(TxPktSemaphore,
