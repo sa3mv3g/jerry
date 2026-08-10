@@ -1,0 +1,50 @@
+/*********************************************************************
+*
+*       AfterResetTarget
+*
+* Function description
+*   Called by J-Link after reset. 
+*   Used to configure STM32H563 GPIO pins and DBGMCU for trace.
+**********************************************************************/
+void AfterResetTarget(void) {
+  unsigned int v;
+  
+  // 1. Enable TRCENA in DEMCR (Core Debug)
+  v = JLINK_MEM_ReadU32(0xE000EDFC);
+  v |= (1 << 24); 
+  JLINK_MEM_WriteU32(0xE000EDFC, v);
+
+  // 2. Enable TRACE_EN in ST DBGMCU_CR
+  // Note: Check RM0481 for the exact offset of DBGMCU_CR on STM32H5
+  // Base address is typically 0xE0044000. 
+  v = JLINK_MEM_ReadU32(0xE0044004); 
+  v |= (1 << 20); // TRACE_EN bit
+  JLINK_MEM_WriteU32(0xE0044004, v);
+
+  // 3. Enable GPIOE Clock in RCC (AHB2ENR)
+  // STM32H5 RCC Base: 0x44020C00, AHB2ENR offset is 0x4C
+  v = JLINK_MEM_ReadU32(0x44020C4C);
+  v |= (1 << 4);  // Enable GPIOE clock
+  JLINK_MEM_WriteU32(0x44020C4C, v);
+
+  // 4. Configure PE2, PE3, PE4, PE5, PE6 for Alternate Function (Trace)
+  // GPIOE Base: 0x42021000
+  // Set MODER to Alternate Function (10 binary) for pins 2-6
+  v = JLINK_MEM_ReadU32(0x42021000); 
+  v &= ~(0x3FF0);       // Clear bits 4 to 13
+  v |=  (0x2AA0);       // Set to 10 for each pin
+  JLINK_MEM_WriteU32(0x42021000, v);
+
+  // Set OSPEEDR to Very High Speed (11 binary) for pins 2-6
+  v = JLINK_MEM_ReadU32(0x42021008);
+  v |= (0x3FF0); 
+  JLINK_MEM_WriteU32(0x42021008, v);
+
+  // AFRL: Set Alternate Function 0 (AF0) for PE2 to PE6
+  // AF0 maps to TRACECLK and TRACED0-3
+  v = JLINK_MEM_ReadU32(0x42021020);
+  v &= ~(0x0FFFFF00);   // Clear AF bits for pins 2 to 6 (AF0 is 0x0)
+  JLINK_MEM_WriteU32(0x42021020, v);
+
+  JLINK_SYS_Report("STM32H563 ETM Trace Pins and DBGMCU Configured.");
+}

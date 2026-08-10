@@ -1,6 +1,8 @@
 #include "lcd_manager.h"
 
 #include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -107,8 +109,8 @@ static void update_row_1(void)
     snprintf(temp, sizeof(temp), "%02X %04X %05u %05u ", gDigitalInput,
              gDigitalOutput, gAnalogOutput[0] % 100000U,
              gAnalogOutput[1] % 100000U);
-    strncpy(gLcdStrings[1], temp, LCD_MANAGER_COLS_MAX);
-    gLcdStrings[1][LCD_MANAGER_COLS_MAX] = '\0';
+    snprintf(gLcdStrings[1], LCD_MANAGER_COLS_MAX + 1, "%.*s",
+             LCD_MANAGER_COLS_MAX, temp);
     lcdManager_MarkRowDirty(1U);
 }
 

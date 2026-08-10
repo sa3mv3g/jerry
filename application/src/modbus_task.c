@@ -925,7 +925,7 @@ static uint32_t modbus_deregister_index(int32_t index)
     {
         s_connections[index].conn   = NULL;
         s_connections[index].active = false;
-        retVal                       = APP_API_STATUS_OK;
+        retVal                      = APP_API_STATUS_OK;
     }
     return retVal;
 }

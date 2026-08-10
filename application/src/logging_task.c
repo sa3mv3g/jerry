@@ -11,8 +11,8 @@
 #include "app_tasks.h"
 #include "bsp.h"
 #include "jerry_device_registers.h"
-#include "lwip/ip_addr.h"
 #include "lwip/api.h"
+#include "lwip/ip_addr.h"
 #include "message_buffer.h"
 #include "network_sync.h"
 
@@ -161,7 +161,7 @@ static int Logging_UdpSendString(const char *message)
     err_t err = ERR_OK;
     if (g_syslog_conn == NULL) return -1;
 
-    uint16_t len = (uint16_t)strlen(message);
+    uint16_t       len = (uint16_t)strlen(message);
     struct netbuf *buf = netbuf_new();
     if (buf == NULL) return -1;
 

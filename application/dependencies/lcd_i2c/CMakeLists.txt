@@ -63,7 +63,7 @@ target_compile_options(${LIB_NAME}
         -Wpedantic
         -Wconversion
         -Wsign-conversion
-        $<$<CONFIG:Release>:-O2>
+        $<$<CONFIG:Release>:-Os>
         $<$<NOT:$<CONFIG:Release>>:-g3 -O0>
 )
 

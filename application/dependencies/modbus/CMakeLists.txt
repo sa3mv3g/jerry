@@ -98,7 +98,7 @@ target_compile_options(modbus_stack
         -Wconversion
         -Wsign-conversion
         $<$<CONFIG:Debug>:-g3 -O0>
-        $<$<CONFIG:Release>:-O2>
+        $<$<CONFIG:Release>:-Os>
 )
 
 # -----------------------------------------------------------------------------
