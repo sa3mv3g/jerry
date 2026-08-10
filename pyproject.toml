@@ -26,3 +26,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["tools"]
+
+[tool.pytest.ini_options]
+markers = [
+    "hardware: Tests that require physical hardware connected.",
+    "calibration: Tests that run the device calibration sequence."
+]

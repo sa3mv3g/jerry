@@ -732,6 +732,14 @@
         "group": "network_config",
         "access": "read_write",
         "persistent": true
+      },
+      {
+        "name": "last_operation_info",
+        "address": 307,
+        "description": "",
+        "data_type": "uint32",
+        "size": 2,
+        "group": "app_diag"
       }
     ],
     "input_registers": [
@@ -865,6 +873,10 @@
     {
       "name": "network_config",
       "description": "Network configuration registers"
+    },
+    {
+      "name": "app_diag",
+      "description": "Application diagnostic information"
     }
   ]
 }

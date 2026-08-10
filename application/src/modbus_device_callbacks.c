@@ -1190,6 +1190,13 @@ modbus_exception_t modbus_cb_read_holding_registers(uint16_t  start_address,
                                 &register_values[i]);
                 break;
 
+            case JERRY_DEVICE_HR_LAST_OPERATION_INFO:
+            case JERRY_DEVICE_HR_LAST_OPERATION_INFO + 1:
+                u32_word_to_reg((uint32_t)regs->last_operation_info,
+                                addr - JERRY_DEVICE_HR_LAST_OPERATION_INFO,
+                                &register_values[i]);
+                break;
+
             default:
                 return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
         }
@@ -1563,6 +1570,16 @@ modbus_exception_t modbus_cb_write_single_register(uint16_t address,
             ip.u32 = regs->sntp_server_ip;
             ip.u16[address - JERRY_DEVICE_HR_SNTP_SERVER_IP] = value;
             regs->sntp_server_ip                             = ip.u32;
+        }
+        break;
+
+        case JERRY_DEVICE_HR_LAST_OPERATION_INFO:
+        case JERRY_DEVICE_HR_LAST_OPERATION_INFO + 1U:
+        {
+            unpack_float_t op;
+            op.u32 = regs->last_operation_info;
+            op.u16[address - JERRY_DEVICE_HR_LAST_OPERATION_INFO] = value;
+            regs->last_operation_info                             = op.u32;
         }
         break;
 

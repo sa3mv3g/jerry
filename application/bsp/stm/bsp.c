@@ -8,7 +8,9 @@
 #include "app_main.h"
 #include "bsp_i2c/bsp_i2c.h"
 #include "eeprom_emul.h"
+#include "jerry_device_registers.h"
 #include "main.h"
+#include "stm32h563/Middlewares/ST/EEPROM_Emul/Core/eeprom_emul_types.h"
 #include "stm32h5xx_hal.h"
 #include "stm32h5xx_hal_tim.h"
 
@@ -766,12 +768,20 @@ bsp_error_t BSP_EEPROM_Write(uint32_t address, eeprom_data_t *pData)
         }
         else
         {
-            EE_DATA_TYPE data[2] = {0, 0};
-            EE_Status    ee_status;
+            jerry_device_holding_registers_t *modbusHoldingRegs;
+            EE_DATA_TYPE                      data[2] = {0, 0};
+            EE_Status                         ee_status;
 
-            data[0]   = (EE_DATA_TYPE)pData->u32;
-            ee_status = EE_WriteVariable96bits((uint16_t)address, data);
-            if (ee_status != EE_OK)
+            modbusHoldingRegs = jerry_device_get_holding_registers();
+            data[0]           = (EE_DATA_TYPE)pData->u32;
+            ee_status         = EE_WriteVariable96bits((uint16_t)address, data);
+            modbusHoldingRegs->last_operation_info = (uint32_t)ee_status;
+
+            if (ee_status == EE_CLEANUP_REQUIRED)
+            {
+                EE_CleanUp();
+            }
+            else if (ee_status != EE_OK)
             {
                 LOG_ERR("[BSP] EEPROM write error %d at address %u",
                         (int)ee_status, (unsigned int)address);
