@@ -247,6 +247,14 @@
         "default_value": false,
         "group": "network_config",
         "access": "read_write"
+      },
+      {
+        "name": "ext_circuit_en",
+        "address": 32,
+        "description": "Write 1 to enable external amplifier circuit else write 0",
+        "default_value": false,
+        "group": "digital_outputs",
+        "access": "read_write"
       }
     ],
     "discrete_inputs": [

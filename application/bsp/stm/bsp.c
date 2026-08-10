@@ -12,6 +12,7 @@
 #include "main.h"
 #include "stm32h563/Middlewares/ST/EEPROM_Emul/Core/eeprom_emul_types.h"
 #include "stm32h5xx_hal.h"
+#include "stm32h5xx_hal_gpio.h"
 #include "stm32h5xx_hal_tim.h"
 
 #define LED_OK       LED2
@@ -155,6 +156,8 @@ bsp_error_t BSP_Init(void)
     /* Reset of all peripherals, Initializes the Flash interface and the
      * Systick. */
     HAL_Init();
+
+    BSP_ExternalCircuit_Enable();
 
     MX_IWDG_Init();
 
@@ -819,6 +822,16 @@ void BSP_Delay_Us(uint32_t us)
 
     /* Clear the update flag */
     __HAL_TIM_CLEAR_FLAG(&htim7, TIM_FLAG_UPDATE);
+}
+
+void BSP_ExternalCircuit_Enable()
+{
+    HAL_GPIO_WritePin(EN_AMPLIFIER_GPIO_Port, EN_AMPLIFIER_Pin, GPIO_PIN_SET);
+}
+
+void BSP_ExternalCircuit_Disable()
+{
+    HAL_GPIO_WritePin(EN_AMPLIFIER_GPIO_Port, EN_AMPLIFIER_Pin, GPIO_PIN_RESET);
 }
 
 /*============================================================================*/
