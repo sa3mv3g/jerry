@@ -554,6 +554,9 @@ modbus_exception_t modbus_cb_read_coils(uint16_t start_address,
             case JERRY_DEVICE_COIL_SNTP_COMMIT:
                 value = coils->sntp_commit;
                 break;
+            case JERRY_DEVICE_COIL_EXT_CIRCUIT_EN:
+                value = coils->ext_circuit_en;
+                break;
             default:
                 return MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS;
         }
@@ -739,6 +742,17 @@ modbus_exception_t modbus_cb_write_single_coil(uint16_t address, bool value)
                 dataToSave.u32 = ip;
                 doErr =
                     BSP_EEPROM_Write(MODBUS_NVM_SNTP_SERVER_IP, &dataToSave);
+            }
+            break;
+        case JERRY_DEVICE_COIL_EXT_CIRCUIT_EN:
+            coils->ext_circuit_en = value;
+            if (value)
+            {
+                BSP_ExternalCircuit_Enable();
+            }
+            else
+            {
+                BSP_ExternalCircuit_Disable();
             }
             break;
         default:

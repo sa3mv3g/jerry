@@ -581,4 +581,7 @@ bsp_error_t BSP_SinePwm_Init(void);
 bsp_error_t BSP_SinePwm_Update(uint8_t channel, float amplitude,
                                uint16_t phase_deg);
 
+void BSP_ExternalCircuit_Enable();
+void BSP_ExternalCircuit_Disable();
+
 #endif  // BSP_H
