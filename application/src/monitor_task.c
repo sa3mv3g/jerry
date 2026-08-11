@@ -132,15 +132,12 @@ static void print_adc_values(void)
 
         offset +=
             snprintf(adc_log + offset, sizeof(adc_log) - offset, "[ADC] ");
-
         for (uint8_t ch = 0; ch < BSP_ADC1_NUM_CHANNELS; ch++)
         {
-            uint32_t mv = (uint32_t)(adc_values[ch] * 3300.0f);
-            offset +=
-                snprintf(adc_log + offset, sizeof(adc_log) - offset,
-                         "CH%u:%4umV ", (unsigned int)ch, (unsigned int)mv);
+            uint32_t mv = (uint32_t)(adc_values[ch]);
+            offset += snprintf(adc_log + offset, sizeof(adc_log) - offset,
+                               "CH%u:%4u ", (unsigned int)ch, (unsigned int)mv);
         }
-
         LOG_INF("%s", adc_log);
     }
     else

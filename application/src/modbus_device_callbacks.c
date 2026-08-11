@@ -131,17 +131,14 @@ static inline bool range_includes(uint16_t start, uint16_t end, uint16_t lo,
  */
 static void sample_adc_into_struct(uint16_t channel, uint16_t *pStructField)
 {
-    float32_t adcValv  = 0;
-    uint16_t  adcValmv = 0;
+    float32_t adcValv = 0;
     if (BSP_ADC1_IsFilterSettled())
     {
         if (BSP_OK != BSP_ADC1_GetFilteredValue(channel, &adcValv))
         {
             adcValv = 0.0f;
         }
-
-        adcValmv      = (uint16_t)(adcValv * 1000.0);
-        *pStructField = adcValmv;
+        *pStructField = (uint16_t)(adcValv);
     }
 }
 
