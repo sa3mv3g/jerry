@@ -148,90 +148,70 @@ set(FLOAT16 OFF CACHE BOOL "Float16 support")
 message(STATUS "")
 message(STATUS "=== Fetching External Dependencies ===")
 
-# 1. Download Official STM32 LwIP Middleware
-message(STATUS "[1/4] Declaring STM32 LwIP Middleware (stm32-mw-lwip v2.1.3_20241213)...")
 FetchContent_Declare(
     FCD_stm32_mw_lwip
     GIT_REPOSITORY https://github.com/STMicroelectronics/stm32-mw-lwip.git
     GIT_TAG        v2.1.3_20241213
-    SOURCE_DIR     "${LWIP_DEPS_PATH}/stm32-mw-lwip"
     GIT_PROGRESS   TRUE
 )
 
-# 2. Download FreeRTOS-Kernel
-message(STATUS "[2/4] Declaring FreeRTOS-Kernel (V11.2.0)...")
 FetchContent_Declare(
     FCD_freertos_kernel
     GIT_REPOSITORY https://github.com/FreeRTOS/FreeRTOS-Kernel.git
     GIT_TAG        V11.2.0
-    SOURCE_DIR     "${DEPS_PATH}/FreeRTOS-Kernel"
     GIT_PROGRESS   TRUE
 )
 
-# 3. Download CMSIS_6 for core headers (must be before CMSIS-DSP)
-message(STATUS "[3/4] Declaring CMSIS_6 (v6.1.0)...")
 FetchContent_Declare(
     FCD_cmsis_6
     GIT_REPOSITORY https://github.com/ARM-software/CMSIS_6.git
     GIT_TAG        v6.1.0
-    SOURCE_DIR     "${DEPS_PATH}/CMSIS_6"
     SOURCE_SUBDIR  "EXTRACT_ONLY"
     GIT_PROGRESS   TRUE
 )
 
-# 4. Download CMSIS-DSP from official ARM GitHub repository
-message(STATUS "[4/5] Declaring CMSIS-DSP (v1.16.2)...")
 FetchContent_Declare(
     FCD_cmsis_dsp
     GIT_REPOSITORY https://github.com/ARM-software/CMSIS-DSP.git
     GIT_TAG        v1.16.2
-    SOURCE_DIR     "${DEPS_PATH}/CMSIS-DSP"
     GIT_PROGRESS   TRUE
 )
 
-# 6. Download SEGGER RTT
-message(STATUS "[6/6] Declaring SEGGER RTT (V8.58.0)...")
 FetchContent_Declare(
     FCD_segger_rtt
     GIT_REPOSITORY https://github.com/SEGGERMicro/RTT.git
     GIT_TAG        V8.58.0
-    SOURCE_DIR     "${DEPS_PATH}/segger_rtt"
     GIT_PROGRESS   TRUE
 )
 
-# Populate the content at configure time
-message(STATUS "")
-message(STATUS "Fetching dependencies (this may take a while on first run)...")
-message(STATUS "  - STM32 LwIP Middleware: ${LWIP_DEPS_PATH}/stm32-mw-lwip")
-message(STATUS "  - FreeRTOS-Kernel: ${DEPS_PATH}/FreeRTOS-Kernel")
-message(STATUS "  - CMSIS_6: ${DEPS_PATH}/CMSIS_6")
-message(STATUS "  - CMSIS-DSP: ${DEPS_PATH}/CMSIS-DSP")
-message(STATUS "  - SEGGER RTT: ${DEPS_PATH}/segger_rtt")
-message(STATUS "")
-
 FetchContent_GetProperties(FCD_stm32_mw_lwip)
 if(NOT fcd_stm32_mw_lwip_POPULATED)
+    message("fetching lwip")
     FetchContent_Populate(FCD_stm32_mw_lwip)
 endif()
 
 FetchContent_GetProperties(FCD_freertos_kernel)
 if(NOT fcd_freertos_kernel_POPULATED)
+    message("fetching freertos")
     FetchContent_Populate(FCD_freertos_kernel)
 endif()
 
 FetchContent_GetProperties(FCD_cmsis_6)
 if(NOT fcd_cmsis_6_POPULATED)
+    message("fetching cmsis")
     FetchContent_Populate(FCD_cmsis_6)
 endif()
 
 FetchContent_GetProperties(FCD_cmsis_dsp)
 if(NOT fcd_cmsis_dsp_POPULATED)
+    message("fetching cmsis_dsp")
     FetchContent_Populate(FCD_cmsis_dsp)
     add_subdirectory(${fcd_cmsis_dsp_SOURCE_DIR} ${fcd_cmsis_dsp_BINARY_DIR})
 endif()
 
 FetchContent_GetProperties(FCD_segger_rtt)
 if(NOT fcd_segger_rtt_POPULATED)
+    message("fetching segger rtt")
     FetchContent_Populate(FCD_segger_rtt)
 endif()
 
