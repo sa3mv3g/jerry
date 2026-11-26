@@ -3,6 +3,9 @@
 
 # Application CMakeLists.txt
 include(FetchContent)
+include(${CMAKE_SOURCE_DIR}/config/modbus_codegen.cmake)
+include(${CMAKE_SOURCE_DIR}/config/threadx_config.cmake)
+include(${CMAKE_SOURCE_DIR}/config/cmsis_dsp_config.cmake)
 
 # ==========================================================================
 # Optional Features
@@ -79,9 +82,6 @@ else()
 endif()
 message(STATUS "[Version] Git hash: ${APP_GIT_HASH}")
 
-# Include Modbus code generation configuration
-include(${CMAKE_SOURCE_DIR}/config/modbus_codegen.cmake)
-
 # Sources
 file(GLOB_RECURSE APP_SOURCES "src/*.c" "src/*.s")
 file(GLOB_RECURSE APP_HEADERS "inc/*.h")
@@ -94,53 +94,6 @@ set(LWIP_DEPS_PATH "${DEPS_PATH}/lwip")
 
 # All cmake FetchContent_Declare's target should be of
 # /FCD_.*/ to make name unique.
-
-# ==========================================================================
-# CMSIS-DSP Configuration (must be set BEFORE FetchContent_MakeAvailable)
-# ==========================================================================
-# Target processor - STM32H5 uses Cortex-M33
-set(ARM_CPU "cortex-m33" CACHE STRING "ARM CPU type")
-
-# Set CMSIS Core path (will be set after CMSIS_6 is fetched)
-set(CMSISCORE "${DEPS_PATH}/CMSIS_6/CMSIS/Core/Include" CACHE PATH "Path to CMSIS Core headers")
-
-# Enable all DSP functions
-set(BASICMATH OFF CACHE BOOL "Include Basic Math Functions")
-set(COMPLEXMATH OFF CACHE BOOL "Include Complex Math Functions")
-set(CONTROLLER OFF CACHE BOOL "Include Controller Functions")
-set(FASTMATH OFF CACHE BOOL "Include Fast Math Functions")
-set(FILTERING ON CACHE BOOL "Include Filtering Functions")
-set(MATRIX OFF CACHE BOOL "Include Matrix Functions")
-set(STATISTICS OFF CACHE BOOL "Include Statistics Functions")
-set(SUPPORT OFF CACHE BOOL "Include Support Functions")
-set(TRANSFORM OFF CACHE BOOL "Include Transform Functions")
-set(SVM OFF CACHE BOOL "Include SVM Functions")
-set(BAYES OFF CACHE BOOL "Include Bayes Functions")
-set(DISTANCE OFF CACHE BOOL "Include Distance Functions")
-set(INTERPOLATION OFF CACHE BOOL "Include Interpolation Functions")
-set(QUATERNIONMATH OFF CACHE BOOL "Include Quaternion Math Functions")
-set(WINDOW OFF CACHE BOOL "Include Window Functions")
-
-# Disable Neon (not available on Cortex-M33)
-set(NEON OFF CACHE BOOL "Neon acceleration")
-set(NEONEXPERIMENTAL OFF CACHE BOOL "Neon experimental")
-
-# Disable MVE (not available on Cortex-M33)
-set(MVEI OFF CACHE BOOL "MVE Integer")
-set(MVEF OFF CACHE BOOL "MVE Float")
-set(HELIUM OFF CACHE BOOL "Helium")
-
-# Enable loop unrolling for performance
-set(LOOPUNROLL ON CACHE BOOL "Loop unrolling")
-
-# Disable ROUNDING (use default truncation)
-set(ROUNDING OFF CACHE BOOL "Rounding")
-
-# Disable matrix check for performance
-set(MATRIXCHECK OFF CACHE BOOL "Matrix dimension check")
-
-# Float16 support
-set(FLOAT16 OFF CACHE BOOL "Float16 support")
 
 # ==========================================================================
 # FetchContent Progress Messages
@@ -184,103 +137,36 @@ FetchContent_Declare(
     GIT_PROGRESS   TRUE
 )
 
-FetchContent_GetProperties(FCD_stm32_mw_lwip)
-if(NOT fcd_stm32_mw_lwip_POPULATED)
-    message("fetching lwip")
-    FetchContent_Populate(FCD_stm32_mw_lwip)
-endif()
+message("fetching lwip")
+FetchContent_MakeAvailable(FCD_stm32_mw_lwip)
+message("fetching threadx")
+FetchContent_MakeAvailable(FCD_threadx_kernel)
+message("fetching cmsis")
+FetchContent_MakeAvailable(FCD_cmsis_6)
+FetchContent_GetProperties(FCD_cmsis_6 SOURCE_DIR CMSIS_CORE_PATH)
 
-FetchContent_GetProperties(FCD_threadx_kernel)
-if(NOT FCD_threadx_kernel_POPULATED)
-    message("fetching threadx")
-    FetchContent_Populate(FCD_threadx_kernel)
-endif()
+message("fetching cmsis_dsp")
+set(CMSISCORE ${CMSIS_CORE_PATH}/CMSIS/Core CACHE STRING "" FORCE)
+FetchContent_MakeAvailable(FCD_cmsis_dsp)
+FetchContent_GetProperties(FCD_cmsis_dsp SOURCE_DIR CMSIS_DSP_PATH)
 
-FetchContent_GetProperties(FCD_cmsis_6)
-if(NOT fcd_cmsis_6_POPULATED)
-    message("fetching cmsis")
-    FetchContent_Populate(FCD_cmsis_6)
-endif()
-
-FetchContent_GetProperties(FCD_cmsis_dsp)
-if(NOT fcd_cmsis_dsp_POPULATED)
-    message("fetching cmsis_dsp")
-    FetchContent_Populate(FCD_cmsis_dsp)
-    add_subdirectory(${fcd_cmsis_dsp_SOURCE_DIR} ${fcd_cmsis_dsp_BINARY_DIR})
-endif()
-
-FetchContent_GetProperties(FCD_segger_rtt)
-if(NOT fcd_segger_rtt_POPULATED)
-    message("fetching segger rtt")
-    FetchContent_Populate(FCD_segger_rtt)
-endif()
+message("fetching segger rtt")
+FetchContent_MakeAvailable(FCD_segger_rtt)
+FetchContent_GetProperties(FCD_segger_rtt SOURCE_DIR SEGGER_RTT_SRC_PATH)
 
 message(STATUS "")
 message(STATUS "=== Dependencies fetched successfully ===")
 message(STATUS "")
 
-# Export CMSIS paths for use by other libraries
-set(CMSIS_DSP_PATH "${DEPS_PATH}/CMSIS-DSP" CACHE PATH "Path to CMSIS-DSP library")
-set(CMSIS_CORE_PATH "${DEPS_PATH}/CMSIS_6/CMSIS/Core/Include" CACHE PATH "Path to CMSIS Core headers")
+# segger rtt does not comes with CMAKE. Need to add manually
 
-# ==========================================================================
-# Configure CMSIS-DSP target (created by FetchContent)
-# ==========================================================================
-if(TARGET CMSISDSP)
-    # Add compile definitions for Cortex-M33
-    target_compile_definitions(CMSISDSP
-        PUBLIC
-            ARM_MATH_CM33       # Cortex-M33 core
-            ARM_MATH_LOOPUNROLL # Enable loop unrolling
-    )
-
-    # Add CMSIS Core include path
-    target_include_directories(CMSISDSP
-        PUBLIC
-            ${CMSIS_CORE_PATH}
-    )
-
-    message(STATUS "[CMSIS-DSP] Library configured for Cortex-M33")
-else()
-    message(WARNING "[CMSIS-DSP] CMSISDSP target not found!")
-endif()
-
-# ==========================================================================
-# Configure Libraries
-# ==========================================================================
-message(STATUS "=== Configuring Libraries ===")
-
-message(STATUS "[1.6] Adding SEGGER RTT library...")
 add_library(segger_rtt STATIC 
-    "${fcd_segger_rtt_SOURCE_DIR}/RTT/SEGGER_RTT.c"
-    "${fcd_segger_rtt_SOURCE_DIR}/RTT/SEGGER_RTT_printf.c"
+    "${SEGGER_RTT_SRC_PATH}/RTT/SEGGER_RTT.c"
+    "${SEGGER_RTT_SRC_PATH}/RTT/SEGGER_RTT_printf.c"
 )
-target_include_directories(segger_rtt PUBLIC "${fcd_segger_rtt_SOURCE_DIR}/RTT")
-# Allow overriding SEGGER_RTT_Conf.h
+target_include_directories(segger_rtt PUBLIC "${SEGGER_RTT_SRC_PATH}/RTT")
 target_include_directories(segger_rtt BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/inc")
 
-
-message(STATUS "[2] Adding LwIP stack...")
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lwip)
-
-message(STATUS "[3] Adding Modbus stack...")
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/modbus)
-
-message(STATUS "[4] Adding ADC Filter library...")
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/adc_filter)
-
-message(STATUS "[5] Adding BSP (${BSP_DIR})...")
-add_subdirectory(${BSP_DIR})
-
-message(STATUS "[6] Adding I2C LCD library...")
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lcd_i2c)
-
-# Propagate includes to BSP which uses log macros
-target_include_directories(stm32h563_bsp PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/inc")
-target_include_directories(jerry_secure_app PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/inc")
-
-message(STATUS "=== Libraries configured ===")
-message(STATUS "")
 
 # ==========================================================================
 # Modbus Code Generation
@@ -294,10 +180,7 @@ modbus_generate_code(
     GENERATED_FILES MODBUS_GENERATED_SOURCES
 )
 
-add_executable(jerry_app
-    ${APP_SOURCES}
-    ${APP_HEADERS}
-)
+add_executable(jerry_app ${APP_SOURCES} ${APP_HEADERS})
 
 target_include_directories(jerry_app PRIVATE
     inc
