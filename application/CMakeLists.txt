@@ -156,9 +156,9 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
-    FCD_freertos_kernel
-    GIT_REPOSITORY https://github.com/FreeRTOS/FreeRTOS-Kernel.git
-    GIT_TAG        V11.2.0
+    FCD_threadx_kernel
+    GIT_REPOSITORY https://github.com/eclipse-threadx/threadx.git
+    GIT_TAG        v6.5.2.202603_rel
     GIT_PROGRESS   TRUE
 )
 
@@ -190,10 +190,10 @@ if(NOT fcd_stm32_mw_lwip_POPULATED)
     FetchContent_Populate(FCD_stm32_mw_lwip)
 endif()
 
-FetchContent_GetProperties(FCD_freertos_kernel)
-if(NOT fcd_freertos_kernel_POPULATED)
-    message("fetching freertos")
-    FetchContent_Populate(FCD_freertos_kernel)
+FetchContent_GetProperties(FCD_threadx_kernel)
+if(NOT FCD_threadx_kernel_POPULATED)
+    message("fetching threadx")
+    FetchContent_Populate(FCD_threadx_kernel)
 endif()
 
 FetchContent_GetProperties(FCD_cmsis_6)
@@ -250,16 +250,6 @@ endif()
 # ==========================================================================
 message(STATUS "=== Configuring Libraries ===")
 
-# 3rd Party Libs would be added here
-add_library(freertos_config INTERFACE)
-target_include_directories(freertos_config INTERFACE inc)
-target_compile_definitions(freertos_config INTERFACE projCOVERAGE_TEST=0)
-
-set(FREERTOS_PORT "GCC_ARM_CM33_NTZ_NONSECURE" CACHE STRING "FreeRTOS Port")
-
-message(STATUS "[1] Adding FreeRTOS-Kernel...")
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/FreeRTOS-Kernel)
-
 message(STATUS "[1.6] Adding SEGGER RTT library...")
 add_library(segger_rtt STATIC 
     "${fcd_segger_rtt_SOURCE_DIR}/RTT/SEGGER_RTT.c"
@@ -269,8 +259,6 @@ target_include_directories(segger_rtt PUBLIC "${fcd_segger_rtt_SOURCE_DIR}/RTT")
 # Allow overriding SEGGER_RTT_Conf.h
 target_include_directories(segger_rtt BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/inc")
 
-# Propagate includes to BSP and FreeRTOS which use log macros
-# (No longer propagating embedded_log, using app_log.h directly)
 
 message(STATUS "[2] Adding LwIP stack...")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lwip)
@@ -317,8 +305,6 @@ target_include_directories(jerry_app PRIVATE
     src/generated
     "${CMAKE_BINARY_DIR}/generated"
     ${APP_INCLUDE_DIRECTORIES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/FreeRTOS-Kernel/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/FreeRTOS-Kernel/portable/GCC/ARM_CM33_NTZ/non_secure
     ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/lcd_i2c/inc
 )
 
@@ -358,7 +344,6 @@ target_link_libraries(jerry_app
         stm32h563_bsp
         modbus_stack
         "-Wl,--no-whole-archive"
-        freertos_kernel
         adc_filter
         lcd_i2c
         segger_rtt
